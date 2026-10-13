@@ -97,6 +97,7 @@ window.flotaReload=()=>Object.values(stores).forEach(s=>{if(s.ready)s.load().cat
 window.flotaProbe=async()=>{try{const c=await C();const {error}=await c.from("docs").select("id").limit(1);return error}catch(e){return e}};
 window.flotaClaim=async(role,pin)=>{const c=await C();const r=await c.rpc("claim_role",{p_role:role,p_pin:pin});if(r.error)throw fail(r.error);return r.data};
 window.flotaRoles=async()=>{try{const c=await C();const r=await c.rpc("my_roles");return r.error?[]:(r.data||[])}catch(e){return[]}};
+window.flotaChangePin=async(role,np,adm)=>{const c=await C();const r=await c.rpc("change_pin",{p_role:role,p_new:np,p_admin_pin:adm});if(r.error)throw fail(r.error);return r.data};
 window.flotaDrop=async()=>{try{const c=await C();await c.rpc("drop_roles")}catch(e){}};
 window.flotaRefresh=async()=>{try{const c=await C();await c.removeAllChannels()}catch(e){}chan=null;await listen();window.flotaReload()};
 return {use:async n=>{if(n==="db")return window.supabase?dbApi:null;if(n==="user")return userApi;if(n==="assets")return assetsApi;if(n==="downloads")return dlApi;return null}}})();
@@ -297,7 +298,7 @@ const head=`<div class="top"><input id="q" type="search" placeholder="🔍 Busca
 const r=V.filter(v=>alertsOf(v)>0),ban=r.length?`<div class="card er" style="border-color:var(--er)"><b>⚠ ${r.length} vehículo(s) con alertas:</b> ${r.map(v=>H(v.id)).join(", ")}</div>`:"";
 const empty='<div class="card mu">Sin vehículos.</div>';
 if(qq){const f=V.filter(v=>match(v,qq));return head+`<div class="mu" style="margin:6px 0">${f.length} resultado(s)</div>`+(f.map(vcard).join("")||empty)}
-if(ftype===null)return head+ban+`<h2>Elige el tipo de vehículo</h2><div class="g">${tipos().map(t=>{const f=V.filter(v=>tp(v)===t),act=f.filter(v=>!v.sold),al=f.filter(v=>alertsOf(v)>0).length,so=f.length-act.length;return `<div class="card v" onclick="ftype='${H(t)}';render()"><b>${H(t)}</b><div class="mu">${act.length} activos${so?` · ${so} vendidos`:""}</div>${al?`<span class="b er">⚠ ${al} con alertas</span>`:""}</div>`}).join("")}</div>`+infCard()+(showAdm()?partsCard()+bkCard():"");
+if(ftype===null)return head+ban+`<h2>Elige el tipo de vehículo</h2><div class="g">${tipos().map(t=>{const f=V.filter(v=>tp(v)===t),act=f.filter(v=>!v.sold),al=f.filter(v=>alertsOf(v)>0).length,so=f.length-act.length;return `<div class="card v" onclick="ftype='${H(t)}';render()"><b>${H(t)}</b><div class="mu">${act.length} activos${so?` · ${so} vendidos`:""}</div>${al?`<span class="b er">⚠ ${al} con alertas</span>`:""}</div>`}).join("")}</div>`+infCard()+(showAdm()?partsCard()+pinCard()+bkCard():"");
 const f=V.filter(v=>tp(v)===ftype).sort((a,b)=>(a.sold?1:0)-(b.sold?1:0)||a.id.localeCompare(b.id));
 return head+`<button onclick="ftype=null;render()" style="margin-bottom:10px">← Tipos</button><h2>${H(ftype)} (${f.length})</h2>`+(f.map(vcard).join("")||empty)}
 function datosHtml(v){const F=[["tipo","Tipo"],["marca","Marca"],["model","Modelo"],["year","Año"],["color","Color"],["chasis","N° chasis"],["motor","N° motor"]];
@@ -480,6 +481,22 @@ if(!pl)return al("Elige el vehículo");if(!n)return al("Ingresa tu nombre");if(!
 const r={plate:pl,type:"dano",kind:"Daño",date:$("#d_d").value||today(),km:+$("#d_k").value||0,driver:$("#d_c").value.trim(),desc:ds,text:$("#d_m").value,op:n,uid:ME_ID,photos:PH};
 if(JSON.stringify(r).length>240000)return al("Las fotos pesan demasiado; usa menos fotos");
 try{await db.collection("logs").doc("l"+Date.now()).set(r);sn(n);PH=[];al("Daño registrado ✔");render(true)}catch(e){al("No se pudo guardar (revisa tu conexión)")}}
+const pinCard=()=>`<div class="card"><h2>🔑 Cambiar PIN</h2><p class="mu">Cambia el PIN de un perfil. Las sesiones abiertas de ese perfil se cierran y deben ingresar el PIN nuevo.</p>
+<div class="g"><div><label>Perfil</label><select id="pc_r"><option value="mec">Mecánico</option><option value="lav">Lavado de vehículos</option><option value="adm">Administrador</option></select></div>
+<div><label>PIN nuevo (4 dígitos)</label><input id="pc_n" type="password" inputmode="numeric" maxlength="4" autocomplete="off" oninput="this.value=this.value.replace(/[^0-9]/g,'')"></div>
+<div><label>Repite el PIN nuevo</label><input id="pc_n2" type="password" inputmode="numeric" maxlength="4" autocomplete="off" oninput="this.value=this.value.replace(/[^0-9]/g,'')"></div>
+<div><label>Tu PIN de administrador actual</label><input id="pc_a" type="password" inputmode="numeric" maxlength="4" autocomplete="off" oninput="this.value=this.value.replace(/[^0-9]/g,'')"></div></div>
+<p><button class="p" style="width:100%" onclick="changePin()">Cambiar PIN</button></p><div id="pc_err" class="er" style="font-size:14px"></div></div>`;
+async function changePin(){bl();const r=$("#pc_r").value,n=$("#pc_n").value,n2=$("#pc_n2").value,a=$("#pc_a").value,m=[];
+if(!/^\d{4}$/.test(n))m.push("PIN nuevo de 4 dígitos");else if(n!==n2)m.push("Los dos PIN nuevos deben ser iguales");
+if(!/^\d{4}$/.test(a))m.push("Tu PIN de administrador actual");
+if(m.length)return showErr("pc_err",m);showErr("pc_err",[]);
+const nm={mec:"Mecánico",lav:"Lavado de vehículos",adm:"Administrador"}[r];
+if(!await cf(`¿Cambiar el PIN del perfil «${nm}»? Las sesiones abiertas de ese perfil se cerrarán.`))return;
+let res;try{res=await window.flotaChangePin(r,n,a)}catch(e){return showErr("pc_err",["No se pudo cambiar el PIN: "+((e&&e.message)||"error de conexión")])}
+const msg={ok:"",bad:"Tu PIN de administrador actual no es correcto",locked:"Demasiados intentos. Espera unos minutos",forbidden:"Solo el administrador puede cambiar PIN",badpin:"El PIN nuevo debe tener 4 dígitos"}[res];
+if(res!=="ok")return showErr("pc_err",[msg||("No autorizado ("+res+")")]);
+["pc_n","pc_n2","pc_a"].forEach(i=>$("#"+i).value="");al("PIN de "+nm+" actualizado ✔")}
 const bkCard=()=>`<div class="card"><h2>💾 Respaldo</h2><p class="mu">Descarga una copia de todos los datos: un archivo JSON para restaurar y un Excel para consultar.</p><button class="p" style="width:100%" onclick="backup()">Descargar respaldo de datos</button>
 <p class="mu" style="margin-top:12px">Restaurar o migrar: elige un archivo JSON de respaldo. Los registros se agregan o se actualizan; no se borra nada.</p><input id="imp_f" type="file" accept=".json,application/json"><p><button style="width:100%" onclick="importBackup()">Importar respaldo (JSON)</button></p><div id="imp_s" class="mu"></div></div>`;
 async function importBackup(){const f=$("#imp_f").files[0],st=$("#imp_s");if(!f)return al("Elige primero el archivo JSON");
