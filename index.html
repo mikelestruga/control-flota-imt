@@ -2,6 +2,14 @@
 <html lang="es"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Control de Flota</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#1f4e9e">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Flota IMT">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <style>
 :root{--bg:#f6f7f9;--card:#fff;--tx:#1b1f24;--mu:#6b7480;--bd:#e1e5ea;--ac:#1f6feb;--ok:#1a7f37;--wa:#0969da;--er:#c62828;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
@@ -39,33 +47,38 @@ const SB_URL="https://diogbjjhkxtlbpvvvzla.supabase.co",SB_KEY="sb_publishable_d
 const blobUrl=id=>SB_URL+"/storage/v1/object/public/"+SB_BUCKET+"/"+String(id).split("/").map(encodeURIComponent).join("/");
 window.claude=(function(){
 let sb=null;const stores={};let chan=null;
-const getSb=()=>sb||(sb=window.supabase.createClient(SB_URL,SB_KEY,{auth:{persistSession:false},realtime:{params:{eventsPerSecond:10}}}));
+const getSb=()=>sb||(sb=window.supabase.createClient(SB_URL,SB_KEY,{auth:{persistSession:true,autoRefreshToken:true,storageKey:"flota-auth"},realtime:{params:{eventsPerSecond:10}}}));
+let authP=null;
+function auth(){return authP||(authP=(async()=>{const c=getSb();const g=await c.auth.getSession();
+  if(!g.data||!g.data.session){const r=await c.auth.signInAnonymously();if(r.error)throw fail(r.error)}
+  const e=await c.rpc("ensure_base");if(e.error)throw fail(e.error)})().catch(err=>{authP=null;throw err}))}
+const C=async()=>{await auth();return getSb()};
 const fail=(e,code)=>{const x=new Error((e&&e.message)||"error");x.code=code||(e&&e.code)||"error";return x};
 function store(coll){
   if(stores[coll])return stores[coll];
   const s=stores[coll]={map:new Map(),subs:new Set(),ready:false,loading:null};
   s.emit=()=>{const arr=[...s.map.entries()].map(([id,d])=>({id,data:()=>d}));s.subs.forEach(cb=>{try{cb(arr)}catch(e){console.error(e)}})};
-  s.load=async()=>{const c=getSb();let from=0;const m=new Map();
+  s.load=async()=>{const c=await C();let from=0;const m=new Map();
     for(;;){const {data,error}=await c.from("docs").select("id,data").eq("coll",coll).order("id").range(from,from+99);
       if(error)throw fail(error);data.forEach(r=>m.set(r.id,r.data));if(data.length<100)break;from+=100}
     s.map=m;s.ready=true;s.emit()};
   s.start=()=>{if(!s.loading)s.loading=s.load().catch(e=>{console.error(e);window.flotaErr=(e&&e.message)||"error";const st=document.getElementById("st");if(st)st.textContent="Error de base de datos: "+window.flotaErr;s.loading=null;setTimeout(()=>s.start(),8000)})};
   return s}
-function listen(){if(chan)return;const c=getSb();
+async function listen(){if(chan)return;chan=1;let c;try{c=await C()}catch(e){chan=null;return}
   chan=c.channel("flota-docs").on("postgres_changes",{event:"*",schema:"public",table:"docs"},p=>{
     const row=p.eventType==="DELETE"?p.old:p.new;if(!row||!row.coll)return;const s=stores[row.coll];if(!s||!s.ready)return;
     if(p.eventType==="DELETE")s.map.delete(row.id);else s.map.set(row.id,row.data);s.emit()}).subscribe(st=>{if(st==="SUBSCRIBED")Object.values(stores).forEach(s=>{if(s.ready)s.load().catch(()=>{})})})}
 function docRef(coll,id){return {
-  async get(){const {data,error}=await getSb().from("docs").select("data").eq("coll",coll).eq("id",id).maybeSingle();if(error)throw fail(error);
+  async get(){const {data,error}=await (await C()).from("docs").select("data").eq("coll",coll).eq("id",id).maybeSingle();if(error)throw fail(error);
     return {id,exists:!!data,data:()=>data?data.data:undefined}},
-  async set(d){const {error}=await getSb().from("docs").upsert({coll,id,data:d,updated_at:new Date().toISOString()});if(error)throw fail(error);
+  async set(d){const {error}=await (await C()).from("docs").upsert({coll,id,data:d,updated_at:new Date().toISOString()});if(error)throw fail(error);
     const s=stores[coll];if(s&&s.ready){s.map.set(id,d);s.emit()}},
-  async create(d){const {error}=await getSb().from("docs").insert({coll,id,data:d});if(error)throw fail(error,error.code==="23505"?"dup":error.code);
+  async create(d){const {error}=await (await C()).from("docs").insert({coll,id,data:d});if(error)throw fail(error,error.code==="23505"?"dup":error.code);
     const s=stores[coll];if(s&&s.ready){s.map.set(id,d);s.emit()}},
   async update(p){const cur=await this.get();if(!cur.exists)throw fail({message:"not found"},"not_found");const d={...cur.data(),...p};
-    const {error}=await getSb().from("docs").update({data:d,updated_at:new Date().toISOString()}).eq("coll",coll).eq("id",id);if(error)throw fail(error);
+    const {error}=await (await C()).from("docs").update({data:d,updated_at:new Date().toISOString()}).eq("coll",coll).eq("id",id);if(error)throw fail(error);
     const s=stores[coll];if(s&&s.ready){s.map.set(id,d);s.emit()}},
-  async delete(){const {error}=await getSb().from("docs").delete().eq("coll",coll).eq("id",id);if(error)throw fail(error);
+  async delete(){const {error}=await (await C()).from("docs").delete().eq("coll",coll).eq("id",id);if(error)throw fail(error);
     const s=stores[coll];if(s&&s.ready){s.map.delete(id);s.emit()}},
   async acquire(){return {acquired:true}},
   onSnapshot(cb){const s=store(coll);listen();const f=()=>{const d=s.map.get(id);cb({id,exists:d!==undefined,data:()=>d})};
@@ -75,13 +88,17 @@ let uid="";try{uid=localStorage.getItem("flota_uid")||"";if(!uid){uid="u"+Math.r
 const userApi={isOwner:()=>true,canEdit:()=>true,can:()=>true,id:async()=>uid,me:async()=>({name:""}),profiles:async()=>({})};
 const assetsApi={async upload(f){const safe=(f.name||"archivo").normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^A-Za-z0-9._-]+/g,"_").slice(-80);
     const path=Date.now()+"_"+Math.random().toString(36).slice(2,8)+"_"+safe;
-    const {error}=await getSb().storage.from(SB_BUCKET).upload(path,f,{contentType:f.type||"application/octet-stream",upsert:false});if(error)throw fail(error);
+    const {error}=await (await C()).storage.from(SB_BUCKET).upload(path,f,{contentType:f.type||"application/octet-stream",upsert:false});if(error)throw fail(error);
     return {id:path,url:blobUrl(path)}},
-  async delete(path){await getSb().storage.from(SB_BUCKET).remove([path])}};
+  async delete(path){await (await C()).storage.from(SB_BUCKET).remove([path])}};
 const dlApi={async save({filename,data}){const b=data instanceof Blob?data:new Blob([data]);const u=URL.createObjectURL(b),a=document.createElement("a");
     a.href=u;a.download=filename;document.body.appendChild(a);a.click();setTimeout(()=>{a.remove();URL.revokeObjectURL(u)},4000)}};
 window.flotaReload=()=>Object.values(stores).forEach(s=>{if(s.ready)s.load().catch(console.error)});
-window.flotaProbe=async()=>{const {error}=await getSb().from("docs").select("id").limit(1);return error};
+window.flotaProbe=async()=>{try{const c=await C();const {error}=await c.from("docs").select("id").limit(1);return error}catch(e){return e}};
+window.flotaClaim=async(role,pin)=>{const c=await C();const r=await c.rpc("claim_role",{p_role:role,p_pin:pin});if(r.error)throw fail(r.error);return r.data};
+window.flotaRoles=async()=>{try{const c=await C();const r=await c.rpc("my_roles");return r.error?[]:(r.data||[])}catch(e){return[]}};
+window.flotaDrop=async()=>{try{const c=await C();await c.rpc("drop_roles")}catch(e){}};
+window.flotaRefresh=async()=>{try{const c=await C();await c.removeAllChannels()}catch(e){}chan=null;await listen();window.flotaReload()};
 return {use:async n=>{if(n==="db")return window.supabase?dbApi:null;if(n==="user")return userApi;if(n==="assets")return assetsApi;if(n==="downloads")return dlApi;return null}}})();
 
 
@@ -127,6 +144,8 @@ async function init(){
   try{db=await claude.use("db")}catch(e){}
   if(!db){$("#st").textContent="Sin base de datos: modo solo lectura";render();return}
   try{U=await claude.use("user");if(U){ME_ID=await U.id();ME=(await U.me())||{}}}catch(e){}
+  try{let rs=await window.flotaRoles();if(rs.some(r=>r!=="op"&&!UN[r])){await window.flotaDrop();rs=await window.flotaRoles()}
+    Object.keys(UN).forEach(k=>{if(!rs.includes(k))delete UN[k]});try{sessionStorage.setItem("unl",JSON.stringify(UN))}catch(e){}}catch(e){}
   uReady=true;$("#st").textContent="En línea"+(meName()?" · "+meName():"");
   try{const pe=await window.flotaProbe();if(pe){$("#st").textContent="Error de base de datos: "+pe.message;al("Error de base de datos: "+pe.message+(/relation|does not exist|schema/i.test(pe.message)?" (¿ejecutaste el script SQL en Supabase?)":""))}}catch(e){$("#st").textContent="Sin conexión a la base de datos"}
   db.collection("vehicles").onSnapshot(s=>{VALL=items(s);render()});
@@ -230,8 +249,10 @@ async function editLog(id){const l=L.find(x=>x.id===id);if(!l)return;const f=l.t
 async function delLog(id){if(!await cf("¿Eliminar este registro? No se puede deshacer."))return;try{await db.collection("logs").doc(id).delete()}catch(e){al("No se pudo eliminar")}}
 async function editVeh(){const v=V.find(x=>x.id===sel);if(!v)return;const m=await pr("Modelo",v.model||"");if(m===null)return;const y=await pr("Año",v.year||"");if(y===null)return;const k=await pr("Kilometraje actual",v.km||0);if(k===null)return;try{await db.collection("vehicles").doc(sel).update({model:m,year:y,km:+k||0})}catch(e){al("No se pudo editar")}}
 async function delVeh(){if(!await cf("¿Eliminar "+sel+" y todo su historial? No se puede deshacer."))return;const id=sel;try{for(const l of L.filter(x=>x.plate===id))await db.collection("logs").doc(l.id).delete();for(const d of DF.filter(x=>x.plate===id))await db.collection("docfiles").doc(d.id).delete();for(const d of VD.filter(x=>x.plate===id))await db.collection("vdocs").doc(d.id).delete();await db.collection("vehicles").doc(id).delete();sel=null;render(true)}catch(e){al("No se pudo eliminar")}}
-function setMode(m){PH=[];if(m===""||m==="op"){UN={};try{sessionStorage.removeItem("unl")}catch(e){}}if(m==="adm"&&!isAdm())return al("El modo Administrador requiere permiso de administrador.");try{localStorage.setItem("mode",m)}catch(e){}mode=m;sel=null;adding=false;render(true)}
-const chooser=()=>`<div class="card"><h2>¿Cómo vas a usar la app?</h2><p class="mu">Elige tu perfil. Puedes cambiarlo después con “Cambiar modo”.</p><button class="p" style="width:100%;margin-bottom:8px" onclick="setMode('op')">🚗 Operador</button><button style="width:100%;margin-bottom:8px" onclick="setMode('mec')">🛠 Mecánico</button><button style="width:100%;margin-bottom:8px" onclick="setMode('lav')">🧼 Lavado de vehículos</button>${isAdm()?`<button style="width:100%" onclick="setMode('adm')">🔐 Administrador</button>`:`<div class="mu">🔐 El modo Administrador requiere permiso de Editor.</div>`}</div>`;
+function setMode(m){PH=[];if(m===""||m==="op"){UN={};try{sessionStorage.removeItem("unl")}catch(e){}if(window.flotaDrop)window.flotaDrop().then(()=>window.flotaRefresh())}if(m==="adm"&&!isAdm())return al("El modo Administrador requiere permiso de administrador.");try{localStorage.setItem("mode",m)}catch(e){}mode=m;sel=null;adding=false;render(true)}
+const chooser=()=>`<div class="card"><h2>¿Cómo vas a usar la app?</h2><p class="mu">Elige tu perfil. Puedes cambiarlo después con “Cambiar modo”.</p><button class="p" style="width:100%;margin-bottom:8px" onclick="setMode('op')">🚗 Operador</button><button style="width:100%;margin-bottom:8px" onclick="setMode('mec')">🛠 Mecánico</button><button style="width:100%;margin-bottom:8px" onclick="setMode('lav')">🧼 Lavado de vehículos</button>${isAdm()?`<button style="width:100%" onclick="setMode('adm')">🔐 Administrador</button>`:`<div class="mu">🔐 El modo Administrador requiere permiso de Editor.</div>`}</div>`+installHtml();
+const installHtml=()=>{const std=window.matchMedia&&matchMedia("(display-mode: standalone)").matches||navigator.standalone;if(std)return"";const ios=/iphone|ipad|ipod/i.test(navigator.userAgent);
+return instEv?`<div class="card"><h2>📲 Instalar en el celular</h2><p class="mu">Agrega la app a la pantalla de inicio para abrirla como una aplicación.</p><button class="p" style="width:100%" onclick="instalar()">Instalar app</button></div>`:ios?`<div class="card"><h2>📲 Instalar en el iPhone</h2><p class="mu">Toca el botón Compartir de Safari y elige «Agregar a inicio».</p></div>`:`<div class="card"><h2>📲 Instalar en el celular</h2><p class="mu">En Chrome abre el menú ⋮ y elige «Instalar app» o «Agregar a la pantalla de inicio».</p></div>`};
 function okm(){const v=V.find(x=>x.id===$("#o_p").value),u=$("#o_u").value;$("#o_h").textContent=v?(u==="h"?`Horas actuales registradas: ${(+v.hrs||0).toLocaleString("es-CL")}`:`Km actual registrado: ${(v.km||0).toLocaleString("es-CL")}`):""}
 function ounit(){const h=$("#o_u").value==="h";$("#o_il").textContent=h?"Horas inicio de operación (opcional)":"Km inicio de operación (opcional)";$("#o_kl").textContent=h?"Horas final de operación (obligatorio)":"Km final de operación (obligatorio)";okm()}
 const fl=k=>k==0?"0 (vacío)":k==8?"1 (lleno)":k+"/8";
@@ -283,14 +304,17 @@ function datosHtml(v){const F=[["tipo","Tipo"],["marca","Marca"],["model","Model
 const ed=showAdm(),cell=([k,n])=>`<div><label>${n}</label>${ed?(k==="tipo"?`<select onchange="upVeh({tipo:this.value})">${tipos().map(t=>`<option${t===v.tipo?" selected":""}>${H(t)}</option>`).join("")}</select>`:`<input value="${H(v[k]||"")}" onchange="upVeh({${k}:this.value})">`):`<div style="word-break:break-all"><b>${H(v[k]||"—")}</b></div>`}</div>`;
 const ex=Object.entries(v.extras||{}).map(([k,x])=>`<div><label>${H(k)}</label><div><b>${H(x)}</b></div></div>`).join("");
 return `<div class="card"><h2>Datos del vehículo</h2><div class="g">${F.map(cell).join("")}${ex}</div></div>`}
-const PINH={lav:"c528c2b66d4396c698e186db75b4519344c12b00f09cc2d8d3cc0ae0bafe48f6",mec:"dbec4d12acb700ee33385b0dec8932e3634adf8e5271a5a432d3e2f1a8f75e1b",adm:"b8ade794ee312df6ed90fd97d6bfa5872dc75a838fcd6b82a8c68718ebed4dc5"};
 let UN={};try{UN=JSON.parse(sessionStorage.getItem("unl")||"{}")}catch(e){}
 let fails=0,lockUntil=0;
-async function sha(t){const b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode("flota-imt:"+t));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join("")}
 async function checkPin(){const m=mode,v=$("#pin").value;if(v.length<4)return;
 if(Date.now()<lockUntil){$("#pe").textContent="Demasiados intentos. Espera unos segundos.";$("#pin").value="";return}
-if(await sha(v)===PINH[m]){fails=0;UN[m]=true;try{sessionStorage.setItem("unl",JSON.stringify(UN))}catch(e){}render(true)}
-else{fails++;$("#pin").value="";if(fails>=5){lockUntil=Date.now()+30000;fails=0;$("#pe").textContent="Demasiados intentos. Espera 30 segundos."}else $("#pe").textContent="PIN incorrecto"}}
+let r;try{r=await window.flotaClaim(m,v)}catch(e){$("#pin").value="";$("#pe").textContent="No se pudo verificar el PIN: "+((e&&e.message)||"error de conexión");return}
+if(r==="ok"){fails=0;UN[m]=true;try{sessionStorage.setItem("unl",JSON.stringify(UN))}catch(e){}await window.flotaRefresh();render(true);return}
+$("#pin").value="";
+if(r==="locked"){$("#pe").textContent="Demasiados intentos. Espera unos minutos."}
+else if(r==="nopin"){$("#pe").textContent="El PIN de este perfil aún no está configurado."}
+else if(r==="bad"){fails++;if(fails>=5){lockUntil=Date.now()+30000;fails=0;$("#pe").textContent="Demasiados intentos. Espera 30 segundos."}else $("#pe").textContent="PIN incorrecto"}
+else $("#pe").textContent="No autorizado ("+r+")"}
 const pinHtml=m=>`<div class="card" style="max-width:360px;margin:24px auto;text-align:center"><h2>${{adm:"🔐 Administrador",lav:"🧼 Lavado de vehículos"}[m]||"🛠 Mecánico"}</h2><p class="mu">Ingresa el PIN de 4 dígitos</p><input id="pin" type="password" inputmode="numeric" maxlength="4" autocomplete="off" oninput="this.value=this.value.replace(/[^0-9]/g,'');if(this.value.length===4)checkPin()" style="text-align:center;font-size:28px;letter-spacing:12px"><div id="pe" class="er" style="min-height:22px;margin-top:6px"></div><button onclick="setMode('')" style="margin-top:6px">← Volver</button></div>`;
 async function upFile(k,el){const f=el.files[0];if(!f)return;let as=null;try{as=await claude.use("assets")}catch(e){}
 if(!as)return al("Subir archivos no está disponible en este momento.");
@@ -593,5 +617,9 @@ if(us.length){const w2=wb.addWorksheet("Repuestos utilizados");w2.columns=[["Fec
 const ing=[...PIN].sort((a,b)=>(a.date||"").localeCompare(b.date||"")).map(g=>[fdate(g.date),g.name,+g.qty||0,g.unit||"un",g.oc||"",g.fname||"",g.by||""]);
 if(ing.length){const w3=wb.addWorksheet("Ingresos de stock");w3.columns=[["Fecha",13],["Repuesto",36],["Cantidad",11],["Unidad",9],["N° orden de compra",22],["Documento adjunto",30],["Registrado por",22]].map(c=>({header:c[0],width:c[1]}));ing.forEach(r=>w3.addRow(r));xs(w3,ing.length,[3],["Total de ingresos",ing.length])}
 try{const buf=await wb.xlsx.writeBuffer();await dl.save({filename:`Stock_Repuestos_${today()}.xlsx`,data:new Blob([buf],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"})})}catch(e){if(!e||e.code!=="declined")al("No se pudo descargar el stock")}}
+let instEv=null;window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();instEv=e;try{render()}catch(x){}});
+window.addEventListener("appinstalled",()=>{instEv=null;try{render()}catch(x){}});
+async function instalar(){if(!instEv)return;instEv.prompt();try{await instEv.userChoice}catch(e){}instEv=null;render(true)}
+if("serviceWorker"in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));
 init();
 </script></body></html>
