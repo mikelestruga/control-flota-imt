@@ -49,7 +49,7 @@ function store(coll){
     for(;;){const {data,error}=await c.from("docs").select("id,data").eq("coll",coll).order("id").range(from,from+99);
       if(error)throw fail(error);data.forEach(r=>m.set(r.id,r.data));if(data.length<100)break;from+=100}
     s.map=m;s.ready=true;s.emit()};
-  s.start=()=>{if(!s.loading)s.loading=s.load().catch(e=>{console.error(e);s.loading=null;setTimeout(()=>s.start(),5000)})};
+  s.start=()=>{if(!s.loading)s.loading=s.load().catch(e=>{console.error(e);window.flotaErr=(e&&e.message)||"error";const st=document.getElementById("st");if(st)st.textContent="Error de base de datos: "+window.flotaErr;s.loading=null;setTimeout(()=>s.start(),8000)})};
   return s}
 function listen(){if(chan)return;const c=getSb();
   chan=c.channel("flota-docs").on("postgres_changes",{event:"*",schema:"public",table:"docs"},p=>{
@@ -80,6 +80,8 @@ const assetsApi={async upload(f){const safe=(f.name||"archivo").normalize("NFD")
   async delete(path){await getSb().storage.from(SB_BUCKET).remove([path])}};
 const dlApi={async save({filename,data}){const b=data instanceof Blob?data:new Blob([data]);const u=URL.createObjectURL(b),a=document.createElement("a");
     a.href=u;a.download=filename;document.body.appendChild(a);a.click();setTimeout(()=>{a.remove();URL.revokeObjectURL(u)},4000)}};
+window.flotaReload=()=>Object.values(stores).forEach(s=>{if(s.ready)s.load().catch(console.error)});
+window.flotaProbe=async()=>{const {error}=await getSb().from("docs").select("id").limit(1);return error};
 return {use:async n=>{if(n==="db")return window.supabase?dbApi:null;if(n==="user")return userApi;if(n==="assets")return assetsApi;if(n==="downloads")return dlApi;return null}}})();
 
 
@@ -126,6 +128,7 @@ async function init(){
   if(!db){$("#st").textContent="Sin base de datos: modo solo lectura";render();return}
   try{U=await claude.use("user");if(U){ME_ID=await U.id();ME=(await U.me())||{}}}catch(e){}
   uReady=true;$("#st").textContent="En línea"+(meName()?" · "+meName():"");
+  try{const pe=await window.flotaProbe();if(pe){$("#st").textContent="Error de base de datos: "+pe.message;al("Error de base de datos: "+pe.message+(/relation|does not exist|schema/i.test(pe.message)?" (¿ejecutaste el script SQL en Supabase?)":""))}}catch(e){$("#st").textContent="Sin conexión a la base de datos"}
   db.collection("vehicles").onSnapshot(s=>{VALL=items(s);render()});
   db.collection("logs").onSnapshot(s=>{L=items(s);render();resolveNames()});
   db.collection("docfiles").onSnapshot(s=>{DF=items(s);render()});
@@ -460,13 +463,14 @@ let d;try{d=JSON.parse(await f.text())}catch(e){return al("El archivo no es un r
 if(!d||d.app!=="control-flota")return al("El archivo no parece un respaldo de Control de Flota");
 const map={vehicles:d.vehicles,logs:d.logs,vales:d.vales,docfiles:d.docfiles,parts:d.parts,pins:d.pins},tot=Object.values(map).reduce((a,x)=>a+(x||[]).length,0);
 if(!await cf(`Se importarán ${tot} registros. ¿Continuar?`))return;
-let ok=0,bad=0;
+let ok=0,bad=0,lastE="";
 try{for(const [coll,arr] of Object.entries(map)){if(!arr)continue;
 for(let i=0;i<arr.length;i+=25){const rows=arr.slice(i,i+25).filter(x=>x&&x.id).map(x=>{const {id,...rest}=x;return {coll,id:String(id),data:rest,updated_at:new Date().toISOString()}});
 if(!rows.length)continue;const sbc=window.supabase.createClient(SB_URL,SB_KEY,{auth:{persistSession:false}});const {error}=await sbc.from("docs").upsert(rows);
-if(error){bad+=rows.length;console.error(error)}else ok+=rows.length;st.textContent=`Importando… ${ok} de ${tot}`}}
+if(error){bad+=rows.length;lastE=error.message;console.error(error)}else ok+=rows.length;st.textContent=`Importando… ${ok} de ${tot}`}}
 if(d.counter&&d.counter.yy&&d.counter.last)await db.collection("counters").doc("lv"+d.counter.yy).set({last:d.counter.last});
-st.textContent=`Listo: ${ok} importados`+(bad?`, ${bad} con error`:"");al(bad?"Importación con errores, revisa el detalle":"Importación terminada ✔")}
+else if(Array.isArray(d.counters))for(const c of d.counters)if(c&&c.id)await db.collection("counters").doc(String(c.id)).set({last:+c.last||0});
+st.textContent=`Listo: ${ok} importados`+(bad?`, ${bad} con error: ${lastE}`:"");if(window.flotaReload)window.flotaReload();al(bad?"Importación con errores: "+lastE:"Importación terminada ✔ ("+ok+" registros)")}
 catch(e){al("No se pudo importar: "+((e&&e.message)||"error"))}}
 async function backup(){if(!showAdm())return;if(!window.ExcelJS)return al("No se pudo cargar el generador de Excel");
 const dl=await claude.use("downloads");if(!dl)return al("La descarga no está disponible en este momento.");
