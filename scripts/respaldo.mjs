@@ -66,7 +66,8 @@ async function main() {
 
   // Archivos adjuntos: solo los nuevos desde el último respaldo
   let hechos; try { hechos = new Set(JSON.parse((await getState("archivos_subidos")) || "[]")); } catch { hechos = new Set(); }
-  const nuevos = d.vdocs.filter(x => x.aid && !hechos.has(x.aid));
+  const deRegistros = d.logs.flatMap(l => (l.files || []).map(f => ({ aid: f.aid, plate: l.plate, key: "registros", name: f.name })));
+  const nuevos = [...d.vdocs, ...deRegistros].filter(x => x.aid && !hechos.has(x.aid));
   console.log(`Archivos adjuntos nuevos: ${nuevos.length}`);
   let bytes = 0, ok = 0, fallos = 0;
   for (const x of nuevos) {
