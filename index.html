@@ -271,7 +271,13 @@ const isAdm=()=>!!U&&(U.isOwner()||U.canEdit());
 const showAdm=()=>isAdm()&&mode==="adm";
 const adm=l=>showAdm()?`<span style="white-space:nowrap"><button onclick="editLog('${l.id}')" title="Editar">✏️</button> <button onclick="delLog('${l.id}')" title="Eliminar">🗑</button></span>`:"";
 async function editLog(id){const l=L.find(x=>x.id===id);if(!l)return;const f=l.type==="dano"?"desc":"text";const t=await pr("Editar detalle",l[f]||"");if(t===null)return;const k=await pr("Kilometraje",l.km||0);if(k===null)return;try{await db.collection("logs").doc(id).update({[f]:t,km:+k||0})}catch(e){al("No se pudo editar")}}
-async function delLog(id){if(!await cf("¿Eliminar este registro? No se puede deshacer."))return;try{await db.collection("logs").doc(id).delete()}catch(e){al("No se pudo eliminar")}}
+const odoK=l=>l.unit==="h"?0:(+l.km||0),odoH=l=>l.unit==="h"?(+l.hrs||+l.km||0):(+l.hrs||0);
+async function fixOdo(v,l){const rest=L.filter(x=>x.plate===v.id&&x.id!==l.id);
+for(const [f,fn,lab,dg] of [["km",odoK,"kilometraje",0],["hrs",odoH,"horómetro",1]]){const dv=fn(l),cur=+v[f]||0;if(!dv||dv<cur)continue;const m=Math.max(0,...rest.map(fn));
+if(m>0&&m<cur){if(await cf(`El ${lab} del vehículo ${v.id} quedó en ${(+cur).toLocaleString("es-CL")} por el registro que eliminaste. ¿Volver a ${m.toLocaleString("es-CL")} (el mayor de los registros que quedan)?`))await db.collection("vehicles").doc(v.id).update({[f]:m})}
+else if(m===0){const a=await pr(`Eliminaste el único registro con ${lab}. ${lab[0].toUpperCase()+lab.slice(1)} actual de ${v.id}: ${(+cur).toLocaleString("es-CL")}. Escribe el valor correcto (o deja vacío para no cambiarlo)`,"");if(a!==null&&String(a).trim()!==""){const n=+String(a).replace(/\./g,"").replace(",",".");if(n>=0)await db.collection("vehicles").doc(v.id).update({[f]:n});else al("Valor no válido")}}}}
+async function delLog(id){const l=L.find(x=>x.id===id);if(!await cf("¿Eliminar este registro? No se puede deshacer."))return;try{await db.collection("logs").doc(id).delete()}catch(e){return al("No se pudo eliminar")}
+try{const v=l&&V.find(x=>x.id===l.plate);if(v)await fixOdo(v,l)}catch(e){al("El registro se eliminó, pero no se pudo ajustar el kilometraje: corrígelo en «Editar datos».")}}
 async function editVeh(){const v=V.find(x=>x.id===sel);if(!v)return;const m=await pr("Modelo",v.model||"");if(m===null)return;const y=await pr("Año",v.year||"");if(y===null)return;const k=await pr("Kilometraje actual",v.km||0);if(k===null)return;try{await db.collection("vehicles").doc(sel).update({model:m,year:y,km:+k||0})}catch(e){al("No se pudo editar")}}
 async function chPlate(){const old=sel,v=V.find(x=>x.id===old);if(!v||!showAdm())return;
 const raw=await pr("Nueva patente para "+old+" (corrige un error de digitación)",old);if(raw===null)return;const nw=norm(raw);if(!nw)return al("Ingresa la patente");if(nw===old)return al("La patente es la misma");
