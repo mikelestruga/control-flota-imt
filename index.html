@@ -413,16 +413,16 @@ async function pkRun(){if(PK.busy)return;PK.busy=true;try{for(const x of PK.item
 async function pkProc(x){try{
 x.st="up";pkRender();x.err="";x.fp=x.file.name+"|"+x.file.size;
 if(x.file.size>30*1024*1024){x.err="Pesa más de 30 MB";x.st="err";return}
-if(!x.force){const prev=VD.find(d=>d.fp===x.fp),q=PK.items.find(o=>o!==x&&o.fp===x.fp&&["up","read","ready","saved"].includes(o.st));if(prev||q){x.err=prev?`Este archivo ya fue subido (${prev.plate}, ${fdate(prev.date)}). No se leyó con IA para no gastar lecturas.`:"Este mismo archivo ya está en esta subida.";x.st="dup";return}}
+x.other="";if(!x.force){const pv=VD.filter(d=>d.fp===x.fp),prev=pv.find(d=>!x.plate||d.plate===x.plate),oth=x.plate&&pv.find(d=>d.plate!==x.plate);if(oth)x.other="Ojo: un archivo con el mismo nombre y tamaño está guardado en OTRO vehículo ("+oth.plate+"). Aquí se leerá y se guardará solo en "+x.plate+"; no se toca el otro vehículo.";const q=PK.items.find(o=>o!==x&&o.fp===x.fp&&["up","read","ready","saved"].includes(o.st));if(prev||q){x.err=prev?`Este archivo ya fue subido (${prev.plate}, ${fdate(prev.date)}). No se leyó con IA para no gastar lecturas.`:"Este mismo archivo ya está en esta subida.";x.st="dup";return}}
 x.buf=await x.file.arrayBuffer();
 if(x.isPdf){try{const L=await loadPL(),d=await L.PDFDocument.load(x.buf,{ignoreEncryption:true});x.pages=d.getPageCount()}catch(e){x.pages=0}
 if(x.pages>100){x.err="Tiene más de 100 páginas: ingresa a mano";x.st="err";return}}
-if(!PK.ia){pkManual(x);return}
+if(!PK.ia){pkManual(x);if(x.other)x.warn.unshift(x.other);return}
 const as=await claude.use("assets");if(!x.aid){x.aid=(await as.upload(x.file)).id}
 x.st="read";pkRender();
 const {data,error}=await window.flotaFn("leer-doc",{path:x.aid});
 if(error){let m="No se pudo leer con IA";try{const st=error.context&&error.context.status;if(st===404)m="La función leer-doc no está instalada en Supabase";const b=await error.context.json();m=({tope:"Se alcanzó el tope diario de 100 lecturas. Usa «Ingresar a mano» o prueba mañana.",solo_admin:"Solo el Administrador puede leer con IA",sin_clave:"Falta configurar la clave de IA en Supabase",muy_pesado:"El archivo pesa más de 30 MB",no_autenticado:"Sesión no válida: recarga la página",anthropic:"La IA no respondió ("+(b.detalle||b.status)+")",sin_respuesta:"La IA no devolvió resultado (el archivo puede ser muy pesado o ilegible). Reintenta o ingresa a mano.",interno:"Error interno de la función: "+(b.detalle||""),no_archivo:"No se encontró el archivo subido: reintenta",ruta:"Ruta de archivo inválida"})[b.error]||b.detalle||m}catch(_){m=m+" [HTTP "+((error.context&&error.context.status)||"?")+"]"}x.err=m;x.st="err";return}
-pkParse(x,data);x.st="ready"
+pkParse(x,data);if(x.other)x.warn.unshift(x.other);x.st="ready"
 }catch(e){x.err=(e&&e.message)||"Error";x.st="err"}finally{pkRender()}}
 function pkParse(x,data){const res=data.resultado||{};if(data.usadas!=null)PK.used=data.usadas;const cy=String(new Date().getFullYear());x.warn=[...(res.advertencias||[])];
 x.docs=(res.documentos||[]).map(d=>{let dt=KD.includes(d.tipo)?(d.vencimiento||""):"";if(dt&&d.solo_mes)dt=lastDay(dt);let cu="",note=d.detalle||"";
@@ -442,7 +442,10 @@ const sl=x.docs.filter(d=>d.incl);if(!sl.length)return fail("No hay ningún docu
 for(const d of sl){if(x.isPdf&&!(d.from>=1&&d.to>=d.from&&(!x.pages||d.to<=x.pages)))return fail("Páginas no válidas en "+TN[d.tipo]+" (revisa «de – a»; el archivo tiene "+(x.pages||"?")+" páginas).");
 if(KD.includes(d.tipo)&&!d.date&&!await cf(TN[d.tipo]+" no tiene fecha de vencimiento. ¿Guardar igual?"))return}
 const dups=sl.filter(d=>dupOf(x,d).length&&!d.replace);if(dups.length&&!await cf("Este vehículo ya tiene "+dups.map(d=>TN[d.tipo]+" "+(d.year||"")).join(", ")+". Si guardas quedarán repetidos. ¿Guardar igual?"))return;
-const olds=[...new Map(sl.filter(d=>d.replace).flatMap(d=>dupOf(x,d)).map(z=>[z.id,z])).values()];
+const pls=[...new Set(sl.map(d=>d.placa).filter(Boolean))],mine=np(v.id).slice(0,6),mis=pls.filter(q=>q!==mine);
+if(mis.length&&!await cf("⚠ La patente leída en el documento ("+mis.join(", ")+") NO coincide con el vehículo elegido ("+v.id+").\n\n¿Guardar igual en "+v.id+"? (En ese caso NO se reemplazará ni borrará ningún documento.)"))return;
+const olds=mis.length?[]:[...new Map(sl.filter(d=>d.replace).flatMap(d=>dupOf(x,d)).filter(z=>z.plate===v.id).map(z=>[z.id,z])).values()];
+if(olds.length&&!await cf("Se van a REEMPLAZAR (borrar) estos documentos de "+v.id+":\n• "+olds.map(z=>(z.name||"archivo")+" ("+(TN[z.key]||z.key)+" "+(z.year||"sin año")+")").join("\n• ")+"\n\nLos documentos de otros vehículos no se tocan. ¿Continuar?"))return;
 try{pg("Preparando…");const as=await claude.use("assets"),cy=String(new Date().getFullYear()),uid=ME_ID,docs={...(v.docs||{})},cert={...(v.cert||{})};
 const mk=async(key,name,aid,type,yr)=>db.collection("vdocs").doc("d"+Date.now()+Math.random().toString(36).slice(2,5)).set({plate:v.id,key,name,aid,type,year:yr||"",date:today(),uid,fp:x.fp||""});
 const up=async()=>{if(!x.aid)x.aid=(await as.upload(x.file)).id;return x.aid};
@@ -454,7 +457,7 @@ pg("Subiendo "+TN[d.tipo]+"…");const f=new File([await nd.save()],`${v.id}_${T
 await mk(d.tipo,`${v.id} - ${TN[d.tipo]}${d.year?" "+d.year:""}.pdf`,r.id,"application/pdf",d.year)}
 const yrs=sl.map(d=>d.year).filter(Boolean).sort();await mk("paquete",x.file.name,await up(),"application/pdf",yrs.length?yrs[yrs.length-1]:cy)}
 let pc=v.pcuota||"";for(const d of sl){if(KD.includes(d.tipo)&&d.date)docs[d.tipo]=d.date;if(d.tipo==="jaula"||d.tipo==="lamina")cert[d.tipo]=true;if(d.tipo==="permiso"&&d.cuota)pc=d.cuota==="1"?"1":"total"}
-if(olds.length){pg("Reemplazando los anteriores…");for(const z of olds){await db.collection("vdocs").doc(z.id).delete();try{await as.delete(z.aid)}catch(e){}}}
+if(olds.length){pg("Reemplazando los anteriores…");for(const z of olds){const cur=VD.find(q=>q.id===z.id);if(!cur||cur.plate!==v.id||cur.key!==z.key)continue;await db.collection("vdocs").doc(z.id).delete();try{await as.delete(z.aid)}catch(e){}}}
 pg("Actualizando la ficha…");await db.collection("vehicles").doc(v.id).update({docs,cert,pcuota:pc});
 x.st="saved";x.buf=null;x.msg="";x.prog="";pkRender();al("Guardado en "+v.id+" ✔")}catch(e){fail("No se pudo guardar: "+((e&&e.message)||JSON.stringify(e)||"error"))}}
 async function pkSaveAll(){for(let i=0;i<PK.items.length;i++){const x=PK.items[i];if(x.st==="ready"&&x.plate)await pkSave(i)}const f=PK.items.filter(x=>x.st==="ready"&&!x.plate).length;if(f)al(f+" archivo(s) sin vehículo: elígelo y guarda")}
@@ -663,7 +666,7 @@ async function delVale(id){const r=VL.find(x=>x.id===id);if(!r)return;if(!await 
 try{await db.collection("vales").doc(id).delete();const rest=VL.filter(x=>x.yy===r.yy&&x.id!==id).map(x=>x.num);
 if(r.num>Math.max(0,...rest))await setCounter(r.yy,Math.max(r.yy===26?145:0,...rest));al("Vale eliminado")}catch(e){al("No se pudo eliminar el vale")}}
 function dlg(html,init){return new Promise(res=>{const o=document.createElement("div");o.style.cssText="position:fixed;inset:0;background:#0009;display:flex;align-items:center;justify-content:center;z-index:99;padding:16px";o.innerHTML=`<div class="card" style="max-width:380px;width:100%;margin:0">${html}</div>`;document.body.appendChild(o);init(o,v=>{o.remove();res(v)})})}
-const cf=m=>dlg(`<p>${H(m)}</p><div style="display:flex;gap:8px;justify-content:flex-end"><button id="dn">Cancelar</button><button class="p" id="dy">Aceptar</button></div>`,(o,d)=>{o.querySelector("#dn").onclick=()=>d(false);o.querySelector("#dy").onclick=()=>d(true)});
+const cf=m=>dlg(`<p style="white-space:pre-line">${H(m)}</p><div style="display:flex;gap:8px;justify-content:flex-end"><button id="dn">Cancelar</button><button class="p" id="dy">Aceptar</button></div>`,(o,d)=>{o.querySelector("#dn").onclick=()=>d(false);o.querySelector("#dy").onclick=()=>d(true)});
 const pr=(m,v)=>dlg(`<p>${H(m)}</p><input id="di" value="${H(v??"")}"><div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px"><button id="dn">Cancelar</button><button class="p" id="dy">Aceptar</button></div>`,(o,d)=>{const i=o.querySelector("#di");i.focus();o.querySelector("#dn").onclick=()=>d(null);o.querySelector("#dy").onclick=()=>d(i.value)});
 const al=m=>{const t=document.createElement("div");t.textContent=m;t.style.cssText="position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--tx);color:var(--bg);padding:10px 14px;border-radius:8px;z-index:100;max-width:90%;text-align:center";document.body.appendChild(t);setTimeout(()=>t.remove(),3500)};
 const f1=n=>(Math.round(n*10)/10).toLocaleString("es-CL");
