@@ -202,7 +202,7 @@ function detail(){
   return `<button onclick="sel=null;render()">← Flota</button>
   <div class="card" style="margin-top:10px"><div class="top" style="margin:0"><span class="pl">${H(v.id)}</span><span>${(v.km||0).toLocaleString("es-CL")} km${v.hrs?` · ${(+v.hrs).toLocaleString("es-CL")} h`:""}${cons}</span></div>
   <div>${H([v.marca,v.model,v.year].filter(Boolean).join(" "))}${v.sold?' <span class="b mu">Vendido</span>':""}</div>
-  ${showAdm()?`<div style="margin-top:6px"><button onclick="editVeh()">✏️ Editar datos</button> <button onclick="delVeh()" style="color:var(--er)">🗑 Eliminar vehículo</button></div>`:""}<div style="margin-top:6px"><label>📍 Asignado a</label><input value="${H(v.assign||"")}" onchange="upVeh({assign:this.value})"></div>
+  ${showAdm()?`<div style="margin-top:6px"><button onclick="editVeh()">✏️ Editar datos</button> <button onclick="chPlate()">🔁 Cambiar patente</button> <button onclick="delVeh()" style="color:var(--er)">🗑 Eliminar vehículo</button></div>`:""}<div style="margin-top:6px"><label>📍 Asignado a</label><input value="${H(v.assign||"")}" onchange="upVeh({assign:this.value})"></div>
   <div>${DOCS.map(([k,n])=>badge(n,(v.docs||{})[k])).join("")}${mbadge(v)}${hbadge(v)}</div></div>
   <div class="tabs">${Object.entries(T).map(([k,n])=>`<button class="${tab===k?"on":""}" onclick="tab='${k}';PH=[];render()">${n}</button>`).join("")}</div>${tab!=="res"?`<button onclick="tab='res';PH=[];render()" style="margin-bottom:10px">← Resumen</button>`:""}${body}`}
 async function upVeh(p){try{await db.collection("vehicles").doc(sel).update(p)}catch(e){al("Sin permiso para editar")}}
@@ -265,6 +265,20 @@ const adm=l=>showAdm()?`<span style="white-space:nowrap"><button onclick="editLo
 async function editLog(id){const l=L.find(x=>x.id===id);if(!l)return;const f=l.type==="dano"?"desc":"text";const t=await pr("Editar detalle",l[f]||"");if(t===null)return;const k=await pr("Kilometraje",l.km||0);if(k===null)return;try{await db.collection("logs").doc(id).update({[f]:t,km:+k||0})}catch(e){al("No se pudo editar")}}
 async function delLog(id){if(!await cf("¿Eliminar este registro? No se puede deshacer."))return;try{await db.collection("logs").doc(id).delete()}catch(e){al("No se pudo eliminar")}}
 async function editVeh(){const v=V.find(x=>x.id===sel);if(!v)return;const m=await pr("Modelo",v.model||"");if(m===null)return;const y=await pr("Año",v.year||"");if(y===null)return;const k=await pr("Kilometraje actual",v.km||0);if(k===null)return;try{await db.collection("vehicles").doc(sel).update({model:m,year:y,km:+k||0})}catch(e){al("No se pudo editar")}}
+async function chPlate(){const old=sel,v=V.find(x=>x.id===old);if(!v||!showAdm())return;
+const raw=await pr("Nueva patente para "+old+" (corrige un error de digitación)",old);if(raw===null)return;const nw=norm(raw);if(!nw)return al("Ingresa la patente");if(nw===old)return al("La patente es la misma");
+const ex=V.find(x=>x.id===nw);if(ex&&ex.renameFrom!==old)return al("Ya existe un vehículo con la patente "+nw);
+if(!await cf(`¿Cambiar la patente ${old} por ${nw}? Se moverá todo su historial, documentos y vales a la nueva patente.`))return;
+let paso="crear la nueva ficha";
+try{const data={...v};delete data.id;
+if(!ex)await db.collection("vehicles").doc(nw).set({...data,renameFrom:old});
+paso="mover el historial";for(const l of L.filter(x=>x.plate===old))await db.collection("logs").doc(l.id).update({plate:nw});
+paso="mover los documentos adjuntos";for(const d of VD.filter(x=>x.plate===old))await db.collection("vdocs").doc(d.id).update({plate:nw});
+paso="mover las fotos de documentos";for(const d of DF.filter(x=>x.plate===old)){const {id,...rest}=d;await db.collection("docfiles").doc(nw+"_"+d.key).set({...rest,plate:nw});await db.collection("docfiles").doc(d.id).delete()}
+paso="actualizar los vales de lavado";for(const x of VALL.filter(x=>x.vid===old||np(x.plate)===np(old)))await db.collection("vales").doc(x.id).update({vid:x.vid===old?nw:x.vid,plate:np(x.plate)===np(old)?nw:x.plate});
+paso="eliminar la ficha antigua";await db.collection("vehicles").doc(old).delete();
+await db.collection("vehicles").doc(nw).update({renameFrom:null});
+sel=nw;render(true);al("Patente cambiada a "+nw+" ✔")}catch(e){al("Falló al "+paso+". Nada se perdió: la ficha "+old+" sigue existiendo. Repite «Cambiar patente» con la misma patente nueva para continuar.")}}
 async function delVeh(){if(!await cf("¿Eliminar "+sel+" y todo su historial? No se puede deshacer."))return;const id=sel;try{for(const l of L.filter(x=>x.plate===id))await db.collection("logs").doc(l.id).delete();for(const d of DF.filter(x=>x.plate===id))await db.collection("docfiles").doc(d.id).delete();for(const d of VD.filter(x=>x.plate===id))await db.collection("vdocs").doc(d.id).delete();await db.collection("vehicles").doc(id).delete();sel=null;render(true)}catch(e){al("No se pudo eliminar")}}
 function setMode(m){PH=[];if(m===""||m==="op"){UN={};try{sessionStorage.removeItem("unl")}catch(e){}if(window.flotaDrop)window.flotaDrop().then(()=>window.flotaRefresh())}if(m==="adm"&&!isAdm())return al("El modo Administrador requiere permiso de administrador.");try{localStorage.setItem("mode",m)}catch(e){}mode=m;sel=null;adding=false;render(true)}
 const chooser=()=>`<div class="card"><h2>¿Cómo vas a usar la app?</h2><p class="mu">Elige tu perfil. Puedes cambiarlo después con “Cambiar modo”.</p><button class="p" style="width:100%;margin-bottom:8px" onclick="setMode('op')">🚗 Operador</button><button style="width:100%;margin-bottom:8px" onclick="setMode('mec')">🛠 Mecánico</button><button style="width:100%;margin-bottom:8px" onclick="setMode('lav')">🧼 Lavado de vehículos</button>${isAdm()?`<button style="width:100%" onclick="setMode('adm')">🔐 Administrador</button>`:`<div class="mu">🔐 El modo Administrador requiere permiso de Editor.</div>`}</div>`+installHtml();
