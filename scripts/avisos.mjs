@@ -52,7 +52,6 @@ export function calcular(vehs, hoy, forzar = false, logs = []) {
     if (v.sold) continue;
     for (const [k, nombre] of DOCS) {
       let f = (v.docs || {})[k], nom = nombre;
-      if (k === "revision") { const h = (v.docs || {}).homologacion; if (h && (!f || h > f)) { f = h; nom = "Revisión técnica (certificado de homologación)"; } } // la homologación reemplaza a la revisión mientras esté vigente
       if (k === "permiso" && v.pcuota === "1") nom = "Permiso de circulación (solo 1ª cuota: falta pagar la 2ª)";
       if (!f || !/^\d{4}-\d{2}-\d{2}$/.test(f)) continue;
       const d = dias(hoy, f);
