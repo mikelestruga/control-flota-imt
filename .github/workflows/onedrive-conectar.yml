@@ -19,4 +19,5 @@ jobs:
         env:
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
           ONEDRIVE_CLIENT_ID: ${{ secrets.ONEDRIVE_CLIENT_ID }}
+          ONEDRIVE_TENANT_ID: ${{ secrets.ONEDRIVE_TENANT_ID }}
         run: node scripts/onedrive-conectar.mjs

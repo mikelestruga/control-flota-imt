@@ -2,7 +2,8 @@
 const SB_URL = process.env.SUPABASE_URL || "https://diogbjjhkxtlbpvvvzla.supabase.co";
 const SB_KEY = process.env.SUPABASE_SERVICE_KEY || "";
 const CLIENT_ID = process.env.ONEDRIVE_CLIENT_ID || "";
-const AUTH = "https://login.microsoftonline.com/common/oauth2/v2.0";
+const TENANT = process.env.ONEDRIVE_TENANT_ID || "common"; // ID de directorio (inquilino) de la empresa
+const AUTH = `https://login.microsoftonline.com/${TENANT}/oauth2/v2.0`;
 const SCOPE = "Files.ReadWrite offline_access";
 
 export const sbHeaders = () => { const h = { apikey: SB_KEY }; if (SB_KEY.startsWith("eyJ")) h.Authorization = "Bearer " + SB_KEY; return h; };
