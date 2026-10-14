@@ -30,7 +30,7 @@ Reglas:
 - La patente (placa): devuélvela en mayúsculas, sin guiones, puntos ni espacios. La patente chilena tiene 6 caracteres (ej. LWKL20); el dígito después del guion final (ej. "-6" en "LWKL.20-6") es el dígito verificador y NO es parte de la patente. "LWKL-20 - 6", "LWKL20-6" y "LWKL.20-6" deben devolverse como "LWKL20".
 - Toda página debe quedar dentro de algún documento (usa "otro" si no encaja).
 - Si ves señales de que falta una página (documento cortado, página ilegible, patente distinta entre documentos), agrégalo en "advertencias".
-Responde SOLO llamando a la herramienta "registrar".`;
+No escribas texto: responde ÚNICAMENTE llamando a la herramienta "registrar" con todos los documentos encontrados.`;
 
 const SCHEMA = {
   type: "object",
@@ -102,9 +102,8 @@ Deno.serve(async (req) => {
       method: "POST",
       headers: { "x-api-key": apiKey, "anthropic-version": "2023-06-01", "content-type": "application/json" },
       body: JSON.stringify({
-        model: MODELO, max_tokens: 3000,
+        model: MODELO, max_tokens: 8000,
         tools: [{ name: "registrar", description: "Registra los documentos encontrados", input_schema: SCHEMA }],
-        tool_choice: { type: "tool", name: "registrar" },
         messages: [{ role: "user", content: [part, { type: "text", text: PROMPT }] }],
       }),
     });
