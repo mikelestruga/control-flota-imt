@@ -250,7 +250,7 @@ return datosHtml(v)+`<div class="card"><div class="top" style="margin:0"><h2>Doc
 <div class="card"><h2>Próxima mantención</h2>${i?`<b>${i.next.toLocaleString("es-CL")} km</b> · ${i.rem<0?"atrasada "+(-i.rem):"faltan "+i.rem} km (cada ${i.every.toLocaleString("es-CL")} km)`:`<span class="mu">Sin plan definido.</span> <button onclick="tab='plan';render()">Definir</button>`}</div>`
 +sec("Kilometraje",g("km"),"km")+sec("Últimas mantenciones",g("mant"),"mant")+sec("Daños y entregas",g("dano").map(l=>({...l,desc:(l.kind?l.kind+": ":"")+(l.desc||"")})),"dano")+sec("Combustible",g("comb"),"comb")+sec("Asignaciones",g("asig"),"asig")}
 const meName=()=>ME.name||ME.email||"";
-const who=l=>(l.op||NM[l.uid]||l.by||"Usuario")+(l.src&&SRC[l.src]?" · "+SRC[l.src]:"");
+const whoN=l=>l.op||NM[l.uid]||l.by||"Usuario",who=l=>whoN(l)+(l.src&&l.type!=="comb"&&SRC[l.src]?" · Origen: "+SRC[l.src]:"");
 const canW=()=>!U||U.can("data.write")!==false;
 async function resolveNames(){if(!U)return;const ids=[...new Set(L.map(l=>l.uid).filter(x=>x&&!(x in NM)))];if(!ids.length)return;try{const ps=await U.profiles(ids);ids.forEach(i=>NM[i]=(ps[i]&&(ps[i].name||ps[i].email))||"")}catch(e){ids.forEach(i=>NM[i]="")}render()}
 const sig=()=>[mode,sel,adding,tab,ftype].join("|");let last=sig();
@@ -467,7 +467,7 @@ const sumL=r=>({n:r.length,l:r.reduce((s,x)=>s+ +x.liters,0),c:r.reduce((s,x)=>s
 function combHtml(){const tabs=[["proy","⛽ Proyectos"],["mant","🛠 Mantención"],["hist","📋 Historial"],["stat","📊 Estadísticas"]];
 const body=CB.tab==="proy"||CB.tab==="mant"?cbForm():CB.tab==="hist"?cbHist():cbStat();
 return `<div class="tabs">${tabs.map(([k,n])=>`<button class="${CB.tab===k?"on":""}" onclick="CB.tab='${k}';render(true)">${n}</button>`).join("")}</div>${body}`}
-const cbRow=l=>`<div class="row"><div><b>${H(l.plate)}</b> · ${H(fdate(l.date))} · ${H(CAT[l.cat]||"Sin sección")}<div>${fnum(l.liters,1)} L · ${money(l.cost)}${+l.liters&&+l.cost?` (${money(l.cost/l.liters)}/L)`:""} · ${H(FT[l.ft]||"")} · ${odo(l)?fnum(odo(l),unitOf(l)==="h"?1:0)+" "+unitOf(l):"sin km"}${l.full===false?" · parcial":""}</div><div class="mu">Cargó: ${H(l.cargo||"—")} · Faena: ${H(l.faena||"—")}${l.boleta?" · Boleta "+H(l.boleta):""}</div></div><span class="mu">${H(l.op||"")}<br>${adm(l)}</span></div>`;
+const cbRow=l=>`<div class="row"><div><b>${H(l.plate)}</b> · ${H(fdate(l.date))} · ${H(CAT[l.cat]||"Sin sección")}<div>${fnum(l.liters,1)} L · ${money(l.cost)}${+l.liters&&+l.cost?` (${money(l.cost/l.liters)}/L)`:""} · ${H(FT[l.ft]||"")} · ${odo(l)?fnum(odo(l),unitOf(l)==="h"?1:0)+" "+unitOf(l):"sin km"}</div><div class="mu">Cargó: ${H(l.cargo||"—")} · Faena: ${H(l.faena||"—")}</div></div><span class="mu">${H(l.op||"")}<br>${adm(l)}</span></div>`;
 function cbForm(){const cat=CB.tab,vs=[...V].filter(v=>!v.sold).sort((a,b)=>a.id.localeCompare(b.id)),rec=fuelLogs().filter(l=>l.cat===cat).sort((a,b)=>(b.date||"").localeCompare(a.date||"")||String(b.id).localeCompare(String(a.id))).slice(0,10);
 return `<div class="card"><h2>Combustible · ${cat==="proy"?"Proyectos":"Mantención"}</h2><div class="g">
 <div><label>Patente</label><input id="c_p" list="c_pl" autocomplete="off" autocapitalize="characters" placeholder="Escribe o elige" oninput="cbVeh()"><datalist id="c_pl">${vs.map(v=>`<option value="${H(v.id)}">${H([v.marca,v.model].filter(Boolean).join(" "))}</option>`).join("")}</datalist><div id="c_vi" class="mu"></div></div>
@@ -478,10 +478,8 @@ return `<div class="card"><h2>Combustible · ${cat==="proy"?"Proyectos":"Mantenc
 <div><label>Medir en</label><select id="c_u" onchange="cbUnit()"><option value="km">Kilometraje</option><option value="h">Horas (horómetro)</option></select></div>
 <div><label id="c_kl">Kilometraje del vehículo</label><input id="c_k" type="number" step="any" inputmode="decimal"></div>
 <div><label>Litros</label><input id="c_l" type="number" step="0.01" inputmode="decimal"></div>
-<div><label>Costo total ($)</label><input id="c_c" type="number" inputmode="numeric"></div>
-<div><label>Faena de asignación</label><input id="c_f" autocomplete="off"></div>
-<div><label>¿Llenó el estanque?</label><select id="c_full"><option value="1">Sí</option><option value="0">No (carga parcial)</option></select></div>
-<div><label>N° de boleta o guía (opcional)</label><input id="c_b" autocomplete="off"></div></div>
+<div><label>Costo total de la carga ($)</label><input id="c_c" type="number" inputmode="numeric"></div>
+<div><label>Faena de asignación</label><input id="c_f" autocomplete="off"></div></div>
 <label style="margin-top:8px">Notas (opcional)</label><textarea id="c_n" rows="2"></textarea>
 <p><button class="p" style="width:100%" onclick="cbSave()">Guardar carga</button></p><div id="c_err" class="er" style="font-size:14px"></div></div>
 <div class="card"><h2>Últimas cargas de ${cat==="proy"?"proyectos":"mantención"}</h2>${rec.map(cbRow).join("")||'<div class="mu">Aún no hay cargas.</div>'}</div>`}
@@ -500,15 +498,15 @@ const cur=u==="h"?+v.hrs||0:+v.km||0,uu=u==="h"?"horómetro":"kilometraje",dg=u=
 if(cur&&k<cur&&!await cf(`El ${uu} ingresado (${fnum(k,dg)}) es menor al último registrado (${fnum(cur,dg)}). ¿Guardar igual?`))return;
 if(cur&&k-cur>(u==="h"?500:3000)&&!await cf(`El ${uu} subió ${fnum(k-cur,dg)} desde el último registro (${fnum(cur,dg)}). ¿Es correcto?`))return;
 if(li>400&&!await cf(`${fnum(li,1)} litros es una carga muy grande. ¿Es correcto?`))return;
-const pp=co/li;if((pp<300||pp>3000)&&!await cf(`El precio resulta ${money(pp)} por litro, fuera de lo habitual. ¿Es correcto?`))return;
-const r={plate:v.id,type:"comb",cat:CB.tab,ft:g("c_t"),cargo:w,op:e,unit:u,liters:li,cost:co,date:g("c_d"),faena:fa,full:g("c_full")==="1",text:g("c_n").trim(),boleta:g("c_b").trim(),uid:ME_ID};
+const pp=co/li;if((pp<300||pp>3000)&&!await cf(`Con ese costo total y esos litros, el precio sale ${money(pp)} por litro, fuera de lo habitual. ¿Es correcto?`))return;
+const r={plate:v.id,type:"comb",cat:CB.tab,ft:g("c_t"),cargo:w,op:e,unit:u,liters:li,cost:co,date:g("c_d"),faena:fa,full:true,text:g("c_n").trim(),uid:ME_ID};
 if(u==="h"){r.hrs=k;r.km=0}else r.km=k;
 sn(e);
 try{const t=Date.now();await db.collection("logs").doc("l"+t).set(r);
 const up={};if(u==="h"){if(k>(+v.hrs||0))up.hrs=k}else if(k>(+v.km||0))up.km=k;
 if(Object.keys(up).length)await db.collection("vehicles").doc(v.id).update(up);
 await db.collection("logs").doc("l"+t+"k").set({plate:v.id,type:"km",date:r.date,kmFin:k,km:k,unit:u,text:"Carga de combustible",op:e,uid:ME_ID});
-["c_k","c_l","c_c","c_w","c_b","c_n"].forEach(id=>{const el=$("#"+id);if(el)el.value=""});al("Carga guardada ✔");render(true)}catch(err){al("No se pudo guardar: "+((err&&err.message)||"error"))}}
+["c_k","c_l","c_c","c_w","c_n"].forEach(id=>{const el=$("#"+id);if(el)el.value=""});al("Carga guardada ✔");render(true)}catch(err){al("No se pudo guardar: "+((err&&err.message)||"error"))}}
 function cbHist(){const f=CB.f,rows=cbFilter(),s=sumL(rows),m=CB.m||today().slice(0,7);
 const opt=(o,v)=>o.map(([k,n])=>`<option value="${k}"${k===v?" selected":""}>${n}</option>`).join("");
 return `<div class="card"><h2>Historial de combustible</h2><div class="g">
@@ -545,9 +543,9 @@ if(kind==="mes"){const m=CB.m||today().slice(0,7);rows=all.filter(l=>(l.date||""
 rows=[...rows].sort((a,b)=>np(a.plate).localeCompare(np(b.plate))||(a.date||"").localeCompare(b.date||"")||String(a.id).localeCompare(String(b.id)));
 const wb=new ExcelJS.Workbook(),s=sumL(rows),P="#,##0",D="#,##0.0",F="dd/mm/yyyy";
 const dt=d=>{const[a,b,c]=(d||"").split("-");return c?new Date(+a,+b-1,+c):null};
-cbSheet(wb,"Detalle",[["Fecha",12],["Patente",11],["Sección",13],["Combustible",12],["Litros",9],["Costo total ($)",14],["$ por litro",11],["Medido en",10],["Kilometraje / horas",16],["Estanque lleno",10],["Quién cargó",22],["Encargado que ingresó",22],["Faena",24],["Boleta / guía",13],["Notas",26],["Módulo de origen",14]],
-rows.map(l=>[dt(l.date),l.plate,CAT[l.cat]||"Sin sección",FT[l.ft]||"",+l.liters,+l.cost||0,+l.liters&&+l.cost?Math.round(l.cost/l.liters):null,unitOf(l)==="h"?"Horas":"Kilometraje",odo(l)||null,l.full===false?"No":"Sí",l.cargo||"",l.op||"",l.faena||"",l.boleta||"",l.text||"",SRC[l.src]||""]),
-[F,null,null,null,D,P,P,null,D,null,null,null,null,null,null,null],["Total",null,null,null,s.l,s.c,s.l?Math.round(s.c/s.l):null]);
+cbSheet(wb,"Detalle",[["Fecha",12],["Patente",11],["Sección",13],["Combustible",12],["Litros",9],["Costo total ($)",14],["$ por litro",11],["Medido en",10],["Kilometraje / horas",16],["Quién cargó",22],["Encargado que ingresó",22],["Faena",24],["Notas",26]],
+rows.map(l=>[dt(l.date),l.plate,CAT[l.cat]||"Sin sección",FT[l.ft]||"",+l.liters,+l.cost||0,+l.liters&&+l.cost?Math.round(l.cost/l.liters):null,unitOf(l)==="h"?"Horas":"Kilometraje",odo(l)||null,l.cargo||"",l.op||"",l.faena||"",l.text||""]),
+[F,null,null,null,D,P,P,null,D,null,null,null,null],["Total",null,null,null,s.l,s.c,s.l?Math.round(s.c/s.l):null]);
 const pl=[...new Set(rows.map(l=>l.plate))],ra=fuelLogs();
 cbSheet(wb,"Por vehículo",[["Patente",11],["Cargas",8],["Litros",10],["Costo total ($)",14],["$ por litro",11],["Rendimiento km/L",16],["Rendimiento L/h",15],["Último km/L",12],["Último L/h",12],["Observación",44]],
 pl.map(p=>{const a=rows.filter(l=>l.plate===p),x=sumL(a),r=rendOf(p,ra),u=r.h.avg&&!r.km.avg?"h":"km";return[p,x.n,x.l,x.c,x.l?Math.round(x.c/x.l):null,r.km.avg,r.h.avg,r.km.last?r.km.last.val:null,r.h.last?r.h.last.val:null,rendFb(r,u).t]}),[null,null,D,P,P,"0.0","0.00","0.0","0.00",null]);
@@ -684,7 +682,7 @@ const rows=L.filter(l=>l.type==="mant"&&ok(l)).map(l=>({l,v:V.find(x=>x.id===l.p
 if(!rows.length)return al("No hay mantenciones en ese período");
 const wb=new ExcelJS.Workbook(),ws=wb.addWorksheet("Mantenciones");
 ws.columns=[["Patente",12],["Tipo de vehículo",18],["Marca / modelo",26],["Fecha",13],["Kilometraje",14],["Horas vehículo (si aplica)",16],["Mano de obra (horas)",16],["Tipos de mantención",44],["Repuestos utilizados",40],["Detalle del trabajo",48],["Registrado por",22]].map(c=>({header:c[0],width:c[1]}));
-rows.forEach(({l,v})=>ws.addRow([fmtPat(v),tp(v),vname(v),fdate(l.date),l.km||null,l.hrs||null,l.mo||null,tpTxt(l),partsTxt(l),l.text||"",who(l)]));
+rows.forEach(({l,v})=>ws.addRow([fmtPat(v),tp(v),vname(v),fdate(l.date),l.km||null,l.hrs||null,l.mo||null,tpTxt(l),partsTxt(l),l.text||"",whoN(l)]));
 xs(ws,rows.length,[5,6,7],["Total de mantenciones",rows.length,null,null,null,null,rows.reduce((a,o)=>a+(+o.l.mo||0),0)]);ws.autoFilter={from:"A1",to:"K1"};
 const cnt={};rows.forEach(({l,v})=>{const c=cnt[v.id]||(cnt[v.id]={n:0,ao:"",ot:"",ott:"",mo:0});c.n++;c.mo+=+l.mo||0;const d=l.date||"";
 if(isAceite(l)&&d>c.ao)c.ao=d;
@@ -759,8 +757,8 @@ const pv=id=>VALL.find(x=>x.id===id),pat=id=>{const v=pv(id);return v?fmtPat(v):
 sheet("Vehículos",[["Patente",12],["Tipo",18],["Marca",16],["Modelo",22],["Año",8],["Color",14],["N° chasis",24],["N° motor",20],["Km",12],["Horas",10],["Asignación",20],["Estado",10],["Revisión técnica",16],["SOAP",14],["Permiso circulación",18],["Seguro",14]],
 [...VALL].sort((a,b)=>tp(a).localeCompare(tp(b))||a.id.localeCompare(b.id)).map(v=>{const o=v.docs||{};return [fmtPat(v),tp(v),v.marca||"",v.model||"",v.year||"",v.color||"",v.chasis||"",v.motor||"",v.km||null,v.hrs||null,v.assign||"",v.sold?"Vendido":"Activo",fdate(o.revision),fdate(o.soap),fdate(o.permiso),fdate(o.seguro)]}),[9,10]);
 const TL={mant:"Mantención",comb:"Combustible",asig:"Asignación",km:"Kilometraje",dano:"Daño / entrega"};
-sheet("Registros",[["Patente",12],["Tipo de registro",16],["Fecha",13],["Kilometraje",13],["Horas",9],["Litros",9],["Costo",11],["Tipos de mantención",40],["Detalle",50],["Registrado por",22],["Fotos",7]],
-[...L].sort((a,b)=>pat(a.plate).localeCompare(pat(b.plate))||(a.date||"").localeCompare(b.date||"")).map(l=>[pat(l.plate),TL[l.type]||l.type,fdate(l.date),l.km||null,l.hrs||null,l.liters||null,l.cost||null,tpTxt(l),[l.desc,l.text].filter(Boolean).join(" · "),who(l),(l.photos||[]).length||null]),[4,5,6,7,11]);
+sheet("Registros",[["Patente",12],["Tipo de registro",16],["Fecha",13],["Kilometraje",13],["Horas",9],["Litros",9],["Costo",11],["Tipos de mantención",40],["Detalle",50],["Registrado por",22],["Módulo de origen (km/horas)",20],["Fotos",7]],
+[...L].sort((a,b)=>pat(a.plate).localeCompare(pat(b.plate))||(a.date||"").localeCompare(b.date||"")).map(l=>[pat(l.plate),TL[l.type]||l.type,fdate(l.date),l.km||null,l.hrs||null,l.liters||null,l.cost||null,tpTxt(l),[l.desc,l.text].filter(Boolean).join(" · "),whoN(l),l.type!=="comb"?(SRC[l.src]||""):"",(l.photos||[]).length||null]),[4,5,6,7,12]);
 sheet("Vales de lavado",[["N° de vale",12],["Fecha",13],["Patente",12],["Vehículo",24],["Kilometraje",14],["Solicitante",24],["Autoriza",22],["Faena / asignación",26]],
 [...VL].sort((a,b)=>(a.yy-b.yy)||(a.num-b.num)).map(v=>[v.code,fdate(v.fecha),v.plate,v.vehicle,v.km||"",v.solicitante,v.encargado||"CARLOS MURO",v.faena||""]));
 sheet("Repuestos",[["Código",14],["Repuesto",34],["Unidad",9],["Stock",10],["Stock mínimo",13]],[...PAR].sort((a,b)=>a.name.localeCompare(b.name)).map(x=>[x.code||"",x.name,x.unit||"un",+x.stock||0,x.min==null?null:+x.min]),[4,5]);
@@ -865,7 +863,7 @@ const wb=new ExcelJS.Workbook(),f=[...PAR].sort((a,b)=>a.name.localeCompare(b.na
 const ws=wb.addWorksheet("Stock");ws.columns=[["Código",14],["Repuesto",36],["Unidad",10],["Stock",11],["Stock mínimo",14],["Estado",14]].map(c=>({header:c[0],width:c[1]}));
 f.forEach(x=>{const st=+x.stock||0,hm=x.min!=null&&x.min!=="";ws.addRow([x.code||"",x.name,x.unit||"un",st,hm?+x.min:null,st<=0?"Sin stock":(hm&&st<=+x.min)?"Stock bajo":"OK"])});
 xs(ws,f.length,[4,5],["Total de repuestos",f.length]);ws.autoFilter={from:"A1",to:"F1"};
-const us=[];L.filter(l=>l.type==="mant"&&(l.parts||[]).length).sort((a,b)=>(a.date||"").localeCompare(b.date||"")).forEach(l=>{const v=VALL.find(x=>x.id===l.plate);l.parts.forEach(x=>us.push([fdate(l.date),v?fmtPat(v):l.plate,x.name,+x.qty||0,x.unit||"un",x.req?"A pedido":"Stock",PST[l.pstat]||"",who(l)]))});
+const us=[];L.filter(l=>l.type==="mant"&&(l.parts||[]).length).sort((a,b)=>(a.date||"").localeCompare(b.date||"")).forEach(l=>{const v=VALL.find(x=>x.id===l.plate);l.parts.forEach(x=>us.push([fdate(l.date),v?fmtPat(v):l.plate,x.name,+x.qty||0,x.unit||"un",x.req?"A pedido":"Stock",PST[l.pstat]||"",whoN(l)]))});
 if(us.length){const w2=wb.addWorksheet("Repuestos utilizados");w2.columns=[["Fecha",13],["Patente",12],["Repuesto",36],["Cantidad",11],["Unidad",9],["Origen",11],["Estado del descuento",24],["Registrado por",22]].map(c=>({header:c[0],width:c[1]}));us.forEach(r=>w2.addRow(r));xs(w2,us.length,[4],["Total de líneas",us.length])}
 const ing=[...PIN].sort((a,b)=>(a.date||"").localeCompare(b.date||"")).map(g=>[fdate(g.date),g.name,+g.qty||0,g.unit||"un",g.oc||"",g.fname||"",g.by||""]);
 if(ing.length){const w3=wb.addWorksheet("Ingresos de stock");w3.columns=[["Fecha",13],["Repuesto",36],["Cantidad",11],["Unidad",9],["N° orden de compra",22],["Documento adjunto",30],["Registrado por",22]].map(c=>({header:c[0],width:c[1]}));ing.forEach(r=>w3.addRow(r));xs(w3,ing.length,[3],["Total de ingresos",ing.length])}
