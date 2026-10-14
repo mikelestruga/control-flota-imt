@@ -1,0 +1,25 @@
+name: Respaldo semanal a OneDrive
+
+on:
+  schedule:
+    - cron: "0 7 * * 0"       # domingos ~03:00-04:00 hora de Chile
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  respaldo:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Instalar exceljs
+        run: npm install --no-save exceljs@4.4.0
+      - name: Respaldar a OneDrive
+        env:
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          ONEDRIVE_CLIENT_ID: ${{ secrets.ONEDRIVE_CLIENT_ID }}
+        run: node scripts/respaldo.mjs

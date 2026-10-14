@@ -791,7 +791,7 @@ const bkCard=()=>`<div class="card"><h2>💾 Respaldo</h2><p class="mu">Descarga
 async function importBackup(){const f=$("#imp_f").files[0],st=$("#imp_s");if(!f)return al("Elige primero el archivo JSON");
 let d;try{d=JSON.parse(await f.text())}catch(e){return al("El archivo no es un respaldo válido")}
 if(!d||d.app!=="control-flota")return al("El archivo no parece un respaldo de Control de Flota");
-const map={vehicles:d.vehicles,logs:d.logs,vales:d.vales,docfiles:d.docfiles,parts:d.parts,pins:d.pins},tot=Object.values(map).reduce((a,x)=>a+(x||[]).length,0);
+const map={vehicles:d.vehicles,logs:d.logs,vales:d.vales,docfiles:d.docfiles,vdocs:d.vdocs,parts:d.parts,pins:d.pins},tot=Object.values(map).reduce((a,x)=>a+(x||[]).length,0);
 if(!await cf(`Se importarán ${tot} registros. ¿Continuar?`))return;
 let ok=0,bad=0,lastE="";
 try{for(const [coll,arr] of Object.entries(map)){if(!arr)continue;
