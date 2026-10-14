@@ -3,7 +3,7 @@ import fs from "node:fs";
 
 const SB_URL = process.env.SUPABASE_URL || "https://diogbjjhkxtlbpvvvzla.supabase.co";
 const SB_KEY = process.env.SUPABASE_SERVICE_KEY || "";
-const DOCS = [["permiso", "Permiso de circulación"], ["revision", "Revisión técnica"], ["soap", "SOAP"], ["seguro", "Seguro"]];
+const DOCS = [["permiso", "Permiso de circulación"], ["revision", "Revisión técnica"], ["soap", "SOAP"]];
 const FORZAR = process.env.FORZAR === "true" || process.env.FORZAR === "1";
 const DRY = process.env.DRY_RUN === "1";
 
@@ -67,13 +67,15 @@ export function calcular(vehs, hoy, forzar = false, logs = []) {
   const dia1 = hoy.slice(8) === "01";
   const lunes = new Date(hoy + "T12:00:00Z").getUTCDay() === 1;
   const mant = calcMant(vehs, logs);
+  const sinSeg = vehs.filter(v => !v.sold && v.asegurado === false).map(v => ({ pat: fmtPat(v), veh: [v.marca, v.model].filter(Boolean).join(" "), tipo: v.tipo || "" }));
   let motivo = null;
   if (forzar) motivo = "Resumen de vencimientos y mantenciones (envío manual)";
   else if (dia1) motivo = "Resumen mensual de vencimientos y mantenciones";
   else if (nuevos.length) motivo = "Documentos que vencieron hoy";
   else if (lunes && venc.length) motivo = "Recordatorio semanal de documentos vencidos";
   else if (lunes && mant.length) motivo = "Recordatorio semanal de mantenciones";
-  return { motivo, venc, por, nuevos, mant, mostrarPor: !!(forzar || dia1) };
+  else if (lunes && sinSeg.length) motivo = "Recordatorio semanal de vehículos sin seguro";
+  return { motivo, venc, por, nuevos, mant, sinSeg, mostrarPor: !!(forzar || dia1) };
 }
 
 const tabla = (titulo, color, rows) => !rows.length ? "" : `
@@ -91,11 +93,12 @@ ${rows.map(r => `<tr style="border-bottom:1px solid #ccc"><td><b>${esc(r.pat)}</
 </table>`;
 
 export function armarCorreo(res, hoy) {
-  const { motivo, venc, por, nuevos, mostrarPor, mant = [] } = res;
-  const soloMant = motivo.includes("mantenciones") && motivo.startsWith("Recordatorio");
+  const { motivo, venc, por, nuevos, mostrarPor, mant = [], sinSeg = [] } = res;
+  const tablaSeg = !sinSeg.length ? "" : `<h3 style="margin:18px 0 6px;color:#c62828">Vehículos marcados SIN seguro (${sinSeg.length})</h3><table cellpadding="6" cellspacing="0" style="border-collapse:collapse;width:100%;font:13px Arial,sans-serif"><tr style="background:#1f4e9e;color:#fff;text-align:left"><th>Patente</th><th>Vehículo</th></tr>${sinSeg.map(r => `<tr style="border-bottom:1px solid #ccc"><td><b>${esc(r.pat)}</b></td><td>${esc(r.veh)} <span style="color:#666">${esc(r.tipo)}</span></td></tr>`).join("")}</table>`;
+  const soloMant = motivo.includes("mantenciones") && motivo.startsWith("Recordatorio"), soloSeg = motivo.includes("sin seguro");
   const cuerpo = (nuevos.length && !mostrarPor && motivo.startsWith("Documentos")) ? tabla("Vencieron hoy", "#c62828", nuevos)
-    : soloMant ? tablaMant(mant)
-    : tabla("Vencidos", "#c62828", venc) + (mostrarPor ? tabla("Por vencer", "#0969da", por) : "") + tablaMant(mant);
+    : soloSeg ? tablaSeg : soloMant ? tablaMant(mant) + tablaSeg
+    : tabla("Vencidos", "#c62828", venc) + (mostrarPor ? tabla("Por vencer", "#0969da", por) : "") + tablaMant(mant) + tablaSeg;
   const asunto = `Flota IMT · ${motivo}` + (venc.length ? ` · ${venc.length} vencido(s)` : "") + (mostrarPor && por.length ? ` · ${por.length} por vencer` : "") + (mant.length ? ` · ${mant.length} mantención(es)` : "");
   const html = `<div style="font:14px Arial,sans-serif;max-width:760px"><h2 style="margin:0 0 4px;color:#1f4e9e">Control de Flota IMT</h2>
 <div style="color:#666">${esc(motivo)} · ${fdate(hoy)}</div>${cuerpo || "<p>No hay documentos vencidos ni por vencer, ni mantenciones próximas.</p>"}
