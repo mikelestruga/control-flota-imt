@@ -1,0 +1,43 @@
+name: Avisos de vencimientos
+
+on:
+  schedule:
+    - cron: "0 12 * * *"      # todos los días, ~08:00-09:00 hora de Chile
+  workflow_dispatch:
+    inputs:
+      forzar:
+        description: "Enviar el resumen completo ahora (prueba)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  avisos:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Instalar nodemailer
+        run: npm install --no-save nodemailer@6.9.16
+      - name: Revisar vencimientos y enviar correo
+        env:
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          AVISOS_PARA: ${{ secrets.AVISOS_PARA }}
+          FORZAR: ${{ github.event.inputs.forzar }}
+        run: node scripts/avisos.mjs
+      - name: Mantener activo el repositorio (día 1 de cada mes)
+        run: |
+          if [ "$(TZ=America/Santiago date +%d)" = "01" ]; then
+            mkdir -p .github && date -u +"%Y-%m-%d" > .github/heartbeat.txt
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add .github/heartbeat.txt
+            git diff --cached --quiet || (git commit -m "Latido mensual para mantener activas las tareas programadas" && git push)
+          fi
