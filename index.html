@@ -372,12 +372,12 @@ window.addEventListener("unhandledrejection",e=>{try{if($("#pk")){const m=(e.rea
 function pkgOpen(forced){PK={items:[],ia:true,forced:forced||"",busy:false,used:PK.used};const o=document.createElement("div");o.id="pk";o.style.cssText="position:fixed;inset:0;background:#0009;display:flex;align-items:flex-start;justify-content:center;z-index:98;padding:12px;overflow:auto";o.innerHTML='<div class="card" style="max-width:780px;width:100%;margin:0"></div>';document.body.appendChild(o);pkRender()}
 async function pkClose(){if(PK.items.some(x=>x.st==="ready"||x.st==="err")&&!await cf("Hay archivos sin guardar. ¿Cerrar y descartarlos?"))return;try{const as=await claude.use("assets");for(const x of PK.items)if(x.aid&&x.st!=="saved")await as.delete(x.aid).catch(()=>{})}catch(e){}const o=$("#pk");if(o)o.remove()}
 function pkRender(){const o=$("#pk");if(!o)return;const it=PK.items;
-o.firstChild.innerHTML=`<div class="top"><h2 style="margin:0">Subida de documentos${PK.forced?" · "+H(PK.forced):""} <span class="mu" style="font-weight:400;font-size:11px">v5</span></h2><button onclick="pkClose()">✕</button></div>
+o.firstChild.innerHTML=`<div class="top"><h2 style="margin:0">Subida de documentos${PK.forced?" · "+H(PK.forced):""} <span class="mu" style="font-weight:400;font-size:11px">v6</span></h2><button onclick="pkClose()">✕</button></div>
 <label style="display:flex;gap:8px;align-items:center;margin:8px 0"><input type="checkbox" style="width:auto" ${PK.ia?"checked":""} onchange="PK.ia=this.checked"> Leer con IA <span class="mu">(tope 100 lecturas al día${PK.used!=null?" · hoy van "+PK.used:""})</span></label>
 <input type="file" accept="application/pdf,image/*" multiple onchange="pkAdd(this.files)">
 <p class="mu">${PK.forced?"Todos los archivos se asignan a "+H(PK.forced)+".":"Nombra cada archivo con la patente (ej. LWKL20.pdf) para asignarlo solo."} Si desmarcas «Leer con IA», indicas tú los documentos y páginas.</p>
 ${it.map(pkItem).join("")}
-<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px;flex-wrap:wrap"><button onclick="pkClose()">Cerrar</button><button class="p" onclick="pkSaveAll()" ${it.some(x=>x.st==="ready")&&!PK.busy?"":"disabled"}>Guardar todos los listos</button></div>`}
+<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px;flex-wrap:wrap">${it.some(x=>x.st==="err"||x.st==="dup")?`<button onclick="pkClean()">🧹 Quitar los con error (${it.filter(x=>x.st==="err"||x.st==="dup").length})</button>`:""}${it.some(x=>x.st==="err")?`<button onclick="pkRetryAll()">Reintentar los con error</button>`:""}<button onclick="pkClose()">Cerrar</button><button class="p" onclick="pkSaveAll()" ${it.some(x=>x.st==="ready")&&!PK.busy?"":"disabled"}>Guardar todos los listos</button></div>`}
 function pkItem(x,i){const stt={queued:"En cola",up:"Preparando…",read:"Leyendo con IA…",ready:"Listo para revisar",saved:"✔ Guardado",dup:"⚠ Archivo repetido",err:"⚠ "+(x.err||"Error")}[x.st];
 const vs=`<select onchange="pkVeh(${i},this.value)"><option value="">— Elegir vehículo —</option>${V.map(v=>`<option value="${H(v.id)}"${v.id===x.plate?" selected":""}>${H(v.id)}</option>`).join("")}</select>`;
 const v=V.find(z=>z.id===x.plate);
@@ -400,6 +400,8 @@ function pkForce(i){const x=PK.items[i];x.force=true;x.st="queued";x.err="";pkRu
 function pkAddRow(i){const x=PK.items[i];x.docs.push({tipo:"permiso",from:1,to:x.pages||1,date:"",year:String(new Date().getFullYear()),incl:true,note:""});pkRender()}
 function pkDelRow(i,j){PK.items[i].docs.splice(j,1);pkRender()}
 async function pkDrop(i){const x=PK.items[i];if(x.aid&&x.st!=="saved"){try{const as=await claude.use("assets");await as.delete(x.aid)}catch(e){}}PK.items.splice(i,1);pkRender()}
+async function pkClean(){const bad=PK.items.filter(x=>x.st==="err"||x.st==="dup");try{const as=await claude.use("assets");for(const x of bad)if(x.aid)await as.delete(x.aid).catch(()=>{})}catch(e){}PK.items=PK.items.filter(x=>!bad.includes(x));pkRender()}
+function pkRetryAll(){PK.items.forEach(x=>{if(x.st==="err"){x.st="queued";x.err=""}});pkRun()}
 function pkRetry(i){PK.items[i].st="queued";PK.items[i].err="";pkRun()}
 function pkManual(a){const x=typeof a==="number"?PK.items[a]:a;x.docs=[{tipo:"permiso",from:1,to:x.pages||1,date:"",year:String(new Date().getFullYear()),incl:true,note:""}];x.warn=x.warn||[];x.st="ready";pkRender()}
 function pkAdd(files){for(const f of files)PK.items.push({file:f,st:"queued",plate:PK.forced||(matchVeh(f.name)||{}).id||"",docs:[],warn:[],isPdf:/pdf/i.test(f.type)||/\.pdf$/i.test(f.name)});pkRender();pkRun()}
