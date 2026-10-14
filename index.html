@@ -94,6 +94,7 @@ const assetsApi={async upload(f){const safe=(f.name||"archivo").normalize("NFD")
 const dlApi={async save({filename,data}){const b=data instanceof Blob?data:new Blob([data]);const u=URL.createObjectURL(b),a=document.createElement("a");
     a.href=u;a.download=filename;document.body.appendChild(a);a.click();setTimeout(()=>{a.remove();URL.revokeObjectURL(u)},4000)}};
 window.flotaReload=()=>Object.values(stores).forEach(s=>{if(s.ready)s.load().catch(console.error)});
+window.flotaFn=async(n,b)=>{const c=await C();return c.functions.invoke(n,{body:b})};
 window.flotaProbe=async()=>{try{const c=await C();const {error}=await c.from("docs").select("id").limit(1);return error}catch(e){return e}};
 window.flotaClaim=async(role,pin)=>{const c=await C();const r=await c.rpc("claim_role",{p_role:role,p_pin:pin});if(r.error)throw fail(r.error);return r.data};
 window.flotaRoles=async()=>{try{const c=await C();const r=await c.rpc("my_roles");return r.error?[]:(r.data||[])}catch(e){return[]}};
@@ -391,7 +392,7 @@ if(x.pages>100){x.err="Tiene más de 100 páginas: ingresa a mano";x.st="err";re
 if(!PK.ia){pkManual(x);return}
 const as=await claude.use("assets");if(!x.aid){x.aid=(await as.upload(x.file)).id}
 x.st="read";pkRender();
-const {data,error}=await (await C()).functions.invoke("leer-doc",{body:{path:x.aid}});
+const {data,error}=await window.flotaFn("leer-doc",{path:x.aid});
 if(error){let m="No se pudo leer con IA";try{const st=error.context&&error.context.status;if(st===404)m="La función leer-doc no está instalada en Supabase";const b=await error.context.json();m=({tope:"Se alcanzó el tope diario de 100 lecturas. Usa «Ingresar a mano» o prueba mañana.",solo_admin:"Solo el Administrador puede leer con IA",sin_clave:"Falta configurar la clave de IA en Supabase",muy_pesado:"El archivo pesa más de 30 MB",no_autenticado:"Sesión no válida: recarga la página",anthropic:"La IA no respondió ("+(b.detalle||b.status)+")"})[b.error]||b.detalle||m}catch(_){}x.err=m;x.st="err";return}
 pkParse(x,data);x.st="ready"
 }catch(e){x.err=(e&&e.message)||"Error";x.st="err"}finally{pkRender()}}
