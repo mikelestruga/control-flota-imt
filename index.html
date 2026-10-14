@@ -360,6 +360,8 @@ const lastDay=d=>{const m=/^(\d{4})-(\d{2})/.exec(d||"");if(!m)return d||"";retu
 const matchVeh=n=>{const b=np(String(n).replace(/\.[^.]+$/,""));let best=null;for(const v of V){const q=np(v.id);if(q&&b.includes(q)&&(!best||q.length>np(best.id).length))best=v}return best};
 let _pl=null;const loadPL=()=>_pl||(_pl=new Promise((ok,ko)=>{if(window.PDFLib)return ok(window.PDFLib);const e=document.createElement("script");e.src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js";e.onload=()=>ok(window.PDFLib);e.onerror=()=>{_pl=null;ko(new Error("No se pudo cargar el cortador de PDF"))};document.head.appendChild(e)}));
 let PK={items:[],ia:true,forced:"",busy:false,used:null};
+const dupOf=(x,d)=>d.tipo==="otro"||!x.plate?[]:VD.filter(z=>z.plate===x.plate&&z.key===d.tipo&&(z.year||"")===String(d.year||""));
+const pkDefIncl=(x,d)=>{if(d.tipo==="otro"||dupOf(x,d).length)return false;const v=V.find(z=>z.id===x.plate),c=v&&(v.docs||{})[d.tipo];return !(KD.includes(d.tipo)&&c&&d.date&&c>d.date)};
 const certLine=v=>[["jaula","Jaula antivuelco"],["lamina","Lámina de seguridad"]].map(([k,n])=>`<div class="row"><span>${n}</span><span>${(v.cert||{})[k]?'<span class="b ok">Sí</span>':'<span class="mu">No</span>'}</span></div>`).join("");
 const certCard=v=>`<div class="card"><h2>Certificados (sin vencimiento)</h2><div class="g">${[["jaula","Jaula antivuelco"],["lamina","Lámina de seguridad"]].map(([k,n])=>`<div><label><input type="checkbox" style="width:auto" ${(v.cert||{})[k]?"checked":""} onchange="upCert('${k}',this.checked)"> ${n}</label><label style="margin-top:6px">Año de vigencia</label>${yrSel(k,"")}<label style="margin-top:6px">Subir certificado</label><input type="file" accept="application/pdf,image/*" onchange="upFile('${k}',this)"><div>${dfThumb(k)}</div></div>`).join("")}</div></div>`;
 const pkgVehCard=()=>`<div class="card"><h2>Paquete de documentos</h2><p class="mu">Sube un PDF con varios documentos juntos: la app los lee y los reparte en cada casilla (permiso, revisión, SOAP, jaula, lámina).</p><button class="p" onclick="pkgOpen(sel)">📎 Subir paquete</button><div>${dfThumb('paquete')}</div></div>`;
@@ -375,24 +377,25 @@ o.firstChild.innerHTML=`<div class="top"><h2 style="margin:0">Subida de document
 <p class="mu">${PK.forced?"Todos los archivos se asignan a "+H(PK.forced)+".":"Nombra cada archivo con la patente (ej. LWKL20.pdf) para asignarlo solo."} Si desmarcas «Leer con IA», indicas tú los documentos y páginas.</p>
 ${it.map(pkItem).join("")}
 <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px;flex-wrap:wrap"><button onclick="pkClose()">Cerrar</button><button class="p" onclick="pkSaveAll()" ${it.some(x=>x.st==="ready")&&!PK.busy?"":"disabled"}>Guardar todos los listos</button></div>`}
-function pkItem(x,i){const stt={queued:"En cola",up:"Preparando…",read:"Leyendo con IA…",ready:"Listo para revisar",saved:"✔ Guardado",err:"⚠ "+(x.err||"Error")}[x.st];
+function pkItem(x,i){const stt={queued:"En cola",up:"Preparando…",read:"Leyendo con IA…",ready:"Listo para revisar",saved:"✔ Guardado",dup:"⚠ Archivo repetido",err:"⚠ "+(x.err||"Error")}[x.st];
 const vs=`<select onchange="pkVeh(${i},this.value)"><option value="">— Elegir vehículo —</option>${V.map(v=>`<option value="${H(v.id)}"${v.id===x.plate?" selected":""}>${H(v.id)}</option>`).join("")}</select>`;
 const v=V.find(z=>z.id===x.plate);
 return `<div class="card" style="margin:8px 0"><div class="top" style="margin:0"><b>📄 ${H(x.file.name)}${x.pages?` <span class="mu">(${x.pages} pág.)</span>`:""}</b><span class="mu">${H(stt)}</span></div>
 ${x.st==="saved"?`<div class="mu">Guardado en ${H(x.plate)}</div>`:`<div style="max-width:260px"><label>Vehículo</label>${vs}</div>`}
 ${x.prog?`<div class="b" style="display:block;margin:6px 0;white-space:normal;color:var(--tx)">⏳ ${H(x.prog)}</div>`:""}${x.msg?`<div class="b er" style="display:block;margin:6px 0;white-space:normal;font-weight:600">⛔ ${H(x.msg)}</div>`:""}${(x.warn||[]).map(w=>`<div class="b wa" style="display:block;margin:4px 0;white-space:normal">⚠ ${H(w)}</div>`).join("")}
-${x.st==="ready"?(x.docs||[]).map((d,j)=>pkRow(x,i,d,j,v)).join("")+`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">${x.isPdf?`<button onclick="pkAddRow(${i})">+ Documento</button>`:""}<button class="p" onclick="pkSave(${i})">Guardar</button><button onclick="pkDrop(${i})">Quitar</button></div>`:""}
-${x.st==="err"?`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><button onclick="pkRetry(${i})">Reintentar</button><button onclick="pkManual(${i})">Ingresar a mano</button><button onclick="pkDrop(${i})">Quitar</button></div>`:""}
+${x.st==="ready"?(x.docs||[]).map((d,j)=>pkRow(x,i,d,j,v)).join("")+`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">${x.isPdf?`<button onclick="pkAddRow(${i})" ${x.saving?"disabled":""}>+ Documento</button>`:""}<button class="p" onclick="pkSave(${i})" ${x.saving?"disabled":""}>${x.saving?"Guardando…":"Guardar"}</button><button onclick="pkDrop(${i})" ${x.saving?"disabled":""}>Quitar</button></div>`:""}
+${x.st==="dup"?`<div class="b wa" style="display:block;margin:6px 0;white-space:normal">${H(x.err)}</div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><button onclick="pkForce(${i})">Subir de todos modos</button><button onclick="pkDrop(${i})">Quitar</button></div>`:""}${x.st==="err"?`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><button onclick="pkRetry(${i})">Reintentar</button><button onclick="pkManual(${i})">Ingresar a mano</button><button onclick="pkDrop(${i})">Quitar</button></div>`:""}
 </div>`}
-function pkRow(x,i,d,j,v){const dated=KD.includes(d.tipo),cur=v&&(v.docs||{})[d.tipo],old=dated&&cur&&d.date&&cur>d.date;
+function pkRow(x,i,d,j,v){const dated=KD.includes(d.tipo),cur=v&&(v.docs||{})[d.tipo],old=dated&&cur&&d.date&&cur>d.date,ex=dupOf(x,d);
 return `<div style="border-top:1px solid var(--bd);padding:6px 0"><div class="g">
 <div><label><input type="checkbox" style="width:auto" ${d.incl?"checked":""} onchange="pkSet(${i},${j},'incl',this.checked)"> Incluir</label><select onchange="pkSet(${i},${j},'tipo',this.value,1)">${Object.entries(TN).map(([k,n])=>`<option value="${k}"${k===d.tipo?" selected":""}>${n}</option>`).join("")}</select></div>
 ${x.isPdf?`<div><label>Páginas (de – a)</label><div style="display:flex;gap:4px"><input type="number" min="1" value="${+d.from||1}" onchange="pkSet(${i},${j},'from',+this.value)"><input type="number" min="1" value="${+d.to||1}" onchange="pkSet(${i},${j},'to',+this.value)"></div></div>`:""}
 ${dated?`<div><label>Vencimiento</label><input type="date" value="${H(d.date||"")}" onchange="pkSet(${i},${j},'date',this.value,1)"></div>`:`<div><label>Sin vencimiento</label><div class="mu">${d.tipo==="otro"?"—":"Se marcará «Sí»"}</div></div>`}
 <div><label>Año de vigencia</label><input type="number" value="${H(d.year||"")}" onchange="pkSet(${i},${j},'year',this.value)"></div>
-</div>${d.note?`<div class="mu">${H(d.note)}</div>`:""}${old?`<div class="b wa" style="display:block;white-space:normal">⚠ La ficha ya tiene un vencimiento más nuevo (${H(fdate(cur))}). Este parece un documento antiguo.</div>`:""}<button style="margin-top:4px" onclick="pkDelRow(${i},${j})">Quitar este documento</button></div>`}
-function pkSet(i,j,f,val,re){const d=PK.items[i].docs[j];d[f]=val;if(f==="date"&&val)d.year=val.slice(0,4);if(f==="tipo"&&!KD.includes(val))d.date="";if(re)pkRender()}
-function pkVeh(i,val){PK.items[i].plate=val;pkRender()}
+</div>${d.note?`<div class="mu">${H(d.note)}</div>`:""}${old?`<div class="b wa" style="display:block;white-space:normal">⚠ La ficha ya tiene un vencimiento más nuevo (${H(fdate(cur))}). Este parece un documento antiguo.</div>`:""}${ex.length?`<div class="b wa" style="display:block;white-space:normal;margin:4px 0">⚠ Este vehículo ya tiene ${ex.length>1?ex.length+" documentos":"un documento"} de este tipo válido ${H(d.year||"sin año")}: ${H(ex.map(z=>z.name||"archivo").join(", "))}. <label style="display:inline-flex;gap:6px;align-items:center;color:inherit"><input type="checkbox" style="width:auto" ${d.replace?"checked":""} onchange="pkSet(${i},${j},'replace',this.checked,1)"> Reemplazar el anterior</label></div>`:""}<button style="margin-top:4px" onclick="pkDelRow(${i},${j})">Quitar este documento</button></div>`}
+function pkSet(i,j,f,val,re){const d=PK.items[i].docs[j];d[f]=val;if(f==="replace"&&val)d.incl=true;if(f==="date"&&val)d.year=val.slice(0,4);if(f==="tipo"&&!KD.includes(val))d.date="";if(re)pkRender()}
+function pkVeh(i,val){const x=PK.items[i];x.plate=val;x.docs.forEach(d=>{d.incl=pkDefIncl(x,d);if(!dupOf(x,d).length)d.replace=false});pkRender()}
+function pkForce(i){const x=PK.items[i];x.force=true;x.st="queued";x.err="";pkRun()}
 function pkAddRow(i){const x=PK.items[i];x.docs.push({tipo:"permiso",from:1,to:x.pages||1,date:"",year:String(new Date().getFullYear()),incl:true,note:""});pkRender()}
 function pkDelRow(i,j){PK.items[i].docs.splice(j,1);pkRender()}
 async function pkDrop(i){const x=PK.items[i];if(x.aid&&x.st!=="saved"){try{const as=await claude.use("assets");await as.delete(x.aid)}catch(e){}}PK.items.splice(i,1);pkRender()}
@@ -401,8 +404,9 @@ function pkManual(a){const x=typeof a==="number"?PK.items[a]:a;x.docs=[{tipo:"pe
 function pkAdd(files){for(const f of files)PK.items.push({file:f,st:"queued",plate:PK.forced||(matchVeh(f.name)||{}).id||"",docs:[],warn:[],isPdf:/pdf/i.test(f.type)||/\.pdf$/i.test(f.name)});pkRender();pkRun()}
 async function pkRun(){if(PK.busy)return;PK.busy=true;try{for(const x of PK.items){if(x.st==="queued")await pkProc(x);if(!$("#pk"))return}}finally{PK.busy=false;pkRender()}}
 async function pkProc(x){try{
-x.st="up";pkRender();x.err="";
+x.st="up";pkRender();x.err="";x.fp=x.file.name+"|"+x.file.size;
 if(x.file.size>30*1024*1024){x.err="Pesa más de 30 MB";x.st="err";return}
+if(!x.force){const prev=VD.find(d=>d.fp===x.fp),q=PK.items.find(o=>o!==x&&o.fp===x.fp&&["up","read","ready","saved"].includes(o.st));if(prev||q){x.err=prev?`Este archivo ya fue subido (${prev.plate}, ${fdate(prev.date)}). No se leyó con IA para no gastar lecturas.`:"Este mismo archivo ya está en esta subida.";x.st="dup";return}}
 x.buf=await x.file.arrayBuffer();
 if(x.isPdf){try{const L=await loadPL(),d=await L.PDFDocument.load(x.buf,{ignoreEncryption:true});x.pages=d.getPageCount()}catch(e){x.pages=0}
 if(x.pages>100){x.err="Tiene más de 100 páginas: ingresa a mano";x.st="err";return}}
@@ -421,14 +425,17 @@ else if(x.plate&&pl.some(q=>q!==np(x.plate).slice(0,6)))x.warn.push("La patente 
 if(pl.length>1)x.warn.push("El archivo trae más de una patente: "+pl.join(", ")+".");
 if(x.pages&&res.total_paginas&&res.total_paginas!==x.pages)x.warn.push("La IA contó "+res.total_paginas+" páginas y el archivo tiene "+x.pages+".");
 if(x.pages){const cov=new Set();x.docs.forEach(d=>{for(let p=d.from;p<=d.to;p++)cov.add(p)});const miss=[];for(let p=1;p<=x.pages;p++)if(!cov.has(p))miss.push(p);if(miss.length)x.warn.push("Páginas sin asignar a ningún documento: "+miss.join(", ")+".");x.docs.forEach(d=>{if(d.to>x.pages)d.to=x.pages;if(d.from<1)d.from=1})}
-const v=V.find(z=>z.id===x.plate);if(v)x.docs.forEach(d=>{const c=(v.docs||{})[d.tipo];if(KD.includes(d.tipo)&&c&&d.date&&c>d.date)d.incl=false});
+x.docs.forEach(d=>{d.incl=pkDefIncl(x,d)});
 if(!x.docs.length)x.warn.push("La IA no encontró documentos. Ingresa a mano.")}
-async function pkSave(i){const x=PK.items[i],v=V.find(z=>z.id===x.plate);x.msg="";const fail=m=>{x.msg=m;x.prog="";pkRender()},pg=m=>{x.prog=m;pkRender()};pg("Guardando…");if(!v)return fail("Elige el vehículo en la lista «Vehículo» de este archivo.");
+async function pkSave(i){const x=PK.items[i];if(!x||x.saving||x.st==="saved")return;x.saving=true;pkRender();try{await pkSave0(i)}finally{x.saving=false;pkRender()}}
+async function pkSave0(i){const x=PK.items[i],v=V.find(z=>z.id===x.plate);x.msg="";const fail=m=>{x.msg=m;x.prog="";pkRender()},pg=m=>{x.prog=m;pkRender()};pg("Guardando…");if(!v)return fail("Elige el vehículo en la lista «Vehículo» de este archivo.");
 const sl=x.docs.filter(d=>d.incl);if(!sl.length)return fail("No hay ningún documento marcado en «Incluir». Marca los que quieres guardar.");
 for(const d of sl){if(x.isPdf&&!(d.from>=1&&d.to>=d.from&&(!x.pages||d.to<=x.pages)))return fail("Páginas no válidas en "+TN[d.tipo]+" (revisa «de – a»; el archivo tiene "+(x.pages||"?")+" páginas).");
 if(KD.includes(d.tipo)&&!d.date&&!await cf(TN[d.tipo]+" no tiene fecha de vencimiento. ¿Guardar igual?"))return}
+const dups=sl.filter(d=>dupOf(x,d).length&&!d.replace);if(dups.length&&!await cf("Este vehículo ya tiene "+dups.map(d=>TN[d.tipo]+" "+(d.year||"")).join(", ")+". Si guardas quedarán repetidos. ¿Guardar igual?"))return;
+const olds=[...new Map(sl.filter(d=>d.replace).flatMap(d=>dupOf(x,d)).map(z=>[z.id,z])).values()];
 try{pg("Preparando…");const as=await claude.use("assets"),cy=String(new Date().getFullYear()),uid=ME_ID,docs={...(v.docs||{})},cert={...(v.cert||{})};
-const mk=async(key,name,aid,type,yr)=>db.collection("vdocs").doc("d"+Date.now()+Math.random().toString(36).slice(2,5)).set({plate:v.id,key,name,aid,type,year:yr||"",date:today(),uid});
+const mk=async(key,name,aid,type,yr)=>db.collection("vdocs").doc("d"+Date.now()+Math.random().toString(36).slice(2,5)).set({plate:v.id,key,name,aid,type,year:yr||"",date:today(),uid,fp:x.fp||""});
 const up=async()=>{if(!x.aid)x.aid=(await as.upload(x.file)).id;return x.aid};
 const whole=x.isPdf&&sl.length===1&&x.pages&&sl[0].from===1&&sl[0].to===x.pages;
 if(!x.isPdf||whole){const d=sl[0];await mk(d.tipo,`${v.id} - ${TN[d.tipo]}${d.year?" "+d.year:""}${x.isPdf?".pdf":""}`,await up(),x.file.type||"application/pdf",d.year)}
@@ -438,6 +445,7 @@ pg("Subiendo "+TN[d.tipo]+"…");const f=new File([await nd.save()],`${v.id}_${T
 await mk(d.tipo,`${v.id} - ${TN[d.tipo]}${d.year?" "+d.year:""}.pdf`,r.id,"application/pdf",d.year)}
 const yrs=sl.map(d=>d.year).filter(Boolean).sort();await mk("paquete",x.file.name,await up(),"application/pdf",yrs.length?yrs[yrs.length-1]:cy)}
 for(const d of sl){if(KD.includes(d.tipo)&&d.date)docs[d.tipo]=d.date;if(d.tipo==="jaula"||d.tipo==="lamina")cert[d.tipo]=true}
+if(olds.length){pg("Reemplazando los anteriores…");for(const z of olds){await db.collection("vdocs").doc(z.id).delete();try{await as.delete(z.aid)}catch(e){}}}
 pg("Actualizando la ficha…");await db.collection("vehicles").doc(v.id).update({docs,cert});
 x.st="saved";x.buf=null;x.msg="";x.prog="";pkRender();al("Guardado en "+v.id+" ✔")}catch(e){fail("No se pudo guardar: "+((e&&e.message)||JSON.stringify(e)||"error"))}}
 async function pkSaveAll(){for(let i=0;i<PK.items.length;i++){const x=PK.items[i];if(x.st==="ready"&&x.plate)await pkSave(i)}const f=PK.items.filter(x=>x.st==="ready"&&!x.plate).length;if(f)al(f+" archivo(s) sin vehículo: elígelo y guarda")}
