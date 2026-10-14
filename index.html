@@ -88,7 +88,7 @@ function docRef(coll,id){return {
 const dbApi={collection:coll=>({doc:id=>docRef(coll,id),onSnapshot(cb){const s=store(coll);listen();s.subs.add(cb);if(s.ready)s.emit();else s.start();return ()=>s.subs.delete(cb)}})};
 let uid="";try{uid=localStorage.getItem("flota_uid")||"";if(!uid){uid="u"+Math.random().toString(36).slice(2)+Date.now().toString(36);localStorage.setItem("flota_uid",uid)}}catch(e){uid="u"+Math.random().toString(36).slice(2)}
 const userApi={isOwner:()=>true,canEdit:()=>true,can:()=>true,id:async()=>uid,me:async()=>({name:""}),profiles:async()=>({})};
-const assetsApi={async upload(f){const safe=(f.name||"archivo").normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^A-Za-z0-9._-]+/g,"_").slice(-80);
+const assetsApi={async upload(f){const safe=(f.name||"archivo").normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^A-Za-z0-9._-]+/g,"_").replace(/\.{2,}/g,".").slice(-80);
     const path=Date.now()+"_"+Math.random().toString(36).slice(2,8)+"_"+safe;
     const {error}=await (await C()).storage.from(SB_BUCKET).upload(path,f,{contentType:f.type||"application/octet-stream",upsert:false});if(error)throw fail(error);
     return {id:path,url:blobUrl(path)}},
