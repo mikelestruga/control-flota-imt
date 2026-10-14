@@ -97,7 +97,7 @@ export function armarCorreo(res, hoy) {
   const asunto = `Flota IMT · ${motivo}` + (venc.length ? ` · ${venc.length} vencido(s)` : "") + (mostrarPor && por.length ? ` · ${por.length} por vencer` : "") + (mant.length ? ` · ${mant.length} mantención(es)` : "");
   const html = `<div style="font:14px Arial,sans-serif;max-width:760px"><h2 style="margin:0 0 4px;color:#1f4e9e">Control de Flota IMT</h2>
 <div style="color:#666">${esc(motivo)} · ${fdate(hoy)}</div>${cuerpo || "<p>No hay documentos vencidos ni por vencer, ni mantenciones próximas.</p>"}
-<p style="color:#666;margin-top:20px;font-size:12px">Aviso automático. Revisa y actualiza las fechas en la app: https://mikelestruga.github.io/control-flota-imt/</p></div>`;
+<p style="color:#666;margin-top:20px;font-size:12px">Aviso automático. Revisa y actualiza las fechas en la app: https://flota.imtspa.cl/</p></div>`;
   return { asunto, html };
 }
 
