@@ -51,12 +51,14 @@ export function calcular(vehs, hoy, forzar = false, logs = []) {
   for (const v of vehs) {
     if (v.sold) continue;
     for (const [k, nombre] of DOCS) {
-      const f = (v.docs || {})[k];
+      let f = (v.docs || {})[k], nom = nombre;
+      if (k === "revision") { const h = (v.docs || {}).homologacion; if (h && (!f || h > f)) { f = h; nom = "Revisión técnica (certificado de homologación)"; } } // la homologación reemplaza a la revisión mientras esté vigente
+      if (k === "permiso" && v.pcuota === "1") nom = "Permiso de circulación (solo 1ª cuota: falta pagar la 2ª)";
       if (!f || !/^\d{4}-\d{2}-\d{2}$/.test(f)) continue;
       const d = dias(hoy, f);
       const estado = d < 0 ? "vencido" : enAviso(hoy, f) ? "porvencer" : "aldia";
       if (estado === "aldia") continue;
-      items.push({ pat: fmtPat(v), veh: [v.marca, v.model].filter(Boolean).join(" "), tipo: v.tipo || "", doc: nombre, fecha: f, d, estado });
+      items.push({ pat: fmtPat(v), veh: [v.marca, v.model].filter(Boolean).join(" "), tipo: v.tipo || "", doc: nom, fecha: f, d, estado });
     }
   }
   const venc = items.filter(x => x.estado === "vencido").sort((a, b) => a.fecha.localeCompare(b.fecha));

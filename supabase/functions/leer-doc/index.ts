@@ -15,8 +15,9 @@ const out = (o: unknown, s = 200) => new Response(JSON.stringify(o), { status: s
 const PROMPT = `Eres un asistente que lee documentos de vehículos de Chile. El archivo puede traer VARIOS documentos juntos (uno tras otro, a veces escaneados). Identifica cada documento y en qué páginas está (numeración desde 1).
 
 Tipos permitidos:
-- permiso: Permiso de circulación (vence normalmente el 31 de marzo; usa la fecha de vencimiento/vigencia que figure).
+- permiso: Permiso de circulación (vence normalmente el 31 de marzo; usa la fecha de vencimiento/vigencia que figure). En el comprobante de pago aparecen casillas CUOTA 1, CUOTA 2 y TOTAL; la que está marcada (X) indica qué se pagó. Devuelve "cuota": "total" si se pagó el total, "1" si solo se pagó la primera cuota, "2" si es el pago de la segunda cuota, o null si no se distingue. Si es cuota "1" y el documento muestra la fecha límite de la segunda cuota, devuélvela en "venc_2da_cuota" (AAAA-MM-DD); si no, null.
 - revision: Certificado de revisión técnica (usa la fecha de vencimiento o "válido hasta"; suele venir como mes y año).
+- homologacion: Certificado de homologación (reemplaza a la revisión técnica mientras esté vigente; usa su fecha de vencimiento o "válido hasta").
 - soap: Seguro obligatorio SOAP (vigencia hasta una fecha, normalmente 31 de marzo).
 - seguro: Póliza de seguro adicional (vigencia hasta).
 - jaula: Certificado de jaula antivuelco (NO vence: vencimiento null).
@@ -41,7 +42,9 @@ const SCHEMA = {
       items: {
         type: "object",
         properties: {
-          tipo: { type: "string", enum: ["permiso", "revision", "soap", "seguro", "jaula", "lamina", "otro"] },
+          tipo: { type: "string", enum: ["permiso", "revision", "homologacion", "soap", "seguro", "jaula", "lamina", "otro"] },
+          cuota: { type: ["string", "null"], enum: ["total", "1", "2", null], description: "Solo permiso: qué cuota se pagó" },
+          venc_2da_cuota: { type: ["string", "null"], description: "AAAA-MM-DD, solo permiso con cuota 1" },
           paginas_desde: { type: "integer" },
           paginas_hasta: { type: "integer" },
           placa: { type: ["string", "null"] },
