@@ -154,8 +154,8 @@ async function init(){
   try{const pe=await window.flotaProbe();if(pe){$("#st").textContent="Error de base de datos: "+pe.message;al("Error de base de datos: "+pe.message+(/relation|does not exist|schema/i.test(pe.message)?" (¿ejecutaste el script SQL en Supabase?)":""))}}catch(e){$("#st").textContent="Sin conexión a la base de datos"}
   db.collection("vehicles").onSnapshot(s=>{VALL=items(s);render()});
   db.collection("logs").onSnapshot(s=>{L=items(s);render();resolveNames()});
-  db.collection("docfiles").onSnapshot(s=>{DF=items(s);render()});
-  db.collection("vdocs").onSnapshot(s=>{VD=items(s);render()});
+  db.collection("docfiles").onSnapshot(s=>{DF=items(s);DFok=true;render()});
+  db.collection("vdocs").onSnapshot(s=>{VD=items(s);VDok=true;render()});
   db.collection("vales").onSnapshot(s=>{VL=items(s);render()});
   db.collection("parts").onSnapshot(s=>{PAR=items(s);render()});
   db.collection("pins").onSnapshot(s=>{PIN=items(s);render()});
@@ -330,7 +330,8 @@ const head=`<div class="top"><input id="q" type="search" placeholder="🔍 Busca
 const r=V.filter(v=>alertsOf(v)>0),ban=r.length?`<div class="card er" style="border-color:var(--er)"><b>⚠ ${r.length} vehículo(s) con alertas:</b> ${r.map(v=>H(v.id)).join(", ")}</div>`:"";
 const empty='<div class="card mu">Sin vehículos.</div>';
 if(qq){const f=V.filter(v=>match(v,qq));return head+`<div class="mu" style="margin:6px 0">${f.length} resultado(s)</div>`+(f.map(vcard).join("")||empty)}
-if(ftype===null)return head+ban+`<h2>Elige el tipo de vehículo</h2><div class="g">${tipos().map(t=>{const f=V.filter(v=>tp(v)===t),act=f.filter(v=>!v.sold),al=f.filter(v=>alertsOf(v)>0).length,so=f.length-act.length;return `<div class="card v" onclick="ftype='${H(t)}';render()"><b>${H(t)}</b><div class="mu">${act.length} activos${so?` · ${so} vendidos`:""}</div>${al?`<span class="b er">⚠ ${al} con alertas</span>`:""}</div>`}).join("")}</div>`+infCard()+(showAdm()?partsCard()+pkgCard()+pinCard()+bkCard():"");
+if(ftype==="__sd"&&canSeeAtt()){const f=sinDoc().sort((a,b)=>a.id.localeCompare(b.id));return head+`<button onclick="ftype=null;render()" style="margin-bottom:10px">← Tipos</button><h2>📎 Sin documentos (${f.length})</h2><p class="mu">Estos vehículos no tienen ningún documento adjunto.</p>`+(f.map(vcard).join("")||'<div class="card mu">Todos los vehículos tienen documentos 👍</div>')}
+if(ftype===null)return head+ban+sdCard()+`<h2>Elige el tipo de vehículo</h2><div class="g">${tipos().map(t=>{const f=V.filter(v=>tp(v)===t),act=f.filter(v=>!v.sold),al=f.filter(v=>alertsOf(v)>0).length,so=f.length-act.length;return `<div class="card v" onclick="ftype='${H(t)}';render()"><b>${H(t)}</b><div class="mu">${act.length} activos${so?` · ${so} vendidos`:""}</div>${al?`<span class="b er">⚠ ${al} con alertas</span>`:""}</div>`}).join("")}</div>`+infCard()+(showAdm()?partsCard()+pkgCard()+pinCard()+bkCard():"");
 const f=V.filter(v=>tp(v)===ftype).sort((a,b)=>(a.sold?1:0)-(b.sold?1:0)||a.id.localeCompare(b.id));
 return head+`<button onclick="ftype=null;render()" style="margin-bottom:10px">← Tipos</button><h2>${H(ftype)} (${f.length})</h2>`+(f.map(vcard).join("")||empty)}
 function datosHtml(v){const F=[["tipo","Tipo"],["marca","Marca"],["model","Modelo"],["year","Año"],["color","Color"],["chasis","N° chasis"],["motor","N° motor"]];
@@ -563,7 +564,9 @@ if(kind!=="mes"){const o={};rows.forEach(l=>{const k=(l.date||"").slice(0,7);(o[
 const dl=await claude.use("downloads");if(!dl)return al("La descarga no está disponible en este momento.");
 try{const buf=await wb.xlsx.writeBuffer();await dl.save({filename:`Combustible_${tag}.xlsx`,data:new Blob([buf],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"})})}catch(e){if(!e||e.code!=="declined")al("No se pudo descargar el informe")}}
 /* ===== Documentos por vehículo: consulta y descarga (solo lectura) ===== */
-let OD="";
+let OD="",VDok=false,DFok=false;
+const sinDoc=()=>V.filter(v=>!v.sold&&attOf(v.id)===0);
+const sdCard=()=>{if(!canSeeAtt()||!VDok||!DFok)return"";const n=sinDoc().length;return n?`<div class="card v" onclick="ftype='__sd';render()" style="border-color:var(--wa)"><b>📎 ${n} sin documentos</b><div class="mu">Vehículos activos sin ningún documento adjunto</div></div>`:""};
 const DKEYS=[...DOCS,["jaula","Jaula antivuelco"],["lamina","Lámina de seguridad"],["otro","Otros documentos"],["paquete","Paquete original"]];
 const xOpts=(t,qq,selId)=>{const f=V.filter(v=>!v.sold&&(qq?match(v,qq):t&&tp(v)===t)).sort((a,b)=>a.id.localeCompare(b.id));return(f.length!==1?`<option value="">${f.length?"Elegir vehículo…":(qq||t?"Sin resultados":"Primero elige el tipo")}</option>`:"")+f.map(v=>`<option value="${H(v.id)}"${v.id===selId?" selected":""}>${H(v.id)} · ${H(vname(v))}</option>`).join("")};
 function xfill(){const t=$("#x_t").value,qq=$("#x_q").value.trim().toUpperCase(),el=$("#x_p");el.innerHTML=xOpts(t,qq,"");OD=el.value||"";const l=$("#x_l");if(l)l.innerHTML=docList(OD)}
