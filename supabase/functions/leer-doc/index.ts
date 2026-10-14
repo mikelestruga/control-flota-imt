@@ -29,6 +29,7 @@ Reglas:
 - Si el documento solo trae mes y año, usa el ÚLTIMO día de ese mes y marca solo_mes=true.
 - No inventes: si no puedes leer una fecha, vencimiento=null y explica en "detalle" o "advertencias".
 - La patente (placa): devuélvela en mayúsculas, sin guiones, puntos ni espacios. La patente chilena tiene 6 caracteres (ej. LWKL20); el dígito después del guion final (ej. "-6" en "LWKL.20-6") es el dígito verificador y NO es parte de la patente. "LWKL-20 - 6", "LWKL20-6" y "LWKL.20-6" deben devolverse como "LWKL20".
+- NO compares fechas entre documentos distintos ni agregues advertencias por orden de fechas: la revisión técnica puede tener cualquier fecha respecto del permiso de circulación o su fecha de pago, y eso es normal. Solo advierte de problemas de lectura (página cortada, ilegible, patente distinta).
 - Toda página debe quedar dentro de algún documento (usa "otro" si no encaja).
 - Si ves señales de que falta una página (documento cortado, página ilegible, patente distinta entre documentos), agrégalo en "advertencias".
 No escribas texto: responde ÚNICAMENTE llamando a la herramienta "registrar" con todos los documentos encontrados.`;
