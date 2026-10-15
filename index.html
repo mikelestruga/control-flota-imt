@@ -124,7 +124,7 @@ function badge(n,date){const d=dd(date);let c="mu",t="Sin fecha";if(d!==null){c=
 function maintInfo(v){const e=+((v.maint||{}).every)||0;if(!e)return null;const ms=L.filter(l=>l.plate===v.id&&l.type==="mant"&&l.km&&isAceite(l)).map(l=>l.km);const last=ms.length?Math.max(...ms):(+(v.maint||{}).lastKm||0);const next=last+e;return{next,rem:next-(v.km||0),every:e}}
 function mbadge(v){const i=maintInfo(v);if(!i)return"";return `<span class="b ${i.rem<=0?"er":i.rem<=1000?"wa":"ok"}">🔧 Mantención: ${i.rem<0?"atrasada "+(-i.rem)+" km":i.rem===0?"toca ahora":"faltan "+i.rem+" km"}</span>`}
 function alertsOf(v){if(v.sold)return 0;let n=(aseg(v)?0:1)+DOCS.filter(([k])=>{const d=docDate(v,k);return d&&soon(d)}).length;const i=maintInfo(v);if(i&&i.rem<=1000)n++;const h=maintInfoH(v);if(h&&h.rem<=h.warn)n++;return n}
-let PH=[],PF=[],DLO=false,DLIA=true;
+let PH=[],PF=[],DLO=false,DLIA=true,DLV={},DLM="";
 const phHtml=()=>PH.map(p=>`<img src="${p}" style="height:60px;border-radius:4px;margin-right:4px">`).join("");
 function img(f,m=720,q=.6){return new Promise(r=>{const i=new Image();i.onload=()=>{const k=Math.min(1,m/Math.max(i.width,i.height)),c=document.createElement("canvas");c.width=i.width*k;c.height=i.height*k;c.getContext("2d").drawImage(i,0,0,c.width,c.height);r(c.toDataURL("image/jpeg",q))};i.onerror=()=>r(null);i.src=URL.createObjectURL(f)})}
 const blobFile=id=>blobUrl(id);
@@ -216,7 +216,7 @@ function detail(){
   <div>${H([v.marca,v.model,v.year].filter(Boolean).join(" "))}${v.sold?' <span class="b mu">Vendido</span>':""}</div>
   ${showAdm()?`<div style="margin-top:6px"><button onclick="editVeh()">✏️ Editar datos</button> <button onclick="chPlate()">🔁 Cambiar patente</button> <button onclick="delVeh()" style="color:var(--er)">🗑 Eliminar vehículo</button></div>`:""}<div style="margin-top:6px"><label>📍 Asignado a</label><input value="${H(v.assign||"")}" onchange="upVeh({assign:this.value})"></div>
   <div>${DOCS.map(([k,n])=>badge(docName(v,k,n),docDate(v,k))).join("")}${segBadge(v)}${mbadge(v)}${hbadge(v)}</div></div>
-  <div class="tabs">${Object.entries(T).map(([k,n])=>`<button class="${tab===k?"on":""}" onclick="tab='${k}';PH=[];PF=[];DLO=false;render()">${n}</button>`).join("")}</div>${tab!=="res"?`<button onclick="tab='res';PH=[];PF=[];DLO=false;render()" style="margin-bottom:10px">← Resumen</button>`:""}${body}`}
+  <div class="tabs">${Object.entries(T).map(([k,n])=>`<button class="${tab===k?"on":""}" onclick="tab='${k}';PH=[];PF=[];DLO=false;DLV={};DLM='';render()">${n}</button>`).join("")}</div>${tab!=="res"?`<button onclick="tab='res';PH=[];PF=[];DLO=false;DLV={};DLM='';render()" style="margin-bottom:10px">← Resumen</button>`:""}${body}`}
 async function upVeh(p){try{await db.collection("vehicles").doc(sel).update(p)}catch(e){al("Sin permiso para editar")}}
 async function upAseg(val){try{await db.collection("vehicles").doc(sel).update({asegurado:!!val})}catch(e){al("Sin permiso para editar")}}
 async function upCuota(val){try{await db.collection("vehicles").doc(sel).update({pcuota:val})}catch(e){al("Sin permiso para editar")}}
@@ -242,10 +242,12 @@ const dealCostOf=(plate,f,t,net)=>L.filter(l=>l.plate===plate&&l.dealer&&(!f||(l
 const dealerLine=l=>l.dealer?`<div><span class="b" style="color:var(--ac)">🏢 Concesionario${l.dname?": "+H(l.dname):""}</span>${l.inv?` · N° ${H(l.inv)}`:""}${showAdm()&&l.dcost?` · <b>${money(l.dcost)} con IVA</b> · ${money(dealNet(l))} sin IVA`:""}</div>`:"";
 const dealerBtn=v=>`<div style="margin-bottom:10px"><button class="p" style="width:100%" onclick="DLO=true;render(true)">🏢 Ingresar mantención en concesionario</button></div>`;
 const dealerForm=v=>`<div class="card"><h2>🏢 Ingresar mantención en concesionario</h2><p class="mu">Registra una mantención hecha en el concesionario de la marca con su costo total (mano de obra y repuestos). Queda en el historial del vehículo y suma al informe de costos.</p>
-<div style="background:var(--bg2,rgba(127,127,127,.1));border-radius:8px;padding:10px;margin:8px 0"><label>📄 Sube la factura (PDF o foto)</label><label class="chk"><input type="checkbox" style="width:auto" ${DLIA?"checked":""} onchange="DLIA=this.checked"> Leer con IA y rellenar el formulario</label><input type="file" accept="application/pdf,.pdf,image/*" onchange="dlFactura(this)"><div id="pf" style="margin-top:6px">${pfHtml()}</div><div id="dl_ia" class="mu" style="margin-top:4px"></div></div>
-<div class="g"><div><label>Fecha</label><input id="dl_d" type="date" value="${today()}"></div><div><label>Kilometraje (obligatorio)</label><input id="dl_k" type="number" inputmode="numeric"></div><div><label>Horas vehículo (si aplica)</label><input id="dl_h" type="number" step="any" inputmode="decimal" value="${v.hrs||""}"></div><div><label>Concesionario</label><input id="dl_n" placeholder="Ej: Salfa, Derco" autocomplete="off"></div><div><label>N° de factura u orden de trabajo</label><input id="dl_f" autocomplete="off"></div><div><label>Costo neto, SIN IVA ($)</label><input id="dl_nt" type="number" inputmode="numeric" min="0" oninput="dlCalc('n')"></div><div><label>Costo total, CON IVA ($)</label><input id="dl_c" type="number" inputmode="numeric" min="0" placeholder="Total pagado" oninput="dlCalc('t')"></div><div><label>Registrado por</label><input id="dl_b" value="${H(meName())}" autocomplete="off"></div></div>
-${mantSel()}<label style="margin-top:8px">Trabajo realizado</label><textarea id="dl_t" rows="2"></textarea>Guardar mantención</button> <button onclick="DLO=false;PF=[];render(true)">Cancelar</button></p><div id="n_err" class="er" style="font-size:14px"></div></div>`;
-function dlCalc(w){const n=$("#dl_nt"),t=$("#dl_c");if(!n||!t)return;if(w==="n")t.value=+n.value>0?Math.round(+n.value*1.19):"";else n.value=+t.value>0?Math.round(+t.value/1.19):""}
+<div style="background:var(--bg2,rgba(127,127,127,.1));border-radius:8px;padding:10px;margin:8px 0"><label>📄 Sube la factura (PDF o foto)</label><label class="chk"><input type="checkbox" style="width:auto" ${DLIA?"checked":""} onchange="DLIA=this.checked"> Leer con IA y rellenar el formulario</label><input type="file" accept="application/pdf,.pdf,image/*" onchange="dlFactura(this)"><div id="pf" style="margin-top:6px">${pfHtml()}</div><div id="dl_ia" class="mu" style="margin-top:4px">${DLM}</div></div>
+<div class="g"><div><label>Fecha</label><input id="dl_d" type="date" value="${H(DLV.dl_d||today())}"></div><div><label>Kilometraje (obligatorio)</label><input id="dl_k" type="number" inputmode="numeric" value="${H(DLV.dl_k||"")}"></div><div><label>Horas vehículo (si aplica)</label><input id="dl_h" type="number" step="any" inputmode="decimal" value="${H(DLV.dl_h!=null?DLV.dl_h:(v.hrs||""))}"></div><div><label>Concesionario</label><input id="dl_n" placeholder="Ej: Salfa, Derco" autocomplete="off" value="${H(DLV.dl_n||"")}"></div><div><label>N° de factura u orden de trabajo</label><input id="dl_f" autocomplete="off" value="${H(DLV.dl_f||"")}"></div><div><label>Costo neto, SIN IVA ($)</label><input id="dl_nt" type="number" inputmode="numeric" min="0" oninput="dlCalc('n')" value="${H(DLV.dl_nt||"")}"></div><div><label>Costo total, CON IVA ($)</label><input id="dl_c" type="number" inputmode="numeric" min="0" placeholder="Total pagado" oninput="dlCalc('t')" value="${H(DLV.dl_c||"")}"></div><div><label>Registrado por</label><input id="dl_b" value="${H(DLV.dl_b!=null?DLV.dl_b:meName())}" autocomplete="off"></div></div>
+${mantSel()}<label style="margin-top:8px">Trabajo realizado</label><textarea id="dl_t" rows="2">${H(DLV.dl_t||"")}</textarea>
+<p><button class="p" onclick="addDealer()">Guardar mantención</button> <button onclick="DLO=false;DLV={};DLM='';PF=[];render(true)">Cancelar</button></p><div id="n_err" class="er" style="font-size:14px"></div></div>`;
+document.addEventListener("input",e=>{const t=e.target;if(t&&t.id&&t.id.indexOf("dl_")===0&&t.id!=="dl_ia")DLV[t.id]=t.value});
+function dlCalc(w){const n=$("#dl_nt"),t=$("#dl_c");if(!n||!t)return;if(w==="n")t.value=+n.value>0?Math.round(+n.value*1.19):"";else n.value=+t.value>0?Math.round(+t.value/1.19):"";DLV.dl_nt=n.value;DLV.dl_c=t.value}
 async function addDealer(){if(!showAdm())return;bl();const miss=[],g=i=>String(($("#"+i)||{}).value||"");
 const k=+g("dl_k");let c=Math.round(+g("dl_c").replace(",",".")),nt=Math.round(+g("dl_nt").replace(",","."));if(!(c>0)&&nt>0)c=Math.round(nt*1.19);if(!(nt>0)&&c>0)nt=Math.round(c/1.19);
 if(!g("dl_b").trim())miss.push("Registrado por");if(!(k>0))miss.push("Kilometraje");if(!g("dl_n").trim())miss.push("Concesionario");if(!(c>0))miss.push("Costo (neto o total)");
@@ -254,20 +256,21 @@ if(miss.length)return showErr("n_err",miss);
 const r={plate:sel,type:"mant",dealer:true,dname:g("dl_n").trim(),dcost:c,dneto:nt,date:g("dl_d")||today(),km:k,text:g("dl_t"),op:g("dl_b").trim(),uid:ME_ID,photos:[],tipos:[...MS]};
 if(g("dl_f").trim())r.inv=g("dl_f").trim();const h=+g("dl_h").replace(",",".")||0;if(h)r.hrs=h;if(MS.has("Otro"))r.otro=OT.trim();if(MS.has("Mantención mayor"))r.mayor=[...MMS];if(PF.length)r.files=PF.slice();
 showErr("n_err",[]);
-try{await db.collection("logs").doc("l"+Date.now()).set(r);PF=[];MS.clear();MMS.clear();OT="";DLO=false;
+try{await db.collection("logs").doc("l"+Date.now()).set(r);PF=[];MS.clear();MMS.clear();OT="";DLO=false;DLV={};DLM="";
 const v=V.find(x=>x.id===sel);if(v&&r.km>(v.km||0))await db.collection("vehicles").doc(sel).update({km:r.km});if(v&&r.hrs&&r.hrs>(+v.hrs||0))await db.collection("vehicles").doc(sel).update({hrs:r.hrs});al("Mantención en concesionario guardada ✔");render(true)}
 catch(e){showErr("n_err",["No se pudo guardar (revisa tu conexión)"])}}
-async function dlFactura(el){const f=el.files[0],st=$("#dl_ia");if(!f)return;
+const setIa=h=>{DLM=h;const e=$("#dl_ia");if(e)e.innerHTML=h};
+async function dlFactura(el){const f=el.files[0];if(!f)return;
 if(f.size>20*1024*1024){el.value="";return al(f.name+" pesa más de 20 MB")}
-st.textContent="Subiendo factura…";let r;
-try{const as=await claude.use("assets");r=await as.upload(f);PF.push({aid:r.id,name:f.name,type:f.type||""});$("#pf").innerHTML=pfHtml()}catch(e){el.value="";st.textContent="";return al("No se pudo subir "+f.name)}
-el.value="";if(!DLIA){st.textContent="Factura adjuntada (sin lectura con IA). Completa los datos a mano.";return}
-st.textContent="🤖 Leyendo la factura con IA…";
+setIa("Subiendo factura…");let r;
+try{const as=await claude.use("assets");r=await as.upload(f);PF.push({aid:r.id,name:f.name,type:f.type||""});const pe=$("#pf");if(pe)pe.innerHTML=pfHtml()}catch(e){el.value="";setIa("");return al("No se pudo subir "+f.name)}
+el.value="";if(!DLIA){setIa("Factura adjuntada (sin lectura con IA). Completa los datos a mano.");return}
+setIa("🤖 Leyendo la factura con IA…");
 let data,error;try{({data,error}=await window.flotaFn("leer-doc",{path:r.id,modo:"factura"}))}catch(e){error=e}
 if(error||!data||!data.factura){let m=data&&data.resultado?"La función leer-doc de Supabase aún es la versión antigua: reemplázala por la nueva y pulsa Deploy":"No se pudo leer con IA";try{const b=await error.context.json();m=({tope:"Se alcanzó el tope diario de lecturas con IA",solo_admin:"Solo el Administrador puede leer con IA",sin_clave:"Falta configurar la clave de IA en Supabase",muy_pesado:"El archivo pesa más de 30 MB",no_autenticado:"Sesión no válida: recarga la página"})[b.error]||(m+" ["+[b.error,b.status,b.detalle].filter(Boolean).join(" · ").slice(0,300)+"]")}catch(_){if(error&&error.context&&error.context.status===404)m="La función leer-doc no está instalada en Supabase"}
-st.textContent="⚠ "+m+". La factura quedó adjunta: completa los datos a mano.";return}
+setIa("⚠ "+H(m)+". La factura quedó adjunta: completa los datos a mano.");return}
 dlFill(data.factura)}
-function dlFill(f){const set=(id,v)=>{const e=$("#"+id);if(e&&v!=null&&v!=="")e.value=v},got=[];
+function dlFill(f){const set=(id,v)=>{if(v==null||v==="")return;DLV[id]=String(v);const e=$("#"+id);if(e)e.value=v},got=[];
 const ok=(c,n,id,v)=>{if(c){set(id,v);got.push(n)}};
 ok(!!f.concesionario,"concesionario","dl_n",f.concesionario);ok(!!f.numero,"N° de factura","dl_f",f.numero);ok(/^\d{4}-\d{2}-\d{2}$/.test(f.fecha||""),"fecha","dl_d",f.fecha);ok(+f.total>0,"costo total","dl_c",Math.round(+f.total));if(+f.neto>0){set("dl_nt",Math.round(+f.neto));got.push("costo neto")}else if(+f.total>0){set("dl_nt",Math.round(+f.total/1.19));got.push("costo neto (calculado)")}ok(+f.km>0,"kilometraje","dl_k",Math.round(+f.km));ok(+f.horas>0,"horas","dl_h",f.horas);ok(!!f.trabajo,"trabajo","dl_t",f.trabajo);
 MS.clear();MMS.clear();(f.tipos||[]).filter(t=>MT.includes(t)).forEach(t=>MS.add(t));(f.mayor||[]).filter(t=>MM.includes(t)).forEach(t=>{MMS.add(t);MS.add("Mantención mayor")});if(f.otro){MS.add("Otro");OT=f.otro}
@@ -276,7 +279,7 @@ document.querySelectorAll('input[name=mt],input[name=mm]').forEach(c=>c.checked=
 const mm=$("#mm"),ot=$("#ot");if(mm)mm.style.display=MS.has("Mantención mayor")?"block":"none";if(ot){ot.style.display=MS.has("Otro")?"block":"none";const i=ot.querySelector("input");if(i)i.value=OT}
 const w=[...(f.advertencias||[])];if(f.patente&&np(f.patente).slice(0,6)!==np(sel).slice(0,6))w.push("La patente de la factura ("+f.patente+") no coincide con este vehículo ("+sel+"). Verifica que sea la factura correcta.");
 if(!(+f.total>0))w.push("No se leyó el costo total: escríbelo.");if(!(+f.km>0))w.push("No se leyó el kilometraje: escríbelo.");
-$("#dl_ia").innerHTML=(got.length?"✅ La IA rellenó: "+got.join(", ")+". <b>Revisa los datos antes de guardar.</b>":"No se pudo leer ningún dato.")+w.map(x=>`<div class="er">⚠ ${H(x)}</div>`).join("")}
+setIa((got.length?"✅ La IA rellenó: "+got.join(", ")+". <b>Revisa los datos antes de guardar.</b>":"No se pudo leer ningún dato.")+w.map(x=>`<div class="er">⚠ ${H(x)}</div>`).join(""))}
 const mantDocs=ls=>{const r=[];ls.filter(l=>l.type==="mant").forEach(l=>(l.files||[]).forEach(f=>r.push({l,f})));
 return `<div class="card"><h2>📎 Documentos de mantención (${r.length})</h2>${r.length?r.map(({l,f})=>`<div class="row"><span><a href="${blobFile(f.aid)}" target="_blank" rel="noopener">📄 ${H(f.name||"documento")}</a><div class="mu">${l.dealer?"🏢 "+H(l.dname||"Concesionario")+(l.inv?" · N° "+H(l.inv):"")+(l.dcost?" · "+money(l.dcost)+" con IVA / "+money(dealNet(l))+" sin IVA":""):"Mantención"}</div></span><span class="mu">${H(fdate(l.date))}</span></div>`).join(""):'<div class="mu">Aún no hay documentos adjuntos en las mantenciones.</div>'}</div>`};
 const canSeeAtt=()=>showAdm()||mode==="mec";
@@ -314,7 +317,7 @@ try{history.replaceState({mode,sel,adding,tab,ftype},"")}catch(e){}
 function hist(){const g=sig();if(g!==last){try{history.pushState({mode,sel,adding,tab,ftype},"")}catch(e){}last=g}}
 addEventListener("popstate",e=>{const t=e.state;if(t){mode=t.mode;sel=t.sel;adding=t.adding;tab=t.tab;ftype=t.ftype??null}else{sel=null;adding=false;tab="res";ftype=null}last=sig();render(true)});
 const HID=["Carro de arrastre"];
-const _r=render;render=function(f){if(sel!==_ls){MS.clear();MMS.clear();OT="";PU=[];DLO=false;_ls=sel}V=VALL.filter(v=>!(HID.includes(v.tipo)&&!showAdm()));
+const _r=render;render=function(f){if(sel!==_ls){MS.clear();MMS.clear();OT="";PU=[];DLO=false;DLV={};DLM="";_ls=sel}V=VALL.filter(v=>!(HID.includes(v.tipo)&&!showAdm()));
 if(sel&&!V.some(x=>x.id===sel)&&VALL.some(x=>x.id===sel))sel=null;if(HID.includes(ftype)&&!showAdm())ftype=null;if(ftype==="__rep"&&!showAdm())ftype=null;
 _r(f);hist();if(!canW()){$("#st").textContent="Solo lectura: pide acceso de Colaborador";document.querySelectorAll("#app input,#app select,#app textarea,#app button.p").forEach(e=>{if(e.id!=="q")e.disabled=true})}};
 const isAdm=()=>!!U&&(U.isOwner()||U.canEdit());
