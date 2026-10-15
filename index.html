@@ -262,7 +262,7 @@ st.textContent="Subiendo factura…";let r;
 try{const as=await claude.use("assets");r=await as.upload(f);PF.push({aid:r.id,name:f.name,type:f.type||""});$("#pf").innerHTML=pfHtml()}catch(e){el.value="";st.textContent="";return al("No se pudo subir "+f.name)}
 el.value="";st.textContent="🤖 Leyendo la factura con IA…";
 let data,error;try{({data,error}=await window.flotaFn("leer-doc",{path:r.id,modo:"factura"}))}catch(e){error=e}
-if(error||!data||!data.factura){let m="No se pudo leer con IA";try{const b=await error.context.json();m=({tope:"Se alcanzó el tope diario de lecturas con IA",solo_admin:"Solo el Administrador puede leer con IA",sin_clave:"Falta configurar la clave de IA en Supabase",muy_pesado:"El archivo pesa más de 30 MB",no_autenticado:"Sesión no válida: recarga la página"})[b.error]||m}catch(_){if(error&&error.context&&error.context.status===404)m="La función leer-doc no está instalada en Supabase"}
+if(error||!data||!data.factura){let m=data&&data.resultado?"La función leer-doc de Supabase aún es la versión antigua: reemplázala por la nueva y pulsa Deploy":"No se pudo leer con IA";try{const b=await error.context.json();m=({tope:"Se alcanzó el tope diario de lecturas con IA",solo_admin:"Solo el Administrador puede leer con IA",sin_clave:"Falta configurar la clave de IA en Supabase",muy_pesado:"El archivo pesa más de 30 MB",no_autenticado:"Sesión no válida: recarga la página"})[b.error]||m}catch(_){if(error&&error.context&&error.context.status===404)m="La función leer-doc no está instalada en Supabase"}
 st.textContent="⚠ "+m+". La factura quedó adjunta: completa los datos a mano.";return}
 dlFill(data.factura)}
 function dlFill(f){const set=(id,v)=>{const e=$("#"+id);if(e&&v!=null&&v!=="")e.value=v},got=[];
