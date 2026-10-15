@@ -66,6 +66,8 @@ export function calcular(vehs, hoy, forzar = false, logs = []) {
   const dia1 = hoy.slice(8) === "01";
   const lunes = new Date(hoy + "T12:00:00Z").getUTCDay() === 1;
   const mant = calcMant(vehs, logs);
+  const pat = Object.fromEntries(vehs.map(v => [v.id, fmtPat(v)]));
+  const porValorizar = logs.filter(l => l.type === "mant" && l.pstat === "pending").flatMap(l => (l.parts || []).filter(x => x.req).map(x => ({ pat: pat[l.plate] || l.plate, fecha: l.date || "", rep: x.name, qty: x.qty, unit: x.unit || "un", quien: l.op || l.by || "" }))).sort((a, b) => a.fecha.localeCompare(b.fecha));
   const sinSeg = vehs.filter(v => !v.sold && v.asegurado === false).map(v => ({ pat: fmtPat(v), veh: [v.marca, v.model].filter(Boolean).join(" "), tipo: v.tipo || "" }));
   let motivo = null;
   if (forzar) motivo = "Resumen de vencimientos y mantenciones (envío manual)";
@@ -74,7 +76,8 @@ export function calcular(vehs, hoy, forzar = false, logs = []) {
   else if (lunes && venc.length) motivo = "Recordatorio semanal de documentos vencidos";
   else if (lunes && mant.length) motivo = "Recordatorio semanal de mantenciones";
   else if (lunes && sinSeg.length) motivo = "Recordatorio semanal de vehículos sin seguro";
-  return { motivo, venc, por, nuevos, mant, sinSeg, mostrarPor: !!(forzar || dia1) };
+  else if (lunes && porValorizar.length) motivo = "Recordatorio semanal de repuestos a pedido por valorizar";
+  return { motivo, venc, por, nuevos, mant, sinSeg, porValorizar, mostrarPor: !!(forzar || dia1) };
 }
 
 const tabla = (titulo, color, rows) => !rows.length ? "" : `
@@ -92,12 +95,13 @@ ${rows.map(r => `<tr style="border-bottom:1px solid #ccc"><td><b>${esc(r.pat)}</
 </table>`;
 
 export function armarCorreo(res, hoy) {
-  const { motivo, venc, por, nuevos, mostrarPor, mant = [], sinSeg = [] } = res;
+  const { motivo, venc, por, nuevos, mostrarPor, mant = [], sinSeg = [], porValorizar = [] } = res;
+  const tablaRep = !porValorizar.length ? "" : `<h3 style="margin:18px 0 6px;color:#e65100">Repuestos a pedido por valorizar (${porValorizar.length})</h3><table cellpadding="6" cellspacing="0" style="border-collapse:collapse;width:100%;font:13px Arial,sans-serif"><tr style="background:#1f4e9e;color:#fff;text-align:left"><th>Patente</th><th>Fecha</th><th>Repuesto</th><th>Cantidad</th><th>Pidió</th></tr>${porValorizar.map(r => `<tr style="border-bottom:1px solid #ccc"><td><b>${esc(r.pat)}</b></td><td>${r.fecha ? fdate(r.fecha) : ""}</td><td>${esc(r.rep)}</td><td>${esc(r.qty)} ${esc(r.unit)}</td><td>${esc(r.quien)}</td></tr>`).join("")}</table><p style="color:#666;font-size:12px">Entra a «Repuestos y stock» en la app, abre «Pendientes de aprobación» y escribe el valor unitario.</p>`;
   const tablaSeg = !sinSeg.length ? "" : `<h3 style="margin:18px 0 6px;color:#c62828">Vehículos marcados SIN seguro (${sinSeg.length})</h3><table cellpadding="6" cellspacing="0" style="border-collapse:collapse;width:100%;font:13px Arial,sans-serif"><tr style="background:#1f4e9e;color:#fff;text-align:left"><th>Patente</th><th>Vehículo</th></tr>${sinSeg.map(r => `<tr style="border-bottom:1px solid #ccc"><td><b>${esc(r.pat)}</b></td><td>${esc(r.veh)} <span style="color:#666">${esc(r.tipo)}</span></td></tr>`).join("")}</table>`;
-  const soloMant = motivo.includes("mantenciones") && motivo.startsWith("Recordatorio"), soloSeg = motivo.includes("sin seguro");
+  const soloMant = motivo.includes("mantenciones") && motivo.startsWith("Recordatorio"), soloSeg = motivo.includes("sin seguro"), soloRep = motivo.includes("por valorizar");
   const cuerpo = (nuevos.length && !mostrarPor && motivo.startsWith("Documentos")) ? tabla("Vencieron hoy", "#c62828", nuevos)
-    : soloSeg ? tablaSeg : soloMant ? tablaMant(mant) + tablaSeg
-    : tabla("Vencidos", "#c62828", venc) + (mostrarPor ? tabla("Por vencer", "#0969da", por) : "") + tablaMant(mant) + tablaSeg;
+    : soloRep ? tablaRep : soloSeg ? tablaSeg : soloMant ? tablaMant(mant) + tablaSeg
+    : tabla("Vencidos", "#c62828", venc) + (mostrarPor ? tabla("Por vencer", "#0969da", por) : "") + tablaMant(mant) + tablaSeg + tablaRep;
   const asunto = `Flota IMT · ${motivo}` + (venc.length ? ` · ${venc.length} vencido(s)` : "") + (mostrarPor && por.length ? ` · ${por.length} por vencer` : "") + (mant.length ? ` · ${mant.length} mantención(es)` : "");
   const html = `<div style="font:14px Arial,sans-serif;max-width:760px"><h2 style="margin:0 0 4px;color:#1f4e9e">Control de Flota IMT</h2>
 <div style="color:#666">${esc(motivo)} · ${fdate(hoy)}</div>${cuerpo || "<p>No hay documentos vencidos ni por vencer, ni mantenciones próximas.</p>"}
