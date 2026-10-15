@@ -770,7 +770,7 @@ ws.views=[{state:"frozen",ySplit:1}];ws.autoFilter={from:"A1",to:"H1"};
 const dl=await claude.use("downloads");if(!dl)return al("La descarga no está disponible en este momento.");
 try{const buf=await wb.xlsx.writeBuffer();await dl.save({filename:`Reporte_Lavado_${m}.xlsx`,data:new Blob([buf],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"})})}catch(e){if(!e||e.code!=="declined")al("No se pudo descargar el reporte")}}
 let OT="",MS=new Set(),MMS=new Set(),mf="",msort="fd",_ls=null;
-const MT=["Cambio de aceite","Filtro de aceite","Filtro de aire","Torqueo de ruedas","Batería","Sensores","Revisión general","Pintura","Reparación o cambio de piezas de carrocería","Mantención mayor","Otro"];
+const MT=["Cambio de aceite","Filtro de aceite","Cambio de filtro de combustible","Filtro de aire","Torqueo de ruedas","Batería","Sensores","Revisión general","Pintura","Reparación o cambio de piezas de carrocería","Mantención mayor","Otro"];
 const MM=["Frenos","Neumáticos","Suspensión","Dirección","Correas de accesorios","Distribución","Refrigeración","Transmisión"];
 function msel(el){const S=el.name==="mm"?MMS:MS;el.checked?S.add(el.value):S.delete(el.value);if(el.value==="Mantención mayor")$("#mm").style.display=el.checked?"block":"none";if(el.value==="Otro")$("#ot").style.display=el.checked?"block":"none"}
 function mantSel(){const sub=`<div id="mm" style="display:${MS.has("Mantención mayor")?"block":"none"};margin:2px 0 6px 14px;padding-left:10px;border-left:3px solid var(--ac)"><label>Mantención mayor: marca los sistemas intervenidos</label><div>${MM.map(t=>`<label class="chk"><input type="checkbox" name="mm" value="${H(t)}"${MMS.has(t)?" checked":""} onchange="msel(this)"> ${H(t)}</label>`).join("")}</div></div>`,

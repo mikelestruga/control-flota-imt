@@ -60,7 +60,7 @@ const SCHEMA = {
   required: ["total_paginas", "documentos", "advertencias"],
 };
 
-const TIPOS = ["Cambio de aceite", "Filtro de aceite", "Filtro de aire", "Torqueo de ruedas", "Batería", "Sensores", "Revisión general", "Pintura", "Reparación o cambio de piezas de carrocería", "Mantención mayor", "Otro"];
+const TIPOS = ["Cambio de aceite", "Filtro de aceite", "Cambio de filtro de combustible", "Filtro de aire", "Torqueo de ruedas", "Batería", "Sensores", "Revisión general", "Pintura", "Reparación o cambio de piezas de carrocería", "Mantención mayor", "Otro"];
 const MAYOR = ["Frenos", "Neumáticos", "Suspensión", "Dirección", "Correas de accesorios", "Distribución", "Refrigeración", "Transmisión"];
 
 const PROMPT_FACTURA = `Lees una factura, boleta u orden de trabajo de una mantención de vehículo hecha en un concesionario o taller de Chile. Extrae los datos para rellenar un formulario.
