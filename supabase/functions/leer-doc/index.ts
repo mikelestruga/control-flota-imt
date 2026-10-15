@@ -66,7 +66,8 @@ const MAYOR = ["Frenos", "Neumáticos", "Suspensión", "Dirección", "Correas de
 const PROMPT_FACTURA = `Lees una factura, boleta u orden de trabajo de una mantención de vehículo hecha en un concesionario o taller de Chile. Extrae los datos para rellenar un formulario.
 Reglas:
 - Fechas chilenas DD/MM/AAAA; devuélvelas como AAAA-MM-DD.
-- "total": el TOTAL A PAGAR de la factura en pesos chilenos (con IVA), como número entero, sin puntos ni símbolo $. No uses el neto ni el subtotal.
+- "total": el TOTAL A PAGAR de la factura en pesos chilenos (con IVA incluido), como número entero, sin puntos ni símbolo $.
+- "neto": el monto NETO (sin IVA) de la factura, como número entero. Si la factura no lo muestra, null.
 - "numero": número de la factura/boleta; si no hay, el de la orden de trabajo. 
 - "concesionario": razón social o nombre comercial de quien emite (ej. Salfa, Derco). 
 - "patente": mayúsculas, sin guiones ni espacios (6 caracteres; el dígito tras el guion final es verificador y no cuenta).
@@ -82,6 +83,7 @@ const SCHEMA_FACTURA = {
     concesionario: { type: ["string", "null"] },
     numero: { type: ["string", "null"] },
     fecha: { type: ["string", "null"], description: "AAAA-MM-DD" },
+    neto: { type: ["integer", "null"], description: "Monto neto, sin IVA" },
     total: { type: ["integer", "null"] },
     patente: { type: ["string", "null"] },
     km: { type: ["integer", "null"] },
