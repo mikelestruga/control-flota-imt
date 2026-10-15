@@ -60,6 +60,41 @@ const SCHEMA = {
   required: ["total_paginas", "documentos", "advertencias"],
 };
 
+const TIPOS = ["Cambio de aceite", "Filtro de aceite", "Filtro de aire", "Torqueo de ruedas", "Batería", "Sensores", "Revisión general", "Pintura", "Reparación o cambio de piezas de carrocería", "Mantención mayor", "Otro"];
+const MAYOR = ["Frenos", "Neumáticos", "Suspensión", "Dirección", "Correas de accesorios", "Distribución", "Refrigeración", "Transmisión"];
+
+const PROMPT_FACTURA = `Lees una factura, boleta u orden de trabajo de una mantención de vehículo hecha en un concesionario o taller de Chile. Extrae los datos para rellenar un formulario.
+Reglas:
+- Fechas chilenas DD/MM/AAAA; devuélvelas como AAAA-MM-DD.
+- "total": el TOTAL A PAGAR de la factura en pesos chilenos (con IVA), como número entero, sin puntos ni símbolo $. No uses el neto ni el subtotal.
+- "numero": número de la factura/boleta; si no hay, el de la orden de trabajo. 
+- "concesionario": razón social o nombre comercial de quien emite (ej. Salfa, Derco). 
+- "patente": mayúsculas, sin guiones ni espacios (6 caracteres; el dígito tras el guion final es verificador y no cuenta).
+- "km": kilometraje de ingreso o salida del vehículo si figura; si no, null. "horas": horómetro si figura.
+- "trabajo": resumen breve (máx. 300 caracteres) de los trabajos y repuestos facturados.
+- "tipos": marca solo los que correspondan a lo facturado, usando EXACTAMENTE los nombres permitidos. Si hay mantención mayor, agrega "Mantención mayor" y en "mayor" los sistemas intervenidos. Si el trabajo no encaja, usa "Otro" y descríbelo en "otro".
+- No inventes: si un dato no se lee, devuélvelo null y avisa en "advertencias".
+No escribas texto: responde ÚNICAMENTE llamando a la herramienta "registrar_factura".`;
+
+const SCHEMA_FACTURA = {
+  type: "object",
+  properties: {
+    concesionario: { type: ["string", "null"] },
+    numero: { type: ["string", "null"] },
+    fecha: { type: ["string", "null"], description: "AAAA-MM-DD" },
+    total: { type: ["integer", "null"] },
+    patente: { type: ["string", "null"] },
+    km: { type: ["integer", "null"] },
+    horas: { type: ["number", "null"] },
+    trabajo: { type: "string" },
+    tipos: { type: "array", items: { type: "string", enum: TIPOS } },
+    mayor: { type: "array", items: { type: "string", enum: MAYOR } },
+    otro: { type: ["string", "null"] },
+    advertencias: { type: "array", items: { type: "string" } },
+  },
+  required: ["concesionario", "numero", "fecha", "total", "patente", "km", "trabajo", "tipos", "advertencias"],
+};
+
 function b64(buf: ArrayBuffer) {
   const u = new Uint8Array(buf); let s = ""; const n = 0x8000;
   for (let i = 0; i < u.length; i += n) s += String.fromCharCode(...u.subarray(i, i + n));
@@ -83,7 +118,8 @@ Deno.serve(async (req) => {
     if (!rol) return out({ error: "solo_admin" }, 403);
 
     // 2) Archivo
-    const { path } = await req.json();
+    const { path, modo } = await req.json();
+    const fact = modo === "factura";
     if (!path || typeof path !== "string" || path.includes("..")) return out({ error: "ruta" }, 400);
     const { data: blob, error: ed } = await svc.storage.from("archivos").download(path);
     if (ed || !blob) return out({ error: "no_archivo" }, 404);
@@ -106,8 +142,11 @@ Deno.serve(async (req) => {
       headers: { "x-api-key": apiKey, "anthropic-version": "2023-06-01", "content-type": "application/json" },
       body: JSON.stringify({
         model: MODELO, max_tokens: 8000,
-        tools: [{ name: "registrar", description: "Registra los documentos encontrados", input_schema: SCHEMA }],
-        messages: [{ role: "user", content: [part, { type: "text", text: PROMPT }] }],
+        tools: fact
+          ? [{ name: "registrar_factura", description: "Registra los datos de la factura", input_schema: SCHEMA_FACTURA }]
+          : [{ name: "registrar", description: "Registra los documentos encontrados", input_schema: SCHEMA }],
+        tool_choice: { type: "tool", name: fact ? "registrar_factura" : "registrar" },
+        messages: [{ role: "user", content: [part, { type: "text", text: fact ? PROMPT_FACTURA : PROMPT }] }],
       }),
     });
     const j = await r.json();
@@ -117,7 +156,7 @@ Deno.serve(async (req) => {
     }
     const tu = (j.content || []).find((c: any) => c.type === "tool_use");
     if (!tu) { await svc.rpc("ia_devolver"); return out({ error: "sin_respuesta" }, 502); }
-    return out({ ok: true, resultado: tu.input, usadas: n, limite: LIMITE, es_pdf: isPdf });
+    return out({ ok: true, ...(fact ? { factura: tu.input } : { resultado: tu.input }), usadas: n, limite: LIMITE, es_pdf: isPdf });
   } catch (e) {
     return out({ error: "interno", detalle: String(e) }, 500);
   }

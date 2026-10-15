@@ -129,7 +129,7 @@ const phHtml=()=>PH.map(p=>`<img src="${p}" style="height:60px;border-radius:4px
 function img(f,m=720,q=.6){return new Promise(r=>{const i=new Image();i.onload=()=>{const k=Math.min(1,m/Math.max(i.width,i.height)),c=document.createElement("canvas");c.width=i.width*k;c.height=i.height*k;c.getContext("2d").drawImage(i,0,0,c.width,c.height);r(c.toDataURL("image/jpeg",q))};i.onerror=()=>r(null);i.src=URL.createObjectURL(f)})}
 const blobFile=id=>blobUrl(id);
 const pfHtml=()=>PF.map((f,i)=>`<span class="b" style="margin:2px 4px 2px 0">📄 ${H(f.name)} <a href="#" onclick="event.preventDefault();PF.splice(${i},1);$('#pf').innerHTML=pfHtml()" style="margin-left:4px">✕</a></span>`).join("");
-const fileLinks=l=>(l.files||[]).length?`<div style="margin-top:4px">${l.files.map(f=>`<a class="b" href="${blobFile(f.aid)}" target="_blank" rel="noopener" style="margin:2px 4px 2px 0;text-decoration:none">📄 ${H(f.name||"documento")}</a>`).join("")}</div>`:"";
+const fileLinks=l=>(l.files||[]).length&&(!l.dealer||showAdm())?`<div style="margin-top:4px">${l.files.map(f=>`<a class="b" href="${blobFile(f.aid)}" target="_blank" rel="noopener" style="margin:2px 4px 2px 0;text-decoration:none">📄 ${H(f.name||"documento")}</a>`).join("")}</div>`:"";
 const pdfInput=()=>showAdm()?`<label style="margin-top:8px">Adjuntar PDF u otros documentos (opcional, máx. 20 MB)</label><input type="file" accept="application/pdf,.pdf,.doc,.docx,.xls,.xlsx" multiple onchange="pickPdf(this)"><div id="pf" style="margin-top:6px">${pfHtml()}</div>`:"";
 async function pickPdf(el){const as=await claude.use("assets");for(const f of [...el.files]){if(f.size>20*1024*1024){al(f.name+" pesa más de 20 MB");continue}try{const r=await as.upload(f);PF.push({aid:r.id,name:f.name,type:f.type||""})}catch(e){al("No se pudo subir "+f.name+": solo el Administrador puede adjuntar archivos")}}el.value="";$("#pf").innerHTML=pfHtml()}
 async function pick(el){for(const f of [...el.files].slice(0,3-PH.length)){if(!/^image\//.test(f.type)){al("«"+f.name+"» no es una foto. Para PDF usa «Adjuntar PDF»");continue}const d=await img(f);if(d)PH.push(d)}el.value="";$("#ph").innerHTML=phHtml()}
@@ -207,7 +207,7 @@ function detail(){
     const dlr=tab==="mant"&&showAdm()?dealerBtn(v):"";
     body=(DLO&&tab==="mant"&&showAdm()?dealerForm(v):dlr+`<div class="card"><h2>Agregar registro</h2><div class="g"><div><label>Fecha</label><input id="n_d" type="date" value="${today()}"></div><div><label>Kilometraje${tab==="mant"?" (obligatorio)":""}</label><input id="n_k" type="number" inputmode="numeric" value="${tab==="mant"?"":v.km||""}"></div>${km}<div><label>Tu nombre</label><input id="n_b" placeholder="Nombre y apellido" autocomplete="off"></div></div>
     ${tab==="mant"?mantSel()+puSel():""}<label style="margin-top:8px">${tab==="mant"?"Trabajo realizado / repuestos":tab==="asig"?"Lugar o trabajo asignado":"Notas"}</label><textarea id="n_t" rows="2"></textarea><label>Fotos (máx. 3)</label><input type="file" accept="image/*" multiple onchange="pick(this)"><div id="ph" style="margin-top:6px">${phHtml()}</div>${pdfInput()}
-    <p><button class="p" onclick="addLog()">Agregar</button></p><div id="n_err" class="er" style="font-size:14px"></div></div>`)+`
+    <p><button class="p" onclick="addLog()">Agregar</button></p><div id="n_err" class="er" style="font-size:14px"></div></div>`)+(tab==="mant"&&showAdm()?mantDocs(ls):"")+`
     <div class="card"><h2>${T[tab]} (${t.length})</h2>${tab==="mant"?mantCtl():""}${t.length?t.map(l=>`<div class="row"><div><b>${H(l.date)}</b> · ${kmTxt(l)}${tagsHtml(l)}<div>${H(l.text||"")}${l.liters?` · ${l.liters} L`:""}${l.cost?` · $${(+l.cost).toLocaleString("es-CL")}`:""}</div><div>${(l.photos||[]).map(p=>`<img src="${p}" onclick="big(this.src)" style="height:60px;border-radius:4px;margin:3px 3px 0 0;cursor:pointer">`).join("")}</div>${fileLinks(l)}</div><span class="mu">${H(who(l))}<br>${adm(l)}</span></div>`).join(""):'<div class="mu">Sin registros.</div>'}</div>`;
   }
   const cons=(()=>{const c=ls.filter(l=>l.type==="comb"&&l.liters&&l.km).sort((a,b)=>a.km-b.km);if(c.length<2)return"";const km=c[c.length-1].km-c[0].km,li=c.slice(1).reduce((s,l)=>s+ +l.liters,0);return li?` · rend. ${(km/li).toFixed(1)} km/L`:""})();
@@ -242,9 +242,9 @@ const dealCostOf=(plate,f,t)=>L.filter(l=>l.plate===plate&&l.dealer&&(!f||(l.dat
 const dealerLine=l=>l.dealer?`<div><span class="b" style="color:var(--ac)">🏢 Concesionario${l.dname?": "+H(l.dname):""}</span>${l.inv?` · N° ${H(l.inv)}`:""}${showAdm()&&l.dcost?` · <b>${money(l.dcost)}</b>`:""}</div>`:"";
 const dealerBtn=v=>`<div style="margin-bottom:10px"><button class="p" style="width:100%" onclick="DLO=true;render(true)">🏢 Ingresar mantención en concesionario</button></div>`;
 const dealerForm=v=>`<div class="card"><h2>🏢 Ingresar mantención en concesionario</h2><p class="mu">Registra una mantención hecha en el concesionario de la marca con su costo total (mano de obra y repuestos). Queda en el historial del vehículo y suma al informe de costos.</p>
+<div style="background:var(--bg2,rgba(127,127,127,.1));border-radius:8px;padding:10px;margin:8px 0"><label>📄 Sube la factura (PDF o foto): la IA rellena el formulario</label><input type="file" accept="application/pdf,.pdf,image/*" onchange="dlFactura(this)"><div id="pf" style="margin-top:6px">${pfHtml()}</div><div id="dl_ia" class="mu" style="margin-top:4px"></div></div>
 <div class="g"><div><label>Fecha</label><input id="dl_d" type="date" value="${today()}"></div><div><label>Kilometraje (obligatorio)</label><input id="dl_k" type="number" inputmode="numeric"></div><div><label>Horas vehículo (si aplica)</label><input id="dl_h" type="number" step="any" inputmode="decimal" value="${v.hrs||""}"></div><div><label>Concesionario</label><input id="dl_n" placeholder="Ej: Salfa, Derco" autocomplete="off"></div><div><label>N° de factura u orden de trabajo</label><input id="dl_f" autocomplete="off"></div><div><label>Costo total ($)</label><input id="dl_c" type="number" inputmode="numeric" min="0" placeholder="Total pagado"></div><div><label>Registrado por</label><input id="dl_b" value="${H(meName())}" autocomplete="off"></div></div>
-${mantSel()}<label style="margin-top:8px">Trabajo realizado</label><textarea id="dl_t" rows="2"></textarea>${pdfInput()}
-<p><button class="p" onclick="addDealer()">Guardar mantención</button> <button onclick="DLO=false;PF=[];render(true)">Cancelar</button></p><div id="n_err" class="er" style="font-size:14px"></div></div>`;
+${mantSel()}<label style="margin-top:8px">Trabajo realizado</label><textarea id="dl_t" rows="2"></textarea>Guardar mantención</button> <button onclick="DLO=false;PF=[];render(true)">Cancelar</button></p><div id="n_err" class="er" style="font-size:14px"></div></div>`;
 async function addDealer(){if(!showAdm())return;bl();const miss=[],g=i=>String(($("#"+i)||{}).value||"");
 const k=+g("dl_k"),c=Math.round(+g("dl_c").replace(",","."));
 if(!g("dl_b").trim())miss.push("Registrado por");if(!(k>0))miss.push("Kilometraje");if(!g("dl_n").trim())miss.push("Concesionario");if(!(c>0))miss.push("Costo total");
@@ -256,6 +256,27 @@ showErr("n_err",[]);
 try{await db.collection("logs").doc("l"+Date.now()).set(r);PF=[];MS.clear();MMS.clear();OT="";DLO=false;
 const v=V.find(x=>x.id===sel);if(v&&r.km>(v.km||0))await db.collection("vehicles").doc(sel).update({km:r.km});if(v&&r.hrs&&r.hrs>(+v.hrs||0))await db.collection("vehicles").doc(sel).update({hrs:r.hrs});al("Mantención en concesionario guardada ✔");render(true)}
 catch(e){showErr("n_err",["No se pudo guardar (revisa tu conexión)"])}}
+async function dlFactura(el){const f=el.files[0],st=$("#dl_ia");if(!f)return;
+if(f.size>20*1024*1024){el.value="";return al(f.name+" pesa más de 20 MB")}
+st.textContent="Subiendo factura…";let r;
+try{const as=await claude.use("assets");r=await as.upload(f);PF.push({aid:r.id,name:f.name,type:f.type||""});$("#pf").innerHTML=pfHtml()}catch(e){el.value="";st.textContent="";return al("No se pudo subir "+f.name)}
+el.value="";st.textContent="🤖 Leyendo la factura con IA…";
+let data,error;try{({data,error}=await window.flotaFn("leer-doc",{path:r.id,modo:"factura"}))}catch(e){error=e}
+if(error||!data||!data.factura){let m="No se pudo leer con IA";try{const b=await error.context.json();m=({tope:"Se alcanzó el tope diario de lecturas con IA",solo_admin:"Solo el Administrador puede leer con IA",sin_clave:"Falta configurar la clave de IA en Supabase",muy_pesado:"El archivo pesa más de 30 MB",no_autenticado:"Sesión no válida: recarga la página"})[b.error]||m}catch(_){if(error&&error.context&&error.context.status===404)m="La función leer-doc no está instalada en Supabase"}
+st.textContent="⚠ "+m+". La factura quedó adjunta: completa los datos a mano.";return}
+dlFill(data.factura)}
+function dlFill(f){const set=(id,v)=>{const e=$("#"+id);if(e&&v!=null&&v!=="")e.value=v},got=[];
+const ok=(c,n,id,v)=>{if(c){set(id,v);got.push(n)}};
+ok(!!f.concesionario,"concesionario","dl_n",f.concesionario);ok(!!f.numero,"N° de factura","dl_f",f.numero);ok(/^\d{4}-\d{2}-\d{2}$/.test(f.fecha||""),"fecha","dl_d",f.fecha);ok(+f.total>0,"costo total","dl_c",Math.round(+f.total));ok(+f.km>0,"kilometraje","dl_k",Math.round(+f.km));ok(+f.horas>0,"horas","dl_h",f.horas);ok(!!f.trabajo,"trabajo","dl_t",f.trabajo);
+MS.clear();MMS.clear();(f.tipos||[]).filter(t=>MT.includes(t)).forEach(t=>MS.add(t));(f.mayor||[]).filter(t=>MM.includes(t)).forEach(t=>{MMS.add(t);MS.add("Mantención mayor")});if(f.otro){MS.add("Otro");OT=f.otro}
+if(MS.size)got.push("tipo de mantención");
+document.querySelectorAll('input[name=mt],input[name=mm]').forEach(c=>c.checked=(c.name==="mm"?MMS:MS).has(c.value));
+const mm=$("#mm"),ot=$("#ot");if(mm)mm.style.display=MS.has("Mantención mayor")?"block":"none";if(ot){ot.style.display=MS.has("Otro")?"block":"none";const i=ot.querySelector("input");if(i)i.value=OT}
+const w=[...(f.advertencias||[])];if(f.patente&&np(f.patente).slice(0,6)!==np(sel).slice(0,6))w.push("La patente de la factura ("+f.patente+") no coincide con este vehículo ("+sel+"). Verifica que sea la factura correcta.");
+if(!(+f.total>0))w.push("No se leyó el costo total: escríbelo.");if(!(+f.km>0))w.push("No se leyó el kilometraje: escríbelo.");
+$("#dl_ia").innerHTML=(got.length?"✅ La IA rellenó: "+got.join(", ")+". <b>Revisa los datos antes de guardar.</b>":"No se pudo leer ningún dato.")+w.map(x=>`<div class="er">⚠ ${H(x)}</div>`).join("")}
+const mantDocs=ls=>{const r=[];ls.filter(l=>l.type==="mant").forEach(l=>(l.files||[]).forEach(f=>r.push({l,f})));
+return `<div class="card"><h2>📎 Documentos de mantención (${r.length})</h2>${r.length?r.map(({l,f})=>`<div class="row"><span><a href="${blobFile(f.aid)}" target="_blank" rel="noopener">📄 ${H(f.name||"documento")}</a><div class="mu">${l.dealer?"🏢 "+H(l.dname||"Concesionario")+(l.inv?" · N° "+H(l.inv):"")+(l.dcost?" · "+money(l.dcost):""):"Mantención"}</div></span><span class="mu">${H(fdate(l.date))}</span></div>`).join(""):'<div class="mu">Aún no hay documentos adjuntos en las mantenciones.</div>'}</div>`};
 const canSeeAtt=()=>showAdm()||mode==="mec";
 const attOf=id=>VD.filter(x=>x.plate===id).length+DF.filter(x=>x.plate===id).length;
 const attBadge=v=>{if(!canSeeAtt())return"";const n=attOf(v.id);return n?`<span class="b ok">📎 ${n} adjunto${n>1?"s":""}</span>`:`<span class="b wa">📎 Sin adjuntos</span>`};
