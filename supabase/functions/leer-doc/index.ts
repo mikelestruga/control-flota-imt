@@ -145,7 +145,6 @@ Deno.serve(async (req) => {
         tools: fact
           ? [{ name: "registrar_factura", description: "Registra los datos de la factura", input_schema: SCHEMA_FACTURA }]
           : [{ name: "registrar", description: "Registra los documentos encontrados", input_schema: SCHEMA }],
-        tool_choice: { type: "tool", name: fact ? "registrar_factura" : "registrar" },
         messages: [{ role: "user", content: [part, { type: "text", text: fact ? PROMPT_FACTURA : PROMPT }] }],
       }),
     });
