@@ -129,7 +129,7 @@ const mant6=v=>{if(v.sold)return null;const d=lastMantDate(v);if(!d)return null;
 const m6badge=v=>{const x=mant6(v);return x?`<span class="b wa">🔧 ${x.m} meses sin mantención (última ${fdate(x.d)})</span>`:""};
 function mbadge(v){return mbadge0(v)+m6badge(v)}
 function mbadge0(v){const i=maintInfo(v);if(!i)return"";return `<span class="b ${i.rem<=0?"er":i.rem<=1000?"wa":"ok"}">🔧 Mantención: ${i.rem<0?"atrasada "+(-i.rem)+" km":i.rem===0?"toca ahora":"faltan "+i.rem+" km"}</span>`}
-function alertsOf(v){if(v.sold)return 0;let n=(mant6(v)?1:0)+(aseg(v)?0:1)+DOCS.filter(([k])=>{const d=docDate(v,k);return d&&soon(d)}).length;const i=maintInfo(v);if(i&&i.rem<=1000)n++;const h=maintInfoH(v);if(h&&h.rem<=h.warn)n++;return n}
+function alertsOf(v){if(v.sold)return 0;let n=(aseg(v)?0:1)+DOCS.filter(([k])=>{const d=docDate(v,k);return d&&soon(d)}).length;const i=maintInfo(v);if(i&&i.rem<=1000)n++;const h=maintInfoH(v);if(h&&h.rem<=h.warn)n++;return n}
 let PH=[],PF=[],DLO=false,DLIA=true,DLV={},DLM="",DIA=true,DIM="";
 const phHtml=()=>PH.map(p=>`<img src="${p}" style="height:60px;border-radius:4px;margin-right:4px">`).join("");
 function img(f,m=720,q=.6){return new Promise(r=>{const i=new Image();i.onload=()=>{const k=Math.min(1,m/Math.max(i.width,i.height)),c=document.createElement("canvas");c.width=i.width*k;c.height=i.height*k;c.getContext("2d").drawImage(i,0,0,c.width,c.height);r(c.toDataURL("image/jpeg",q))};i.onerror=()=>r(null);i.src=URL.createObjectURL(f)})}
