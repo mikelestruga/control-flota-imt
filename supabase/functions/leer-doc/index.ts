@@ -97,6 +97,47 @@ const SCHEMA_FACTURA = {
   required: ["concesionario", "numero", "fecha", "total", "patente", "km", "trabajo", "tipos", "advertencias"],
 };
 
+const PROMPT_COMPRA = `Lees una factura, orden de compra, guía de despacho o cotización de REPUESTOS e insumos de un vehículo (Chile). Extrae los datos de la compra y TODAS las líneas de productos.
+Reglas:
+- "tipo": factura, orden_compra, guia, boleta u otro.
+- "numero": el número del documento (N° de factura u orden de compra).
+- "proveedor": razón social o nombre de quien vende (en una orden de compra, el proveedor al que se compra).
+- Fechas chilenas DD/MM/AAAA; devuélvelas como AAAA-MM-DD.
+- Montos en pesos chilenos, números sin puntos ni símbolo $. "neto" = monto neto (sin IVA), "iva", "total" = total a pagar con IVA.
+- Cada línea: "descripcion" (texto tal como aparece), "codigo" si existe, "cantidad" (número), "unidad" (un, lt, kg, m, juego, etc.; si no se indica, "un"), "precio_unitario_neto": precio por unidad SIN IVA. Si el documento solo muestra precios con IVA incluido, divide por 1,19 y avísalo en "advertencias". Si solo hay total de la línea, calcula el unitario = total de la línea / cantidad.
+- No incluyas como líneas los descuentos globales, fletes, IVA ni totales.
+- No inventes: si un dato no se lee, null y avisa en "advertencias".
+No escribas texto: responde ÚNICAMENTE llamando a la herramienta "registrar_compra".`;
+
+const SCHEMA_COMPRA = {
+  type: "object",
+  properties: {
+    tipo: { type: "string", enum: ["factura", "orden_compra", "guia", "boleta", "otro"] },
+    numero: { type: ["string", "null"] },
+    proveedor: { type: ["string", "null"] },
+    fecha: { type: ["string", "null"], description: "AAAA-MM-DD" },
+    neto: { type: ["integer", "null"] },
+    iva: { type: ["integer", "null"] },
+    total: { type: ["integer", "null"] },
+    items: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          codigo: { type: ["string", "null"] },
+          descripcion: { type: "string" },
+          cantidad: { type: "number" },
+          unidad: { type: ["string", "null"] },
+          precio_unitario_neto: { type: ["number", "null"] },
+        },
+        required: ["descripcion", "cantidad"],
+      },
+    },
+    advertencias: { type: "array", items: { type: "string" } },
+  },
+  required: ["tipo", "numero", "proveedor", "fecha", "total", "items", "advertencias"],
+};
+
 function b64(buf: ArrayBuffer) {
   const u = new Uint8Array(buf); let s = ""; const n = 0x8000;
   for (let i = 0; i < u.length; i += n) s += String.fromCharCode(...u.subarray(i, i + n));
@@ -121,7 +162,7 @@ Deno.serve(async (req) => {
 
     // 2) Archivo
     const { path, modo } = await req.json();
-    const fact = modo === "factura";
+    const fact = modo === "factura", comp = modo === "compra";
     if (!path || typeof path !== "string" || path.includes("..")) return out({ error: "ruta" }, 400);
     const { data: blob, error: ed } = await svc.storage.from("archivos").download(path);
     if (ed || !blob) return out({ error: "no_archivo" }, 404);
@@ -143,11 +184,13 @@ Deno.serve(async (req) => {
       method: "POST",
       headers: { "x-api-key": apiKey, "anthropic-version": "2023-06-01", "content-type": "application/json" },
       body: JSON.stringify({
-        model: MODELO, max_tokens: 8000,
-        tools: fact
+        model: MODELO, max_tokens: 12000,
+        tools: comp
+          ? [{ name: "registrar_compra", description: "Registra la compra y sus líneas", input_schema: SCHEMA_COMPRA }]
+          : fact
           ? [{ name: "registrar_factura", description: "Registra los datos de la factura", input_schema: SCHEMA_FACTURA }]
           : [{ name: "registrar", description: "Registra los documentos encontrados", input_schema: SCHEMA }],
-        messages: [{ role: "user", content: [part, { type: "text", text: fact ? PROMPT_FACTURA : PROMPT }] }],
+        messages: [{ role: "user", content: [part, { type: "text", text: comp ? PROMPT_COMPRA : fact ? PROMPT_FACTURA : PROMPT }] }],
       }),
     });
     const j = await r.json();
@@ -157,7 +200,7 @@ Deno.serve(async (req) => {
     }
     const tu = (j.content || []).find((c: any) => c.type === "tool_use");
     if (!tu) { await svc.rpc("ia_devolver"); return out({ error: "sin_respuesta" }, 502); }
-    return out({ ok: true, ...(fact ? { factura: tu.input } : { resultado: tu.input }), usadas: n, limite: LIMITE, es_pdf: isPdf });
+    return out({ ok: true, ...(comp ? { compra: tu.input } : fact ? { factura: tu.input } : { resultado: tu.input }), usadas: n, limite: LIMITE, es_pdf: isPdf });
   } catch (e) {
     return out({ error: "interno", detalle: String(e) }, 500);
   }

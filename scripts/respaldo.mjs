@@ -30,7 +30,7 @@ export function armarJson(filas) {
   return {
     app: "control-flota", version: 1, fecha: new Date().toISOString(),
     counters: cs.map(c => ({ id: c.id, last: +c.last || 0 })),
-    vehicles: by.vehicles || [], logs: by.logs || [], vales: by.vales || [], docfiles: by.docfiles || [], vdocs: by.vdocs || [], parts: by.parts || [], pins: by.pins || [],
+    vehicles: by.vehicles || [], logs: by.logs || [], vales: by.vales || [], docfiles: by.docfiles || [], vdocs: by.vdocs || [], parts: by.parts || [], pins: by.pins || [], compras: by.compras || [],
   };
 }
 
@@ -67,7 +67,9 @@ async function main() {
   // Archivos adjuntos: solo los nuevos desde el último respaldo
   let hechos; try { hechos = new Set(JSON.parse((await getState("archivos_subidos")) || "[]")); } catch { hechos = new Set(); }
   const deRegistros = d.logs.flatMap(l => (l.files || []).map(f => ({ aid: f.aid, plate: l.plate, key: "registros", name: f.name })));
-  const nuevos = [...d.vdocs, ...deRegistros].filter(x => x.aid && !hechos.has(x.aid));
+  const deCompras = [...d.compras.map(c => ({ aid: c.aid, plate: "Compras de stock", key: "Facturas y OC", name: c.fname })), ...d.pins.map(g => ({ aid: g.aid, plate: "Compras de stock", key: "Facturas y OC", name: g.fname }))];
+  const vistos = new Set();
+  const nuevos = [...d.vdocs, ...deRegistros, ...deCompras].filter(x => x.aid && !hechos.has(x.aid) && !vistos.has(x.aid) && vistos.add(x.aid));
   console.log(`Archivos adjuntos nuevos: ${nuevos.length}`);
   let bytes = 0, ok = 0, fallos = 0;
   for (const x of nuevos) {
