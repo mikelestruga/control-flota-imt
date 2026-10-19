@@ -124,8 +124,12 @@ const noAtt=(v,k)=>canSeeAtt()&&!!docDate(v,k)&&!VD.some(x=>x.plate===v.id&&x.ke
 function badge(n,date,na){const d=dd(date);let c="mu",t="Sin fecha";if(d!==null){c=d<0?"er":soon(date)?"wa":"ok";t=d<0?`Vencido (${date})`:soon(date)?`Por vencer (${d} d)`:`Al día · ${date}`}return `<span class="b ${c}">${IC}${n}: ${t}${na?` · <span title="Sin documento adjunto" style="white-space:nowrap">s/📎</span>`:""}</span>`}
 const hOnly=v=>(+v.hrs||0)>0&&!(+v.km||0),usoTxt=v=>{const k=+v.km||0,h=+v.hrs||0,kt=k.toLocaleString("es-CL")+" km",ht=h.toLocaleString("es-CL")+" h";return h>0&&k>0?kt+" · "+ht:h>0?ht:kt};
 function maintInfo(v){const e=+((v.maint||{}).every)||0;if(!e)return null;const ms=L.filter(l=>l.plate===v.id&&l.type==="mant"&&l.km&&isAceite(l)).map(l=>l.km);const last=ms.length?Math.max(...ms):(+(v.maint||{}).lastKm||0);const next=last+e;return{next,rem:next-(v.km||0),every:e}}
-function mbadge(v){const i=maintInfo(v);if(!i)return"";return `<span class="b ${i.rem<=0?"er":i.rem<=1000?"wa":"ok"}">🔧 Mantención: ${i.rem<0?"atrasada "+(-i.rem)+" km":i.rem===0?"toca ahora":"faltan "+i.rem+" km"}</span>`}
-function alertsOf(v){if(v.sold)return 0;let n=(aseg(v)?0:1)+DOCS.filter(([k])=>{const d=docDate(v,k);return d&&soon(d)}).length;const i=maintInfo(v);if(i&&i.rem<=1000)n++;const h=maintInfoH(v);if(h&&h.rem<=h.warn)n++;return n}
+const lastMantDate=v=>L.filter(l=>l.plate===v.id&&l.type==="mant"&&l.date).reduce((a,l)=>l.date>a?l.date:a,"");
+const mant6=v=>{if(v.sold)return null;const d=lastMantDate(v);if(!d)return null;const t=new Date(today()+"T12:00:00");t.setMonth(t.getMonth()-6);const cut=t.getFullYear()+"-"+String(t.getMonth()+1).padStart(2,"0")+"-"+String(t.getDate()).padStart(2,"0");if(d>=cut)return null;return{d,m:Math.floor((Date.parse(today()+"T12:00:00")-Date.parse(d+"T12:00:00"))/86400000/30.4)}};
+const m6badge=v=>{const x=mant6(v);return x?`<span class="b wa">🔧 ${x.m} meses sin mantención (última ${fdate(x.d)})</span>`:""};
+function mbadge(v){return mbadge0(v)+m6badge(v)}
+function mbadge0(v){const i=maintInfo(v);if(!i)return"";return `<span class="b ${i.rem<=0?"er":i.rem<=1000?"wa":"ok"}">🔧 Mantención: ${i.rem<0?"atrasada "+(-i.rem)+" km":i.rem===0?"toca ahora":"faltan "+i.rem+" km"}</span>`}
+function alertsOf(v){if(v.sold)return 0;let n=(mant6(v)?1:0)+(aseg(v)?0:1)+DOCS.filter(([k])=>{const d=docDate(v,k);return d&&soon(d)}).length;const i=maintInfo(v);if(i&&i.rem<=1000)n++;const h=maintInfoH(v);if(h&&h.rem<=h.warn)n++;return n}
 let PH=[],PF=[],DLO=false,DLIA=true,DLV={},DLM="",DIA=true,DIM="";
 const phHtml=()=>PH.map(p=>`<img src="${p}" style="height:60px;border-radius:4px;margin-right:4px">`).join("");
 function img(f,m=720,q=.6){return new Promise(r=>{const i=new Image();i.onload=()=>{const k=Math.min(1,m/Math.max(i.width,i.height)),c=document.createElement("canvas");c.width=i.width*k;c.height=i.height*k;c.getContext("2d").drawImage(i,0,0,c.width,c.height);r(c.toDataURL("image/jpeg",q))};i.onerror=()=>r(null);i.src=URL.createObjectURL(f)})}
@@ -325,7 +329,44 @@ _r(f);hist();if(!canW()){$("#st").textContent="Solo lectura: pide acceso de Cola
 const isAdm=()=>!!U&&(U.isOwner()||U.canEdit());
 const showAdm=()=>isAdm()&&mode==="adm";
 const adm=l=>showAdm()?`<span style="white-space:nowrap"><button onclick="editLog('${l.id}')" title="Editar">✏️</button> <button onclick="delLog('${l.id}')" title="Eliminar">🗑</button></span>`:"";
-async function editLog(id){const l=L.find(x=>x.id===id);if(!l)return;const f=l.type==="dano"?"desc":"text";const t=await pr("Editar detalle",l[f]||"");if(t===null)return;const k=await pr("Kilometraje",l.km||0);if(k===null)return;let dc=null;let cc=null;if(l.type==="comb"){cc=await pr("Costo de la carga ($)",l.cost||0);if(cc===null)return}let dn=null;if(l.dealer){dc=await pr("Costo total CON IVA ($)",l.dcost||0);if(dc===null)return;const cn=Math.round(+String(dc).replace(/\./g,"").replace(",","."))||0;dn=await pr("Costo neto SIN IVA ($)",cn===+l.dcost?dealNet(l):Math.round(cn/1.19));if(dn===null)return;dc=cn}try{await db.collection("logs").doc(id).update({[f]:t,km:+k||0,...(l.type==="comb"?{cost:Math.round(+String(cc).replace(/\./g,"").replace(",","."))||0}:{}),...(l.dealer?{dcost:dc,dneto:Math.round(+String(dn).replace(/\./g,"").replace(",","."))||0}:{})})}catch(e){al("No se pudo editar")}}
+async function editLog(id){const l=L.find(x=>x.id===id);if(!l||!showAdm())return;
+const nv=v=>{const n=+String(v).replace(/\./g,"").replace(",",".");return isNaN(n)?0:n};
+const F=(lab,key,val,type)=>`<label style="margin-top:6px">${lab}</label><input data-k="${key}" type="${type||"text"}"${type==="number"?' step="any" inputmode="decimal"':""} value="${H(val??"")}">`;
+const tf=l.type==="dano"?"desc":"text",u=l.unit==="h"?"h":"km";
+let h=`<h3 style="margin:0 0 6px">Editar · ${H(TL[l.type]||l.type)} · ${H(l.plate)}</h3><p class="mu" style="margin:0 0 6px">Corrige lo que se ingresó mal. Registrado por: ${H(whoN(l))}.</p><div style="max-height:62vh;overflow:auto;padding-right:4px">`;
+h+=F("Fecha","date",l.date,"date");
+if(l.type==="km"){if(l.kmIni!=null)h+=F("Inicial ("+u+")","kmIni",l.kmIni,"number");h+=F((l.kmIni!=null?"Final":"Valor")+" ("+u+")",l.kmIni!=null?"kmFin":"km",l.kmIni!=null?l.kmFin:l.km,"number")}
+else if(l.type==="comb"){h+=F(u==="h"?"Horas del vehículo":"Kilometraje",u==="h"?"hrs":"km",u==="h"?l.hrs:l.km,"number")+F("Litros","liters",l.liters,"number")+F("Costo total de la carga ($)","cost",l.cost,"number")+`<label style="margin-top:6px">Combustible</label><select data-k="ft"><option value="gasolina"${l.ft==="gasolina"?" selected":""}>Gasolina</option><option value="diesel"${l.ft==="diesel"?" selected":""}>Diésel</option></select>`+F("Quién cargó","cargo",l.cargo)+F("Faena","faena",l.faena)}
+else if(l.type==="mant"){h+=F("Kilometraje","km",l.km,"number")+F("Horas vehículo","hrs",l.hrs,"number")+F("Mano de obra (horas)","mo",l.mo,"number");
+h+=`<label style="margin-top:6px">Tipo de mantención</label><div>${MT.map(t=>`<label class="chk"><input type="checkbox" name="e_t" value="${H(t)}"${(l.tipos||[]).includes(t)?" checked":""}> ${H(t)}</label>`).join("")}</div>`;
+h+=`<label style="margin-top:6px">Mantención mayor: sistemas</label><div>${MM.map(t=>`<label class="chk"><input type="checkbox" name="e_m" value="${H(t)}"${(l.mayor||[]).includes(t)?" checked":""}> ${H(t)}</label>`).join("")}</div>`+F("Si es «Otro», detalle","otro",l.otro);
+if(l.dealer)h+=F("Concesionario","dname",l.dname)+F("N° factura / OT","inv",l.inv)+F("Costo neto SIN IVA ($)","dneto",l.dneto!=null?l.dneto:dealNet(l),"number")+F("Costo total CON IVA ($)","dcost",l.dcost,"number")}
+else if(l.type==="dano"){h+=F("Kilometraje","km",l.km,"number")+F("Tipo (daño / entrega)","kind",l.kind)+F("Chofer","driver",l.driver)}
+else if(l.type==="asig"){h+=F("Kilometraje","km",l.km,"number")}
+if(l.type!=="km"){h+=`<label style="margin-top:6px">${l.type==="dano"?"Descripción":"Detalle / notas"}</label><textarea data-k="${tf}" rows="3">${H(l[tf]||"")}</textarea>`}else h+=`<label style="margin-top:6px">Observación</label><textarea data-k="text" rows="2">${H(l.text||"")}</textarea>`;
+h+=F("Registrado por (nombre)","op",l.op)+`</div><div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px"><button id="dn">Cancelar</button><button class="p" id="dy">Guardar cambios</button></div>`;
+const r=await dlg(h,(o,d)=>{const g=k=>o.querySelector(`[data-k="${k}"]`);
+if(l.dealer){const n=g("dneto"),t=g("dcost");if(n&&t){n.oninput=()=>{t.value=+n.value>0?Math.round(+n.value*1.19):""};t.oninput=()=>{n.value=+t.value>0?Math.round(+t.value/1.19):""}}}
+o.querySelector("#dn").onclick=()=>d(null);
+o.querySelector("#dy").onclick=()=>{const out={};o.querySelectorAll("[data-k]").forEach(e=>{out[e.dataset.k]=e.value});
+if(l.type==="mant"){out.__t=[...o.querySelectorAll('[name=e_t]:checked')].map(e=>e.value);out.__m=[...o.querySelectorAll('[name=e_m]:checked')].map(e=>e.value)}d(out)}});
+if(!r)return;
+const upd={},numK=["km","hrs","kmIni","kmFin","mo","liters","cost","dneto","dcost"];
+for(const [k,v] of Object.entries(r)){if(k.startsWith("__"))continue;
+if(numK.includes(k)){const old=+l[k]||0;if(String(v).trim()===""){if(old)upd[k]=0;continue}let n=nv(v);if(["cost","dneto","dcost"].includes(k))n=Math.round(n);if(n!==old)upd[k]=n}
+else if(String(v)!==String(l[k]??""))upd[k]=v}
+if(l.type==="km"&&upd.kmFin!=null)upd.km=upd.kmFin;
+if(l.type==="mant"){upd.tipos=r.__t;upd.mayor=r.__m;if(!r.__t.length)return al("Marca al menos un tipo de mantención.");if(r.__t.includes("Otro")&&!String(r.otro||"").trim())return al("Escribe el detalle de «Otro».");if(!r.__t.includes("Otro"))upd.otro=""}
+if(l.type==="comb"&&u==="h"&&upd.hrs!=null)upd.km=0;
+if(l.dealer&&upd.dcost!=null&&upd.dcost<=0)return al("El costo total no puede ser 0.");
+if(!Object.keys(upd).length)return;
+try{await db.collection("logs").doc(id).update(upd);
+if(l.type==="comb"){const pr2=L.find(x=>x.id===id+"k");if(pr2){const pu={};if(upd.date)pu.date=upd.date;const nk=upd.km??upd.hrs;if(nk!=null){pu.km=nk;pu.kmFin=nk}if(Object.keys(pu).length)await db.collection("logs").doc(id+"k").update(pu)}}
+const v=VALL.find(x=>x.id===l.plate);if(v){const nl={...l,...upd},vp={};
+for(const [f,fn,lab] of [["km",odoK,"kilometraje"],["hrs",odoH,"horómetro"]]){const nvv=fn(nl),ov=fn(l),cur=+v[f]||0;if(nvv===ov)continue;
+if(nvv>cur)vp[f]=nvv;else if(ov>=cur&&nvv<ov){const m=Math.max(0,nvv,...L.filter(x=>x.plate===v.id&&x.id!==l.id).map(fn));if(m<cur&&await cf(`El ${lab} de ${v.id} figura en ${cur.toLocaleString("es-CL")} por el dato que corregiste. ¿Bajarlo a ${m.toLocaleString("es-CL")} (el mayor de los registros)?`))vp[f]=m}}
+if(Object.keys(vp).length)await db.collection("vehicles").doc(v.id).update(vp)}
+al("Cambios guardados ✔")}catch(e){al("No se pudo guardar los cambios")}}
 const odoK=l=>l.unit==="h"?0:(+l.km||0),odoH=l=>l.unit==="h"?(+l.hrs||+l.km||0):(+l.hrs||0);
 async function fixOdo(v,l){const rest=L.filter(x=>x.plate===v.id&&x.id!==l.id);
 for(const [f,fn,lab,dg] of [["km",odoK,"kilometraje",0],["hrs",odoH,"horómetro",1]]){const dv=fn(l),cur=+v[f]||0;if(!dv||dv<cur)continue;const m=Math.max(0,...rest.map(fn));
