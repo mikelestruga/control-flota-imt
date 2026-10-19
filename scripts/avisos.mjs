@@ -73,11 +73,11 @@ export function calcular(vehs, hoy, forzar = false, logs = []) {
   if (forzar) motivo = "Resumen de vencimientos y mantenciones (envío manual)";
   else if (dia1) motivo = "Resumen mensual de vencimientos y mantenciones";
   else if (nuevos.length) motivo = "Documentos que vencieron hoy";
-  else if (lunes && venc.length) motivo = "Recordatorio semanal de documentos vencidos";
+  else if (lunes && (venc.length || por.length)) motivo = venc.length ? "Recordatorio semanal de documentos vencidos y por vencer" : "Recordatorio semanal de documentos por vencer";
   else if (lunes && mant.length) motivo = "Recordatorio semanal de mantenciones";
   else if (lunes && sinSeg.length) motivo = "Recordatorio semanal de vehículos sin seguro";
   else if (lunes && porValorizar.length) motivo = "Recordatorio semanal de repuestos a pedido por valorizar";
-  return { motivo, venc, por, nuevos, mant, sinSeg, porValorizar, mostrarPor: !!(forzar || dia1) };
+  return { motivo, venc, por, nuevos, mant, sinSeg, porValorizar, mostrarPor: !!(forzar || dia1 || lunes) };
 }
 
 const tabla = (titulo, color, rows) => !rows.length ? "" : `
