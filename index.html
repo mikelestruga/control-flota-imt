@@ -950,6 +950,9 @@ let PAR=[],PIN=[],PU=[],psq="",pgrp=(()=>{try{return localStorage.getItem("pgrp"
 const vehList=a=>Array.isArray(a)?a:String(a||"").split(",").map(x=>x.trim()).filter(Boolean);
 const vehNames=()=>[...new Set(V.concat(VALL||[]).map(v=>[v.marca,v.model].filter(Boolean).join(" ")).filter(Boolean))].sort();
 const catNames=()=>[...new Set(PAR.map(x=>(x.cat||"").trim()).filter(Boolean))].sort();
+let PAV=new Set();
+const vehChk=(sel,extra,fn)=>{const all=[...new Set([...vehNames(),...extra])].sort();return all.length?`<div style="max-height:170px;overflow:auto;border:1px solid var(--bd);border-radius:8px;padding:6px 8px">${all.map(n=>`<label class="chk" style="display:flex;gap:8px;align-items:center;margin:2px 0"><input type="checkbox" style="width:auto" data-v="${H(n)}" ${sel.has(n)?"checked":""} onchange="${fn}"> ${H(n)}</label>`).join("")}</div>`:'<div class="mu">No hay vehículos registrados aún.</div>'};
+function pavT(el){el.checked?PAV.add(el.dataset.v):PAV.delete(el.dataset.v)}
 function setGrp(v){pgrp=v;try{localStorage.setItem("pgrp",v)}catch(e){}pdraw()}
 const nf=x=>(+x||0).toLocaleString("es-CL",{maximumFractionDigits:2});
 const num=v=>{const x=parseFloat(String(v).replace(",","."));return isNaN(x)?null:x};
@@ -1060,7 +1063,7 @@ ${PC.open?pcForm():pcBtn()}
 <div class="card"><h2>Agregar repuesto</h2><div class="g"><div><label>Código (opcional)</label><input id="pa_c"></div><div><label>Nombre del repuesto</label><input id="pa_n"></div>
 <div><label>Unidad</label><select id="pa_u">${un.map(u=>`<option>${u}</option>`).join("")}</select></div><div><label>Stock inicial</label><input id="pa_s" type="number" step="any" min="0" inputmode="decimal"></div>
 <div><label>Valor unitario ($ por unidad)</label><input id="pa_v" type="number" step="any" min="0" inputmode="decimal"></div><div><label>Stock mínimo (opcional)</label><input id="pa_m" type="number" step="any" min="0" inputmode="decimal"></div>
-<div><label>Tipo de repuesto (opcional)</label><input id="pa_cat" list="dl_cat" placeholder="Ej: Filtro de aceite"></div><div><label>Vehículos / modelos (opcional)</label><input id="pa_veh" list="dl_veh" placeholder="Ej: Toyota Hilux, Ford Ranger"></div>
+<div><label>Tipo de repuesto (opcional)</label><input id="pa_cat" list="dl_cat" placeholder="Ej: Filtro de aceite"></div><div style="grid-column:1/-1"><label>Vehículos / modelos compatibles (opcional) — marca los que correspondan</label>${vehChk(PAV,[...PAV],"pavT(this)")}</div>
 <datalist id="dl_cat">${catNames().map(c=>`<option value="${H(c)}">`).join("")}</datalist><datalist id="dl_veh">${vehNames().map(c=>`<option value="${H(c)}">`).join("")}</datalist>
 <div><label>N° orden de compra (opcional)</label><input id="pa_oc"></div><div><label>Adjuntar documento (opcional)</label><input id="pa_f" type="file" accept="image/*,application/pdf"></div></div>
 <p><button class="p" onclick="pAdd()">Agregar repuesto</button></p><div id="pa_err" class="er" style="font-size:14px"></div></div>
@@ -1121,11 +1124,11 @@ async function pAdd(){bl();const nm=$("#pa_n").value.trim(),st=num($("#pa_s").va
 if(!nm)m.push("Nombre del repuesto");if(st===null||st<0)m.push("Stock inicial (puede ser 0)");if(st>0&&(cv===null||cv<0))m.push("Valor unitario ($ por unidad)");
 if(nm&&PAR.some(x=>x.name.trim().toUpperCase()===nm.toUpperCase()))m.push("Ya existe un repuesto con ese nombre");
 if(m.length)return showErr("pa_err",m);showErr("pa_err",[]);
-const d={name:nm,code:$("#pa_c").value.trim(),unit:$("#pa_u").value,stock:st,created:today()};const ct=$("#pa_cat").value.trim(),vh=vehList($("#pa_veh").value);if(ct)d.cat=ct;if(vh.length)d.veh=vh;if(mn!==null&&mn>=0)d.min=mn;if(cv!==null&&cv>=0)d.cost=cv;
+const d={name:nm,code:$("#pa_c").value.trim(),unit:$("#pa_u").value,stock:st,created:today()};const ct=$("#pa_cat").value.trim(),vh=[...PAV];if(ct)d.cat=ct;if(vh.length)d.veh=vh;if(mn!==null&&mn>=0)d.min=mn;if(cv!==null&&cv>=0)d.cost=cv;
 const oc=$("#pa_oc").value.trim(),fl=$("#pa_f").files[0];if(fl&&!oc&&!await cf("Adjuntaste un documento sin N° de orden de compra. ¿Continuar?"))return;
 const pid="p"+Date.now();let up=null;if(fl){up=await upPin(fl);if(up===false)return}
 try{await db.collection("parts").doc(pid).set(d);if(st>0)await db.collection("pins").doc("i"+Date.now()).set({pid,name:nm,unit:d.unit,qty:st,oc,aid:up?up.aid:"",fname:up?up.name:"",date:today(),by:meName()||"Administrador",kind:"inicial",...(cv!==null?{ucost:cv}:{})});
-["pa_c","pa_n","pa_s","pa_v","pa_m","pa_oc","pa_f","pa_cat","pa_veh"].forEach(i=>$("#"+i).value="");al("Repuesto agregado ✔")}catch(e){showErr("pa_err",["No se pudo guardar (revisa tu conexión)"])}}
+["pa_c","pa_n","pa_s","pa_v","pa_m","pa_oc","pa_f","pa_cat"].forEach(i=>$("#"+i).value="");PAV=new Set();render(true);al("Repuesto agregado ✔")}catch(e){showErr("pa_err",["No se pudo guardar (revisa tu conexión)"])}}
 async function upPin(f){let as=null;try{as=await claude.use("assets")}catch(e){}
 if(!as){al("Subir archivos no está disponible en este momento.");return false}
 try{const r=await as.upload(f);return {aid:r.id,name:f.name}}catch(e){al("No se pudo subir el archivo (máximo 20 MB).");return false}}
@@ -1144,8 +1147,8 @@ async function pSet(id){const x=PAR.find(y=>y.id===id);if(!x)return;const v=awai
 try{await db.collection("parts").doc(id).update({stock:q});al("Stock ajustado ✔")}catch(e){al("No se pudo actualizar")}}
 async function pEdit(id){const x=PAR.find(y=>y.id===id);if(!x)return;const n=await pr("Nombre del repuesto",x.name);if(n===null)return;if(!n.trim())return al("El nombre no puede quedar vacío");
 const c=await pr("Código (opcional)",x.code||"");if(c===null)return;const m=await pr("Stock mínimo (opcional, vacío = sin mínimo)",x.min==null?"":x.min);if(m===null)return;
-const ct=await pr("Tipo de repuesto (ej: Filtro de aceite; vacío = sin tipo)"+(catNames().length?" · Existentes: "+catNames().join(", "):""),x.cat||"");if(ct===null)return;const vh=await pr("Vehículos / modelos compatibles, separados por coma (ej: Toyota Hilux, Ford Ranger; vacío = ninguno)"+(vehNames().length?" · Tuyos: "+vehNames().join(", "):""),vehList(x.veh).join(", "));if(vh===null)return;
-const d={name:n.trim(),code:c.trim(),cat:ct.trim(),veh:vehList(vh)};const mm=num(m);if(mm!==null&&mm>=0)d.min=mm;else if(String(m).trim()==="")d.min=null;
+const ed=await dlg(`<h3 style="margin:0 0 6px">Tipo y vehículos</h3><p class="mu" style="margin:0 0 6px">${H(x.name)}</p><label>Tipo de repuesto</label><input data-k="cat" list="dl_cat2" value="${H(x.cat||"")}" placeholder="Ej: Filtro de aceite"><datalist id="dl_cat2">${catNames().map(c=>`<option value="${H(c)}">`).join("")}</datalist><label>Vehículos / modelos compatibles</label>${vehChk(new Set(vehList(x.veh)),vehList(x.veh),"")}<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px"><button id="dn">Cancelar</button><button class="p" id="dy">Aceptar</button></div>`,(o,d)=>{o.querySelector("#dn").onclick=()=>d(null);o.querySelector("#dy").onclick=()=>d({cat:o.querySelector('[data-k="cat"]').value.trim(),veh:[...o.querySelectorAll("input[data-v]")].filter(i=>i.checked).map(i=>i.dataset.v)})});if(ed===null)return;const ct=ed.cat,vh=ed.veh;
+const d={name:n.trim(),code:c.trim(),cat:ct,veh:vh};const mm=num(m);if(mm!==null&&mm>=0)d.min=mm;else if(String(m).trim()==="")d.min=null;
 try{await db.collection("parts").doc(id).update(d);al("Repuesto actualizado ✔")}catch(e){al("No se pudo actualizar")}}
 async function pDel(id){const x=PAR.find(y=>y.id===id);if(!x||!await cf(`¿Eliminar «${x.name}» del stock? Las mantenciones ya registradas conservan su nombre.`))return;
 try{await db.collection("parts").doc(id).delete();al("Repuesto eliminado")}catch(e){al("No se pudo eliminar")}}
