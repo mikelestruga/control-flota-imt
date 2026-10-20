@@ -980,17 +980,24 @@ const pu=p=>`${p.name} × ${nf(p.qty)} ${p.unit||"un"}${p.req?" (a pedido)":""}`
 const partsTxt=l=>(l.parts&&l.parts.length)?l.parts.map(pu).join("; ")+(l.pstat?` [${PST[l.pstat]||l.pstat}]`:""):"";
 const partsLine=l=>(l.parts&&l.parts.length)?`<div>🔩 Repuestos: ${H(l.parts.map(pu).join(", "))} <span class="b ${l.pstat==="applied"?"ok":l.pstat==="rejected"?"er":"wa"}">${H(PST[l.pstat]||"")}</span></div>`:"";
 // --- selector de repuestos en la mantención
-function puOpts(q){const qq=(q||"").trim().toUpperCase();const f=[...PAR].filter(x=>!qq||(x.name+" "+(x.code||"")).toUpperCase().includes(qq)).sort((a,b)=>a.name.localeCompare(b.name));
-return '<option value="">Elegir repuesto…</option>'+f.map(x=>`<option value="${H(x.id)}">${H(x.name)} (stock ${nf(x.stock)} ${H(x.unit||"un")})</option>`).join("")+'<option value="__req">➕ Repuesto a pedido (no está en la lista)</option>'}
-function puSel(){return `<div style="margin-top:8px"><label>Repuestos utilizados</label><div class="g">
-<div><label>Buscar repuesto</label><input id="pu_q" type="search" oninput="puFill()" placeholder="Nombre o código"></div>
-<div><label>Repuesto</label><select id="pu_s" onchange="puPick()">${puOpts("")}</select></div>
+const curVN=()=>{const v=VALL.find(x=>x.id===sel);return v?[v.marca,v.model].filter(Boolean).join(" "):""};
+const compatOf=(x,vn)=>{const l=vehList(x.veh);if(!l.length)return"na";return vn&&l.some(n=>normN(n)===normN(vn))?"si":"no"};
+function puOpts(q){const qq=normN(q),ce=$("#pu_c"),cc=ce?ce.value:"",ck=$("#pu_cv"),vn=curVN(),onlyC=!!(ck&&ck.checked);
+const f=[...PAR].filter(x=>(!qq||normN(x.name+" "+(x.code||"")+" "+(x.cat||"")+" "+vehList(x.veh).join(" ")).includes(qq))&&(!cc||normN(x.cat)===normN(cc))&&(!onlyC||compatOf(x,vn)!=="no")).sort((a,b)=>{const ca=compatOf(a,vn)==="si"?0:1,cb=compatOf(b,vn)==="si"?0:1;return ca-cb||a.name.localeCompare(b.name)});
+return '<option value="">Elegir repuesto…</option>'+f.map(x=>`<option value="${H(x.id)}">${compatOf(x,vn)==="si"?"✔ ":""}${H(x.name)}${x.code?" ["+H(x.code)+"]":""}${x.cat?" · "+H(x.cat):""} (stock ${nf(x.stock)} ${H(x.unit||"un")})</option>`).join("")+'<option value="__req">➕ Repuesto a pedido (no está en la lista)</option>'}
+function puSel(){const vn=curVN(),cs=catNames();return `<div style="margin-top:8px"><label>Repuestos utilizados</label><div class="g">
+<div><label>Buscar repuesto</label><input id="pu_q" type="search" oninput="puFill()" placeholder="Nombre, código, categoría o modelo"></div>
+${cs.length?`<div><label>Categoría</label><select id="pu_c" onchange="puFill()"><option value="">Todas las categorías</option>${cs.map(c=>`<option>${H(c)}</option>`).join("")}</select></div>`:""}
+${vn?`<div style="grid-column:1/-1"><label class="chk"><input type="checkbox" id="pu_cv" style="width:auto" onchange="puFill()"> Solo compatibles con ${H(vn)} (incluye los sin modelo asignado)</label></div>`:""}
+<div><label>Repuesto</label><select id="pu_s" onchange="puPick()">${puOpts("")}</select><div id="pu_info" class="mu" style="margin-top:4px"></div></div>
 <div id="pu_rw" style="display:none"><label>Nombre del repuesto a pedido</label><input id="pu_rn" placeholder="Describe el repuesto"></div>
 <div><label>Cantidad</label><input id="pu_n" type="number" step="any" min="0" inputmode="decimal"></div></div>
 <p><button type="button" onclick="puAdd()">+ Agregar repuesto</button></p><div id="pu_list">${puListHtml()}</div><div id="pu_err" class="er" style="font-size:14px"></div></div>`}
 function puListHtml(){return PU.length?PU.map((x,i)=>`<span class="b" style="color:var(--ac)">${H(pu(x))} <button type="button" onclick="puDel(${i})" style="min-height:0;padding:0 6px" title="Quitar">✕</button></span>`).join(""):'<div class="mu">Ningún repuesto agregado.</div>'}
 function puFill(){$("#pu_s").innerHTML=puOpts($("#pu_q").value);puPick()}
-function puPick(){$("#pu_rw").style.display=$("#pu_s").value==="__req"?"block":"none"}
+function puPick(){const v=$("#pu_s").value;$("#pu_rw").style.display=v==="__req"?"block":"none";const x=PAR.find(y=>y.id===v),e=$("#pu_info");if(!e)return;if(!x){e.innerHTML="";return}
+const vn=curVN(),c=compatOf(x,vn),l=vehList(x.veh);
+e.innerHTML=(x.code?"SKU: <b>"+H(x.code)+"</b> · ":"")+(x.cat?"🔩 Categoría: <b>"+H(x.cat)+"</b>":"Sin categoría")+"<br>"+(l.length?"🚙 Compatible con: <b>"+H(l.join(", "))+"</b>":"🚙 Sin modelos asignados")+(c==="no"&&vn?`<br><span class="er">⚠ No figura como compatible con ${H(vn)}. Verifica antes de usarlo.</span>`:c==="si"?'<br><span style="color:var(--ok,#2a8a3a)">✔ Compatible con este vehículo</span>':"")}
 function puDel(i){PU.splice(i,1);$("#pu_list").innerHTML=puListHtml()}
 function puAdd(){const sv=$("#pu_s").value,q=num($("#pu_n").value),e=$("#pu_err"),m=[];
 if(!sv)m.push("Elige un repuesto");let nm="";if(sv==="__req"){nm=$("#pu_rn").value.trim();if(!nm)m.push("Nombre del repuesto a pedido")}
