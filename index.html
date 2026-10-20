@@ -3,7 +3,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Control de Flota</title>
 <link rel="manifest" href="manifest.webmanifest">
-<meta name="theme-color" content="#1f4e9e">
+<meta name="theme-color" content="#1C5DA8">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Flota IMT">
@@ -11,17 +11,20 @@
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="icon" type="image/png" href="icons/icon-192.png">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Semi+Condensed:wght@600;700&display=swap">
 <style>
-:root{--bg:#f6f7f9;--card:#fff;--tx:#1b1f24;--mu:#6b7480;--bd:#e1e5ea;--ac:#1f6feb;--ok:#1a7f37;--wa:#0969da;--er:#c62828;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
-@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#14171b;--card:#1d2127;--tx:#e8ebef;--mu:#98a2ae;--bd:#2c323a;--ac:#58a6ff;--ok:#3fb950;--wa:#58a6ff;--er:#f85149}}
-:root[data-theme="dark"]{--bg:#14171b;--card:#1d2127;--tx:#e8ebef;--mu:#98a2ae;--bd:#2c323a;--ac:#58a6ff;--ok:#3fb950;--wa:#58a6ff;--er:#f85149}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:15px system-ui,sans-serif}
+:root{--bg:#EEF1F4;--card:#FFFFFF;--bg2:#E4E9EE;--tx:#17202A;--mu:#58646F;--bd:#D2D9E0;--ac:#1C5DA8;--ok:#1F7A49;--wa:#1C5DA8;--er:#B3362E;--f-display:"Barlow Semi Condensed","Arial Narrow",system-ui,sans-serif;--f-body:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#11161C;--card:#19212A;--bg2:#222C37;--tx:#E5EAF0;--mu:#97A3AF;--bd:#2E3946;--ac:#62A0EA;--ok:#55BE82;--wa:#62A0EA;--er:#EE6E64}}
+:root[data-theme="dark"]{--bg:#11161C;--card:#19212A;--bg2:#222C37;--tx:#E5EAF0;--mu:#97A3AF;--bd:#2E3946;--ac:#62A0EA;--ok:#55BE82;--wa:#62A0EA;--er:#EE6E64}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.45 var(--f-body);font-variant-numeric:tabular-nums;-webkit-tap-highlight-color:transparent}
+h1,h2,h3{font-family:var(--f-display);font-weight:700;letter-spacing:.01em}
+.brand-wrap{display:flex;align-items:center;gap:10px;min-width:0}.logo{height:38px;width:auto;flex:none;display:block;border-radius:3px}.brand{font-family:var(--f-display);font-weight:700;font-size:1.05rem;letter-spacing:.06em;text-transform:uppercase;line-height:1.15}.brand small{display:block;font-family:var(--f-body);font-weight:500;font-size:.72rem;letter-spacing:.02em;text-transform:none;color:var(--mu)}
 .w{max-width:900px;margin:0 auto;padding:16px}
-h1{font-size:20px;margin:0}h2{font-size:16px;margin:0 0 8px}
+h1{font-size:1.5rem;margin:0}h2{font-size:1.25rem;margin:0 0 8px}
 .top{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap}
-.card{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:12px;margin-bottom:10px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:12px;margin-bottom:10px;box-shadow:0 1px 2px rgba(20,32,44,.06),0 2px 8px rgba(20,32,44,.05)}
 input,select,textarea{width:100%;padding:8px;border:1px solid var(--bd);border-radius:6px;background:var(--bg);color:var(--tx);font:inherit}
-button{padding:8px 12px;border:1px solid var(--bd);border-radius:6px;background:var(--card);color:var(--tx);cursor:pointer;font:inherit}
+button{padding:8px 12px;border:1px solid var(--bd);border-radius:8px;font-weight:600;background:var(--card);color:var(--tx);cursor:pointer;font:inherit}
 button.p{background:var(--ac);color:#fff;border-color:var(--ac)}
 .g{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
 label{font-size:12px;color:var(--mu);display:block;margin-bottom:2px}
@@ -38,7 +41,7 @@ input,select,textarea,button{font-size:16px}button{min-height:44px;padding:10px 
 .chk{display:inline-flex;align-items:center;gap:6px;margin:4px 14px 4px 0;font-size:15px;color:var(--tx)}.chk input{width:20px;height:20px;min-height:0;padding:0}
 @media(max-width:600px){.w{padding:10px}.g{grid-template-columns:1fr 1fr}.card{padding:10px}}
 </style><script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script></head><body><div class="w">
-<div class="top" id="hd"><h1>🚚 Control de Flota</h1><span><span class="mu" id="st">Conectando…</span> <button onclick="setMode('')" style="min-height:0;padding:4px 8px;font-size:12px">Cambiar modo</button></span></div>
+<div class="top" id="hd"><div class="brand-wrap"><img class="logo" src="icons/logo-imt.png" alt="IMT Ingeniería"><h1 class="brand">Control de Flota<small>IMT Ingeniería</small></h1></div><span><span class="mu" id="st">Conectando…</span> <button onclick="setMode('')" style="min-height:0;padding:4px 8px;font-size:12px">Cambiar modo</button></span></div>
 <div id="app"></div>
 </div>
 <script>
