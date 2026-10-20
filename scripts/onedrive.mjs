@@ -46,4 +46,23 @@ export async function subir(token, ruta, buf) {
     if (!r.ok && r.status !== 202) throw new Error(`Error subiendo ${ruta} (${r.status}): ${await r.text()}`);
   }
 }
+// Mueve (y renombra) una carpeta existente de OneDrive a otra carpeta padre, creando el padre si falta.
+// Se usa una sola vez para pasar "Respaldo Flota IMT" a "Respaldos Apps IMT/Control de Flota".
+export async function moverCarpeta(token, vieja, padre, nuevoNombre) {
+  const H = { Authorization: "Bearer " + token }, G = "https://graph.microsoft.com/v1.0/me/drive";
+  const o = await fetch(`${G}/root:/${enc(vieja)}`, { headers: H });
+  if (o.status === 404) return false;                                  // no hay carpeta antigua
+  if (!o.ok) throw new Error(`No se pudo revisar ${vieja} (${o.status})`);
+  const nueva = await fetch(`${G}/root:/${enc(padre + "/" + nuevoNombre)}`, { headers: H });
+  if (nueva.ok) { console.log(`Ya existe ${padre}/${nuevoNombre}; no se mueve ${vieja}.`); return false; }
+  let p = await fetch(`${G}/root:/${enc(padre)}`, { headers: H });
+  if (p.status === 404) p = await fetch(`${G}/root/children`, { method: "POST", headers: { ...H, "Content-Type": "application/json" }, body: JSON.stringify({ name: padre, folder: {}, "@microsoft.graph.conflictBehavior": "fail" }) });
+  if (!p.ok) throw new Error(`No se pudo crear la carpeta ${padre} (${p.status})`);
+  const { id: padreId } = await p.json(), { id } = await o.json();
+  const m = await fetch(`${G}/items/${id}`, { method: "PATCH", headers: { ...H, "Content-Type": "application/json" }, body: JSON.stringify({ parentReference: { id: padreId }, name: nuevoNombre }) });
+  if (!m.ok) throw new Error(`No se pudo mover ${vieja} (${m.status}): ${await m.text()}`);
+  console.log(`Carpeta movida: ${vieja} → ${padre}/${nuevoNombre}`);
+  return true;
+}
+export const CARPETA_APPS = "Respaldos Apps IMT";
 export { SB_URL, CLIENT_ID, AUTH, SCOPE };

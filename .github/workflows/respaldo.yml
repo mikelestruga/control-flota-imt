@@ -1,4 +1,4 @@
-name: Respaldo semanal a OneDrive
+name: Respaldo semanal a OneDrive (Flota y Taller)
 
 on:
   schedule:
@@ -24,3 +24,11 @@ jobs:
           ONEDRIVE_CLIENT_ID: ${{ secrets.ONEDRIVE_CLIENT_ID }}
           ONEDRIVE_TENANT_ID: ${{ secrets.ONEDRIVE_TENANT_ID }}
         run: node scripts/respaldo.mjs
+      - name: Respaldar Control de Taller Maestranza a OneDrive
+        if: ${{ !cancelled() }}
+        env:
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          ONEDRIVE_CLIENT_ID: ${{ secrets.ONEDRIVE_CLIENT_ID }}
+          ONEDRIVE_TENANT_ID: ${{ secrets.ONEDRIVE_TENANT_ID }}
+          TALLER_SUPABASE_SERVICE_KEY: ${{ secrets.TALLER_SUPABASE_SERVICE_KEY }}
+        run: node scripts/respaldo-taller.mjs

@@ -1,9 +1,9 @@
 // Respaldo semanal a OneDrive: datos (JSON restaurable + Excel) y, solo si hay nuevos, los archivos adjuntos.
 import fs from "node:fs";
-import { SB_URL, sbHeaders, getState, setState, accessToken, subir } from "./onedrive.mjs";
+import { SB_URL, sbHeaders, getState, setState, accessToken, subir, moverCarpeta, CARPETA_APPS } from "./onedrive.mjs";
 
 const DRY = process.env.DRY_RUN === "1";
-const RAIZ = "Respaldo Flota IMT";
+const RAIZ = `${CARPETA_APPS}/Control de Flota`;   // antes: "Respaldo Flota IMT" (se mueve sola la primera vez)
 const MAX_BYTES_ARCHIVOS = 300 * 1024 * 1024; // tope por ejecución; lo que falte se sube la semana siguiente
 const hoy = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Santiago" }).format(new Date());
 
@@ -60,6 +60,7 @@ async function main() {
   if (DRY) { fs.mkdirSync("respaldo_out", { recursive: true }); fs.writeFileSync(`respaldo_out/${nombre}.json`, json); fs.writeFileSync(`respaldo_out/${nombre}.xlsx`, xlsx); console.log("DRY_RUN: guardado en respaldo_out/"); return; }
 
   const token = await accessToken();
+  await moverCarpeta(token, "Respaldo Flota IMT", CARPETA_APPS, "Control de Flota");
   await subir(token, `${RAIZ}/Datos/${nombre}.json`, json);
   await subir(token, `${RAIZ}/Datos/${nombre}.xlsx`, xlsx);
   console.log(`Subidos a OneDrive: ${nombre}.json (${(json.length / 1024).toFixed(0)} KB) y .xlsx (${(xlsx.length / 1024).toFixed(0)} KB)`);
