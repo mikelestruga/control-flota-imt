@@ -1386,5 +1386,9 @@ let instEv=null;window.addEventListener("beforeinstallprompt",e=>{e.preventDefau
 window.addEventListener("appinstalled",()=>{instEv=null;try{render()}catch(x){}});
 async function instalar(){if(!instEv)return;instEv.prompt();try{await instEv.userChoice}catch(e){}instEv=null;render(true)}
 if("serviceWorker"in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));
+/* Evita registros duplicados por doble clic: mientras una acción de guardado está en curso (y 600 ms después) se ignoran los clics repetidos */
+(function(){const A=["addDano","saveVeh","addLog","addDealer","saveKm","closeOp","cbSave","mkVale","saveDanoOp","pcSave","pAdd","pIn","pApprove","pReject","catAdd","catRen","catDel","pkSaveAll","editLog","editVeh","delLog","delVale","pInDel","pSet","pVal","pEdit","pDel","comDel","upFile","attach","pValSave","chPlate","toggleSold","delVeh","changePin","importBackup"],S=["puAdd","pcAddRow"];
+A.forEach(n=>{const f=window[n];if(typeof f!=="function")return;let busy=false;window[n]=async function(...a){if(busy)return;busy=true;try{return await f.apply(this,a)}finally{setTimeout(()=>{busy=false},600)}}});
+S.forEach(n=>{const f=window[n];if(typeof f!=="function")return;let t=0;window[n]=function(...a){const x=Date.now();if(x-t<600)return;t=x;return f.apply(this,a)}})})();
 init();
 </script></body></html>
