@@ -369,13 +369,21 @@ h+=`<label style="margin-top:6px">Mantención mayor: sistemas</label><div>${MM.m
 if(l.dealer)h+=F("Concesionario","dname",l.dname)+F("N° factura / OT","inv",l.inv)+F("Costo neto SIN IVA ($)","dneto",l.dneto!=null?l.dneto:dealNet(l),"number")+F("Costo total CON IVA ($)","dcost",l.dcost,"number")}
 else if(l.type==="dano"){h+=F("Kilometraje","km",l.km,"number")+F("Tipo (daño / entrega)","kind",l.kind)+F("Chofer","driver",l.driver)}
 else if(l.type==="asig"){h+=F("Kilometraje","km",l.km,"number")}
+if(l.type==="mant"){const so=[...PAR].sort((a,b)=>a.name.localeCompare(b.name));h+=`<div style="border-top:1px solid var(--bd);margin-top:10px;padding-top:8px"><label>🔩 Repuestos utilizados${l.pstat==="applied"?' <span class="mu">· ya descontados del stock: al cambiarlos se ajusta el stock</span>':l.pstat==="pending"?' <span class="mu">· descuento pendiente de aprobación</span>':""}</label><div id="ep_l"></div><div style="background:var(--bg2);border-radius:8px;padding:8px;margin-top:6px"><label>Agregar repuesto</label><select id="ep_s"><option value="">Elegir repuesto…</option>${so.map(x=>`<option value="${H(x.id)}">${H(x.name)}${x.code?" ["+H(x.code)+"]":""} (stock ${nf(x.stock)} ${H(x.unit||"un")})</option>`).join("")}<option value="__req">➕ Repuesto a pedido (no está en la lista)</option></select><input id="ep_rn" placeholder="Nombre del repuesto a pedido" style="display:none;margin-top:4px"><div style="display:flex;gap:8px;margin-top:4px"><input id="ep_q" type="number" step="any" min="0" inputmode="decimal" placeholder="Cantidad" style="flex:1"><button type="button" id="ep_a">+ Agregar</button></div><div id="ep_e" class="er" style="font-size:14px"></div></div></div>`}
 if(l.type!=="km"){h+=`<label style="margin-top:6px">${l.type==="dano"?"Descripción":"Detalle / notas"}</label><textarea data-k="${tf}" rows="3">${H(l[tf]||"")}</textarea>`}else h+=`<label style="margin-top:6px">Observación</label><textarea data-k="text" rows="2">${H(l.text||"")}</textarea>`;
 h+=F("Registrado por (nombre)","op",l.op)+`</div><div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px"><button id="dn">Cancelar</button><button class="p" id="dy">Guardar cambios</button></div>`;
 const r=await dlg(h,(o,d)=>{const g=k=>o.querySelector(`[data-k="${k}"]`);
 if(l.dealer){const n=g("dneto"),t=g("dcost");if(n&&t){n.oninput=()=>{t.value=+n.value>0?Math.round(+n.value*1.19):""};t.oninput=()=>{n.value=+t.value>0?Math.round(+t.value/1.19):""}}}
+let EP=(l.parts||[]).map(x=>({...x}));
+if(l.type==="mant"){const dr=()=>{o.querySelector("#ep_l").innerHTML=EP.length?EP.map((x,i)=>`<div style="display:flex;gap:6px;align-items:center;margin-top:4px"><div style="flex:1;min-width:0;word-break:break-word">${H(x.name)}${x.req?' <span class="mu">(a pedido)</span>':""}</div><input type="number" step="any" min="0" inputmode="decimal" value="${H(x.qty)}" data-i="${i}" style="width:80px"><span class="mu">${H(x.unit||"un")}</span><button type="button" data-d="${i}" title="Quitar" style="min-height:40px">✕</button></div>`).join(""):'<div class="mu">Sin repuestos.</div>';
+o.querySelectorAll("#ep_l input[data-i]").forEach(e=>e.oninput=()=>{EP[+e.dataset.i].qty=e.value});o.querySelectorAll("#ep_l button[data-d]").forEach(b=>b.onclick=()=>{EP.splice(+b.dataset.d,1);dr()})};dr();
+const se=o.querySelector("#ep_s");se.onchange=()=>{o.querySelector("#ep_rn").style.display=se.value==="__req"?"block":"none"};
+o.querySelector("#ep_a").onclick=()=>{const sv=se.value,q=num(o.querySelector("#ep_q").value),er=o.querySelector("#ep_e"),rn=o.querySelector("#ep_rn").value.trim();if(!sv){er.textContent="Elige un repuesto";return}if(sv==="__req"&&!rn){er.textContent="Escribe el nombre del repuesto a pedido";return}if(!(q>0)){er.textContent="Cantidad mayor a 0";return}er.textContent="";
+const x=PAR.find(y=>y.id===sv);EP.push(sv==="__req"?{name:rn,qty:q,unit:"un",req:true}:{pid:sv,name:x?x.name:sv,qty:q,unit:x?(x.unit||"un"):"un"});o.querySelector("#ep_q").value="";se.value="";o.querySelector("#ep_rn").value="";o.querySelector("#ep_rn").style.display="none";dr()};
+}
 o.querySelector("#dn").onclick=()=>d(null);
 o.querySelector("#dy").onclick=()=>{const out={};o.querySelectorAll("[data-k]").forEach(e=>{out[e.dataset.k]=e.value});
-if(l.type==="mant"){out.__t=[...o.querySelectorAll('[name=e_t]:checked')].map(e=>e.value);out.__m=[...o.querySelectorAll('[name=e_m]:checked')].map(e=>e.value)}d(out)}});
+if(l.type==="mant"){out.__t=[...o.querySelectorAll('[name=e_t]:checked')].map(e=>e.value);out.__m=[...o.querySelectorAll('[name=e_m]:checked')].map(e=>e.value);const ep=EP;if(ep.some(x=>!(num(x.qty)>0))){o.querySelector("#ep_e").textContent="Hay repuestos con cantidad vacía o 0: corrígelos o quítalos.";return}out.__p=ep.map(x=>({...x,qty:num(x.qty)}))}d(out)}});
 if(!r)return;
 const upd={},numK=["km","hrs","kmIni","kmFin","mo","liters","cost","dneto","dcost"];
 for(const [k,v] of Object.entries(r)){if(k.startsWith("__"))continue;
@@ -385,8 +393,19 @@ if(l.type==="km"&&upd.kmFin!=null)upd.km=upd.kmFin;
 if(l.type==="mant"){upd.tipos=r.__t;upd.mayor=r.__m;if(!r.__t.length)return al("Marca al menos un tipo de mantención.");if(r.__t.includes("Otro")&&!String(r.otro||"").trim())return al("Escribe el detalle de «Otro».");if(!r.__t.includes("Otro"))upd.otro=""}
 if(l.type==="comb"&&u==="h"&&upd.hrs!=null)upd.km=0;
 if(l.dealer&&upd.dcost!=null&&upd.dcost<=0)return al("El costo total no puede ser 0.");
+let sAdj={};
+if(l.type==="mant"&&r.__p){const oldP=l.parts||[],newP=r.__p,sig=a=>JSON.stringify(a.map(x=>[x.pid||"",x.name,+x.qty,!!x.req]));
+if(sig(oldP)!==sig(newP)){
+if(l.pstat==="applied"){const dd2={};oldP.forEach(x=>{if(x.apid)dd2[x.apid]=(dd2[x.apid]||0)-(+x.qty||0)});
+const np2=newP.map(x=>{const o=oldP.find(y=>(y.pid||"")===(x.pid||"")&&y.name===x.name&&!!y.req===!!x.req);if(o)return{...o,qty:x.qty};const pp=x.pid&&PAR.find(y=>y.id===x.pid);return pp?{...x,apid:pp.id,ucost:pp.cost!=null&&pp.cost!==""?+pp.cost:null}:{...x,apid:"",ucost:null}});
+np2.forEach(x=>{if(x.apid)dd2[x.apid]=(dd2[x.apid]||0)+(+x.qty||0)});
+const lines=Object.entries(dd2).filter(([k,q])=>q!==0&&PAR.some(y=>y.id===k));
+if(lines.length&&!await cf("Cambiaste los repuestos de una mantención ya descontada. El stock se ajustará así:\n"+lines.map(([k,q])=>PAR.find(y=>y.id===k).name+": "+(q>0?"−":"+")+nf(Math.abs(q))).join("\n")+"\n¿Continuar?"))return;
+lines.forEach(([k,q])=>sAdj[k]=q);upd.parts=np2}
+else{upd.parts=newP.map(x=>{const o=oldP.find(y=>(y.pid||"")===(x.pid||"")&&y.name===x.name&&!!y.req===!!x.req);return o?{...o,qty:x.qty}:x});if(!newP.length)upd.pstat="";else if(l.pstat!=="pending")upd.pstat="pending"}}}
 if(!Object.keys(upd).length)return;
-try{await db.collection("logs").doc(id).update(upd);
+try{for(const [k,q] of Object.entries(sAdj)){const x=PAR.find(y=>y.id===k);if(x)await db.collection("parts").doc(k).update({stock:(+x.stock||0)-q,mod:new Date().toISOString()})}
+await db.collection("logs").doc(id).update(upd);
 if(l.type==="comb"){const pr2=L.find(x=>x.id===id+"k");if(pr2){const pu={};if(upd.date)pu.date=upd.date;const nk=upd.km??upd.hrs;if(nk!=null){pu.km=nk;pu.kmFin=nk}if(Object.keys(pu).length)await db.collection("logs").doc(id+"k").update(pu)}}
 const v=VALL.find(x=>x.id===l.plate);if(v){const nl={...l,...upd},vp={};
 for(const [f,fn,lab] of [["km",odoK,"kilometraje"],["hrs",odoH,"horómetro"]]){const nvv=fn(nl),ov=fn(l),cur=+v[f]||0;if(nvv===ov)continue;
