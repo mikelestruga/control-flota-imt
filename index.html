@@ -13,9 +13,9 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Semi+Condensed:wght@600;700&display=swap">
 <style>
-:root{--bg:#EEF1F4;--card:#FFFFFF;--bg2:#E4E9EE;--tx:#17202A;--mu:#58646F;--bd:#D2D9E0;--ac:#1C5DA8;--ok:#1F7A49;--wa:#1C5DA8;--er:#B3362E;--f-display:"Barlow Semi Condensed","Arial Narrow",system-ui,sans-serif;--f-body:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
-@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#11161C;--card:#19212A;--bg2:#222C37;--tx:#E5EAF0;--mu:#97A3AF;--bd:#2E3946;--ac:#62A0EA;--ok:#55BE82;--wa:#62A0EA;--er:#EE6E64}}
-:root[data-theme="dark"]{--bg:#11161C;--card:#19212A;--bg2:#222C37;--tx:#E5EAF0;--mu:#97A3AF;--bd:#2E3946;--ac:#62A0EA;--ok:#55BE82;--wa:#62A0EA;--er:#EE6E64}
+:root{--bg:#EEF1F4;--card:#FFFFFF;--bg2:#E4E9EE;--tx:#17202A;--mu:#58646F;--bd:#D2D9E0;--ac:#1C5DA8;--ok:#1F7A49;--wa:#1C5DA8;--er:#B3362E;--ok-soft:#DDF1E5;--warn:#9A6408;--warn-soft:#F8EDD3;--bad-soft:#F7DEDB;--acc-soft:#DCE8F6;--run:#C4610A;--run-soft:#FBE9D8;--f-display:"Barlow Semi Condensed","Arial Narrow",system-ui,sans-serif;--f-body:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#11161C;--card:#19212A;--bg2:#222C37;--tx:#E5EAF0;--mu:#97A3AF;--bd:#2E3946;--ac:#62A0EA;--ok:#55BE82;--wa:#62A0EA;--er:#EE6E64;--ok-soft:#173326;--warn:#E3B04F;--warn-soft:#352B14;--bad-soft:#3A1E1C;--acc-soft:#1D3048;--run:#F0953A;--run-soft:#3A2817}}
+:root[data-theme="dark"]{--bg:#11161C;--card:#19212A;--bg2:#222C37;--tx:#E5EAF0;--mu:#97A3AF;--bd:#2E3946;--ac:#62A0EA;--ok:#55BE82;--wa:#62A0EA;--er:#EE6E64;--ok-soft:#173326;--warn:#E3B04F;--warn-soft:#352B14;--bad-soft:#3A1E1C;--acc-soft:#1D3048;--run:#F0953A;--run-soft:#3A2817}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.45 var(--f-body);font-variant-numeric:tabular-nums;-webkit-tap-highlight-color:transparent}
 h1,h2,h3{font-family:var(--f-display);font-weight:700;letter-spacing:.01em}
 .brand-wrap{display:flex;align-items:center;gap:10px;min-width:0}.logo{height:38px;width:auto;flex:none;display:block;border-radius:3px}.brand{font-family:var(--f-display);font-weight:700;font-size:1.05rem;letter-spacing:.06em;text-transform:uppercase;line-height:1.15}.brand small{display:block;font-family:var(--f-body);font-weight:500;font-size:.72rem;letter-spacing:.02em;text-transform:none;color:var(--mu)}
@@ -39,6 +39,25 @@ input,select,textarea,button{font-size:16px}button{min-height:44px;padding:10px 
 #f_p{text-transform:uppercase}
 .tabs{flex-wrap:nowrap;overflow-x:auto;position:sticky;top:env(safe-area-inset-top,0px);background:var(--bg);padding:6px 0;z-index:2}.tabs button{white-space:nowrap}
 .chk{display:inline-flex;align-items:center;gap:6px;margin:4px 14px 4px 0;font-size:15px;color:var(--tx)}.chk input{width:20px;height:20px;min-height:0;padding:0}
+.rs-label{font-size:.72rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--mu)}
+.rs-big{font-family:var(--f-display);font-weight:700;font-size:1.9rem;line-height:1.1}.rs-pill{font-family:var(--f-display);font-weight:700;font-size:1.25rem;line-height:1.2}
+.rs-small{font-size:.85rem}.rs-tiny{font-size:.75rem}.rs-muted{color:var(--mu)}
+.rs-head{display:flex;justify-content:space-between;align-items:flex-end;gap:10px;flex-wrap:wrap;margin:4px 0 12px}
+.rs-h2{font-family:var(--f-display);font-size:1.25rem;margin:18px 0 8px}
+.rs-g2{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));margin-bottom:12px}.rs-g2>.card{margin:0}
+.rs-c{display:grid;gap:12px;align-content:start;padding:16px}
+.rs-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.rs-btw{justify-content:space-between}
+.rs-nums{display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start}
+.rs-chip{display:inline-flex;align-items:center;gap:4px;font-size:.75rem;font-weight:600;padding:2px 8px;border-radius:999px;background:var(--bg2);color:var(--mu);white-space:nowrap}
+.rs-chip.ok{background:var(--ok-soft);color:var(--ok)}.rs-chip.warn{background:var(--warn-soft);color:var(--warn)}.rs-chip.bad{background:var(--bad-soft);color:var(--er)}.rs-chip.acc{background:var(--acc-soft);color:var(--ac)}.rs-chip.run{background:var(--run-soft);color:var(--run)}
+.rs-list{display:grid}.rs-item{display:grid;grid-template-columns:1fr auto;gap:4px 12px;padding:10px 0;border-top:1px solid var(--bd);align-items:center}.rs-item:first-child{border-top:0}.rs-item .t{font-weight:600;min-width:0}
+.rs-item.click{cursor:pointer}.rs-item.click:hover .t{color:var(--ac)}
+.rs-kv{display:grid;grid-template-columns:1fr auto;gap:6px 12px;font-size:.92rem}.rs-kv .v{text-align:right;font-weight:600}
+.rs-stack{display:flex;height:14px;border-radius:5px;overflow:hidden;background:var(--bg2)}.rs-stack>i{display:block;height:100%}
+.rs-legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:.8rem;color:var(--mu)}.rs-legend span::before{content:"";display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px;background:var(--c)}
+.rs-bars{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;align-items:end;height:118px}.rs-bars>div{display:grid;gap:4px;align-content:end;height:100%;text-align:center}.rs-bars i{display:block;border-radius:3px 3px 0 0}
+.rs-ic{display:inline-grid;place-items:center;width:30px;height:30px;border-radius:8px;background:var(--bg2);margin-right:8px;flex:none}
+.rs-empty{padding:14px;text-align:center;color:var(--mu);border:1px dashed var(--bd);border-radius:10px}
 @media(max-width:600px){.w{padding:10px}.g{grid-template-columns:1fr 1fr}.card{padding:10px}}
 </style><script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script></head><body><div class="w">
 <div class="top" id="hd"><div class="brand-wrap"><img class="logo" src="icons/logo-imt.png" alt="IMT Ingeniería"><h1 class="brand">Control de Flota<small>IMT Ingeniería</small></h1></div><span><span class="mu" id="st">Conectando…</span> <button onclick="setMode('')" style="min-height:0;padding:4px 8px;font-size:12px">Cambiar modo</button></span></div>
@@ -391,7 +410,7 @@ if(!ex)await db.collection("vehicles").doc(nw).set({...data,renameFrom:old});
 paso="mover el historial";for(const l of L.filter(x=>x.plate===old))await db.collection("logs").doc(l.id).update({plate:nw});
 paso="mover los documentos adjuntos";for(const d of VD.filter(x=>x.plate===old))await db.collection("vdocs").doc(d.id).update({plate:nw});
 paso="mover las fotos de documentos";for(const d of DF.filter(x=>x.plate===old)){const {id,...rest}=d;await db.collection("docfiles").doc(nw+"_"+d.key).set({...rest,plate:nw});await db.collection("docfiles").doc(d.id).delete()}
-paso="actualizar los vales de lavado";for(const x of VALL.filter(x=>x.vid===old||np(x.plate)===np(old)))await db.collection("vales").doc(x.id).update({vid:x.vid===old?nw:x.vid,plate:np(x.plate)===np(old)?nw:x.plate});
+paso="actualizar los vales de lavado";for(const x of VL.filter(x=>x.vid===old||np(x.plate)===np(old)))await db.collection("vales").doc(x.id).update({vid:x.vid===old?nw:x.vid,plate:np(x.plate)===np(old)?nw:x.plate});
 paso="eliminar la ficha antigua";await db.collection("vehicles").doc(old).delete();
 await db.collection("vehicles").doc(nw).update({renameFrom:null});
 sel=nw;render(true);al("Patente cambiada a "+nw+" ✔")}catch(e){al("Falló al "+paso+". Nada se perdió: la ficha "+old+" sigue existiendo. Repite «Cambiar patente» con la misma patente nueva para continuar.")}}
@@ -445,14 +464,108 @@ const vname=v=>[v.marca,v.model].filter(Boolean).join(" ");
 function ofill(){const t=$("#o_t").value,qq=$("#o_q").value.trim().toUpperCase(),el=$("#o_p");
 const f=V.filter(v=>!v.sold&&(qq?match(v,qq):t&&tp(v)===t)).sort((a,b)=>a.id.localeCompare(b.id));
 el.innerHTML=(f.length?(f.length>1?'<option value="">Elegir vehículo…</option>':""):`<option value="">${qq||t?"Sin resultados":"Primero elige el tipo"}</option>`)+f.map(v=>`<option value="${H(v.id)}">${H(v.id)} · ${H(vname(v))}</option>`).join("");okm()}
+
+// ===== Resumen global (Administrador) =====
+let RSF="",RSN=20;
+const addD=n=>{const d=new Date(today()+"T12:00:00");d.setDate(d.getDate()+n);return d.toISOString().slice(0,10)};
+const MESC=["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
+const mesesAtras=n=>{const o=[];const t=new Date(today()+"T12:00:00");for(let i=n-1;i>=0;i--){const d=new Date(t.getFullYear(),t.getMonth()-i,1),e=new Date(t.getFullYear(),t.getMonth()-i+1,0),f=x=>x.getFullYear()+"-"+String(x.getMonth()+1).padStart(2,"0")+"-"+String(x.getDate()).padStart(2,"0");o.push({f:f(d),t:f(e),n:MESC[d.getMonth()]})}return o};
+function useIn(plate,f,t,hrs){const r=L.filter(l=>l.plate===plate&&l.date).map(l=>({d:l.date,k:hrs?odoH(l):odoK(l)})).filter(x=>x.k>0).sort((a,b)=>a.d.localeCompare(b.d)||a.k-b.k);
+const ins=r.filter(x=>x.d>=f&&x.d<=t);if(!ins.length)return 0;const prev=r.filter(x=>x.d<f).pop(),mx=Math.max(...ins.map(x=>x.k)),first=ins[0],T=d=>Date.parse(d+"T12:00:00");
+let base=Math.min(...ins.map(x=>x.k));if(prev&&first.k>=prev.k){const span=T(first.d)-T(prev.d);base=span>0?prev.k+(first.k-prev.k)*(T(f)-T(prev.d))/span:prev.k}return Math.max(0,Math.round(mx-base))}
+const RSCOL=["#1C5DA8","#1F7A49","#C4610A","#6B4FA0","#9A6408","#3E8E9E","#B3362E","#58646F"];
+const RSIC={km:"📍",mant:"🔧",comb:"⛽",dano:"⚠️",asig:"👷"},RSTN={km:"Kilometraje / horas",mant:"Mantención",comb:"Combustible",dano:"Daño / entrega",asig:"Asignación"};
+const fk=n=>Math.round(+n||0).toLocaleString("es-CL");
+const bars=(arr,col,fmt)=>{const mx=Math.max(1,...arr.map(x=>x.v));return `<div class="rs-bars" role="img">${arr.map(x=>`<div><span class="rs-tiny" style="font-weight:600">${x.v?fmt(x.v):""}</span><i style="height:${Math.max(x.v?3:1,x.v/mx*72)}px;background:${x.v?col:"var(--bd)"}"></i><span class="rs-tiny rs-muted">${x.n}</span></div>`).join("")}</div>`};
+const goVeh=(id,t)=>`sel='${H(id)}';tab='${t||"res"}';render();window.scrollTo(0,0)`;
+function rsLogTxt(l){const t=l.type;if(t==="km")return kmTxt(l);
+if(t==="mant")return [(l.tipos||[]).map(x=>x==="Otro"&&l.otro?"Otro: "+l.otro:x).join(", ")||"Mantención",l.km?fk(l.km)+" km":"",l.hrs?fk(l.hrs)+" h":"",l.dealer?"Concesionario"+(l.dname?" "+l.dname:""):"",(l.parts||[]).length?(l.parts.length+" repuesto(s)"):""].filter(Boolean).join(" · ");
+if(t==="comb")return [(+l.liters?nf(l.liters)+" L":""),l.km?fk(l.km)+" km":"",l.cost&&showAdm()?money(l.cost):""].filter(Boolean).join(" · ");
+if(t==="dano")return [l.kind,l.driver?"Chofer: "+l.driver:"",String(l.desc||"").slice(0,90)].filter(Boolean).join(" · ");
+return String(l.text||"").slice(0,90)}
+function resHtml(){const hoy=today(),d30=addD(-29),mes0=hoy.slice(0,8)+"01",y0=hoy.slice(0,4)+"-01-01",act=VALL.filter(v=>!v.sold),M6=mesesAtras(6);
+const inR=(l,f,t)=>(l.date||"")>=f&&(l.date||"")<=(t||hoy);
+// flota
+const porTipo=tipos().map(t=>[t,act.filter(v=>tp(v)===t).length]).filter(x=>x[1]),conAl=act.filter(v=>alertsOf(v)>0),sinAs=act.filter(v=>!String(v.assign||"").trim()).length;
+const kmTot=act.reduce((a,v)=>a+(+v.km||0),0),hTot=act.reduce((a,v)=>a+(+v.hrs||0),0);
+// uso
+const kmMes=act.reduce((a,v)=>a+useIn(v.id,mes0,hoy),0),km30=act.reduce((a,v)=>a+useIn(v.id,d30,hoy),0),hMes=act.reduce((a,v)=>a+useIn(v.id,mes0,hoy,1),0);
+const kmM=M6.map(m=>({n:m.n,v:act.reduce((a,v)=>a+useIn(v.id,m.f,m.t),0)}));
+const top30=act.map(v=>({v,k:useIn(v.id,d30,hoy),h:useIn(v.id,d30,hoy,1)})).filter(x=>x.k||x.h).sort((a,b)=>b.k-a.k||b.h-a.h).slice(0,6);
+const sinReg=act.filter(v=>!L.some(l=>l.plate===v.id&&inR(l,d30))).length;
+// mantenciones
+const MT_=L.filter(l=>l.type==="mant"),mMes=MT_.filter(l=>inR(l,mes0)),mAno=MT_.filter(l=>inR(l,y0)),dAno=mAno.filter(l=>l.dealer).length;
+const mM=M6.map(m=>({n:m.n,v:MT_.filter(l=>inR(l,m.f,m.t)).length}));
+const cRep=mAno.reduce((a,l)=>a+logRep(l),0),cDeal=mAno.reduce((a,l)=>a+dealNet(l),0);
+const tiposC={};mAno.forEach(l=>(l.tipos||[]).forEach(t=>tiposC[t]=(tiposC[t]||0)+1));
+const prox=act.map(v=>{const i=maintInfo(v),h=maintInfoH(v);const o=[];if(i)o.push({v,t:i.rem<0?"atrasada "+fk(-i.rem)+" km":"faltan "+fk(i.rem)+" km",c:i.rem<=0?"bad":i.rem<=1000?"warn":"ok",r:i.rem/(i.every||1)});if(h)o.push({v,t:h.rem<0?"atrasada "+fk(-h.rem)+" h":"faltan "+fk(h.rem)+" h",c:h.rem<=0?"bad":h.rem<=h.warn?"warn":"ok",r:h.rem/(h.every||1)});return o}).flat().sort((a,b)=>a.r-b.r).slice(0,8);
+const m6=act.map(v=>({v,x:mant6(v)})).filter(x=>x.x).sort((a,b)=>b.x.m-a.x.m),sinPlan=act.filter(v=>!maintInfo(v)&&!maintInfoH(v)).length;
+// combustible
+const CB=L.filter(l=>l.type==="comb"),lMes=CB.filter(l=>inR(l,mes0)).reduce((a,l)=>a+(+l.liters||0),0),l30=CB.filter(l=>inR(l,d30)),l30t=l30.reduce((a,l)=>a+(+l.liters||0),0),cMes=CB.filter(l=>inR(l,mes0)).reduce((a,l)=>a+(+l.cost||0),0);
+const lM=M6.map(m=>({n:m.n,v:CB.filter(l=>inR(l,m.f,m.t)).reduce((a,l)=>a+(+l.liters||0),0)}));
+const topC=act.map(v=>{const li=l30.filter(l=>l.plate===v.id).reduce((a,l)=>a+(+l.liters||0),0),k=useIn(v.id,d30,hoy);return{v,li,k}}).filter(x=>x.li).sort((a,b)=>b.li-a.li).slice(0,6);
+// documentos y alertas
+const venc=[],porV=[];act.forEach(v=>DOCS.forEach(([k,n])=>{const d=docDate(v,k);if(!d)return;const x=dd(d);if(x<0)venc.push({v,n,d});else if(soon(d))porV.push({v,n,d,x})}));
+const sinSeg=act.filter(v=>!aseg(v)),sd=canSeeAtt()&&typeof sinDoc==="function"?sinDoc().length:0;
+// stock
+const vStock=PAR.reduce((a,x)=>a+Math.max(+x.stock||0,0)*(+x.cost||0),0),bajo=PAR.filter(x=>(+x.stock||0)<=0||(x.min!=null&&x.min!==""&&(+x.stock||0)<=+x.min)),pend=pendList().length,porVal=toVal().length;
+const compMes=COM.filter(c=>(c.fecha||"")>=mes0).reduce((a,c)=>a+(+c.neto||0),0),compN=COM.filter(c=>(c.fecha||"")>=mes0).length;
+const dano30=L.filter(l=>l.type==="dano"&&inR(l,d30)).length,lav30=VL.filter(x=>(x.date||x.fecha||"")>=d30).length;
+// alertas list
+const AL=[];
+if(venc.length)AL.push(`<div class="rs-item"><div class="t">📄 ${venc.length} documento(s) vencido(s)<div class="rs-small rs-muted">${venc.slice(0,5).map(x=>H(fmtPat(x.v))+" "+H(x.n)).join(" · ")}${venc.length>5?" …":""}</div></div><span class="rs-chip bad">Vencidos</span></div>`);
+if(porV.length)AL.push(`<div class="rs-item"><div class="t">📄 ${porV.length} documento(s) por vencer<div class="rs-small rs-muted">${porV.sort((a,b)=>a.x-b.x).slice(0,5).map(x=>H(fmtPat(x.v))+" "+H(x.n)+" ("+x.x+" d)").join(" · ")}${porV.length>5?" …":""}</div></div><span class="rs-chip warn">Por vencer</span></div>`);
+if(sinSeg.length)AL.push(`<div class="rs-item"><div class="t">🛡 ${sinSeg.length} vehículo(s) sin seguro<div class="rs-small rs-muted">${sinSeg.slice(0,6).map(v=>H(fmtPat(v))).join(", ")}</div></div><span class="rs-chip bad">Sin seguro</span></div>`);
+const mAl=prox.filter(x=>x.c!=="ok");if(mAl.length)AL.push(`<div class="rs-item"><div class="t">🔧 ${mAl.length} mantención(es) por hacer o atrasadas<div class="rs-small rs-muted">${mAl.slice(0,5).map(x=>H(fmtPat(x.v))+" "+x.t).join(" · ")}</div></div><span class="rs-chip ${mAl.some(x=>x.c==="bad")?"bad":"warn"}">Mantención</span></div>`);
+if(pend)AL.push(`<div class="rs-item click" onclick="ftype='__rep';render();window.scrollTo(0,0)"><div class="t">📦 ${pend} descuento(s) de repuestos por aprobar</div><span class="rs-chip acc">Revisar →</span></div>`);
+if(bajo.length)AL.push(`<div class="rs-item click" onclick="ftype='__rep';render();window.scrollTo(0,0)"><div class="t">📦 ${bajo.length} repuesto(s) sin stock o bajo mínimo<div class="rs-small rs-muted">${bajo.slice(0,4).map(x=>H(x.name)).join(", ")}</div></div><span class="rs-chip warn">Ver stock →</span></div>`);
+if(porVal)AL.push(`<div class="rs-item click" onclick="ftype='__rep';render();window.scrollTo(0,0)"><div class="t">💲 ${porVal} repuesto(s) usado(s) sin valorizar</div><span class="rs-chip warn">Valorizar →</span></div>`);
+if(sd)AL.push(`<div class="rs-item click" onclick="ftype='__sd';render();window.scrollTo(0,0)"><div class="t">📎 ${sd} vehículo(s) sin documentos adjuntos</div><span class="rs-chip">Ver →</span></div>`);
+// últimos registros
+const RT=[...L].filter(l=>!RSF||l.type===RSF).sort((a,b)=>(b.date||"").localeCompare(a.date||"")||String(b.id).localeCompare(String(a.id)));
+const recent=RT.slice(0,RSN).map(l=>{const v=VALL.find(x=>x.id===l.plate);return `<div class="rs-item click" onclick="${goVeh(l.plate,l.type)}"><div class="t" style="display:flex;align-items:flex-start"><span class="rs-ic">${RSIC[l.type]||"•"}</span><div style="min-width:0"><span class="pl" style="font-size:15px">${H(v?fmtPat(v):l.plate)}</span> <span class="rs-small rs-muted">${H(v?vname(v):"")}</span><div class="rs-small" style="font-weight:500">${H(RSTN[l.type]||l.type)}${rsLogTxt(l)?" · "+H(rsLogTxt(l)):""}</div><div class="rs-tiny rs-muted">${H(whoN(l))}</div></div></div><div style="text-align:right"><div class="rs-small" style="font-weight:600">${H(fdate(l.date))}</div>${l.type==="mant"&&l.pstat==="pending"?'<span class="rs-chip warn">Repuestos por aprobar</span>':""}</div></div>`}).join("");
+const sel_=`<select onchange="RSF=this.value;RSN=20;render(true)" style="width:auto;min-height:36px;padding:4px 8px"><option value="">Todos los registros</option>${Object.entries(RSTN).map(([k,n])=>`<option value="${k}"${RSF===k?" selected":""}>${n}</option>`).join("")}</select>`;
+return `<button onclick="ftype=null;render()" style="margin-bottom:10px">← Inicio</button>
+<div class="rs-head"><div><div class="rs-label">${H(new Date(hoy+"T12:00:00").toLocaleDateString("es-CL",{weekday:"long",day:"numeric",month:"long",year:"numeric"}))}</div><h1 style="font-size:1.6rem">Resumen de la flota</h1></div><span class="rs-chip ${conAl.length?"bad":"ok"}">${conAl.length?`⚠ ${conAl.length} vehículo(s) con alertas`:"✔ Sin alertas en vehículos"}</span></div>
+<div class="rs-g2">
+<div class="card rs-c"><div class="rs-label">Flota activa</div><div class="rs-row" style="gap:28px;align-items:flex-end"><div><div class="rs-big">${act.length}</div><div class="rs-small rs-muted">vehículos${VALL.length-act.length?` · ${VALL.length-act.length} vendidos`:""}</div></div><div><div class="rs-pill">${fk(kmTot)} km</div><div class="rs-small rs-muted">km acumulados${hTot?` · ${fk(hTot)} h`:""}</div></div></div>
+${porTipo.length?`<div class="rs-stack">${porTipo.map(([t,n],i)=>`<i style="width:${n/act.length*100}%;background:${RSCOL[i%RSCOL.length]}" title="${H(t)} ${n}"></i>`).join("")}</div><div class="rs-legend">${porTipo.map(([t,n],i)=>`<span style="--c:${RSCOL[i%RSCOL.length]}">${H(t)} ${n}</span>`).join("")}</div>`:""}
+<div class="rs-kv rs-small"><span>Con plan de mantención</span><span class="v">${act.length-sinPlan} de ${act.length}</span><span>Con seguro vigente</span><span class="v">${act.length-sinSeg.length} de ${act.length}</span><span>Documentos al día</span><span class="v">${act.filter(v=>DOCS.every(([k])=>{const d=docDate(v,k);return d&&!soon(d)})).length} de ${act.length}</span><span>Registros en los últimos 30 días</span><span class="v">${L.filter(l=>inR(l,d30)).length}</span><span>Mantenciones registradas (total)</span><span class="v">${MT_.length}</span></div>
+<div class="rs-row">${conAl.length?`<span class="rs-chip bad">${conAl.length} con alertas</span>`:'<span class="rs-chip ok">Sin alertas</span>'}${sinAs?`<span class="rs-chip warn">${sinAs} sin asignar</span>`:""}${sinReg?`<span class="rs-chip">${sinReg} sin registros en 30 días</span>`:""}</div></div>
+<div class="card rs-c"><div class="rs-row rs-btw"><div class="rs-label">Alertas y pendientes</div><span class="rs-chip ${AL.length?"warn":"ok"}">${AL.length||"0"}</span></div><div class="rs-list">${AL.join("")||'<div class="rs-small rs-muted">Todo al día 👍</div>'}</div></div>
+</div>
+<div class="card rs-c"><div class="rs-row rs-btw"><h2 style="margin:0">Uso de la flota</h2><span class="rs-small rs-muted">según registros de km y horas</span></div>
+<div class="rs-nums"><div><div class="rs-label">Este mes</div><div class="rs-big">${fk(kmMes)} km</div>${hMes?`<div class="rs-small rs-muted">${fk(hMes)} h de uso</div>`:""}</div><div><div class="rs-label">Últimos 30 días</div><div class="rs-big">${fk(km30)} km</div></div><div><div class="rs-label">Promedio por vehículo (30 d)</div><div class="rs-big">${fk(act.length?km30/act.length:0)} km</div></div></div>
+<div class="rs-g2" style="margin:0"><div><div class="rs-label" style="margin-bottom:6px">Km recorridos por mes</div>${bars(kmM,"var(--ac)",v=>v>=1000?(v/1000).toLocaleString("es-CL",{maximumFractionDigits:1})+"k":fk(v))}</div>
+<div><div class="rs-label" style="margin-bottom:6px">Más usados (30 días)</div><div class="rs-kv">${top30.map(x=>`<span style="cursor:pointer" onclick="${goVeh(x.v.id,"km")}"><b>${H(fmtPat(x.v))}</b> <span class="rs-muted rs-small">${H(vname(x.v))}</span></span><span class="v">${x.k?fk(x.k)+" km":""}${x.k&&x.h?" · ":""}${x.h?fk(x.h)+" h":""}</span>`).join("")||'<span class="rs-muted">Sin registros en el período.</span>'}</div></div></div></div>
+<div class="card rs-c"><div class="rs-row rs-btw"><h2 style="margin:0">Mantenciones</h2><span class="rs-small rs-muted">${sinPlan?`${sinPlan} vehículo(s) sin plan de mantención`:""}</span></div>
+<div class="rs-nums"><div><div class="rs-label">Este mes</div><div class="rs-big">${mMes.length}</div></div><div><div class="rs-label">En ${hoy.slice(0,4)}</div><div class="rs-big">${mAno.length}</div><div class="rs-small rs-muted">${mAno.length-dAno} en taller · ${dAno} en concesionario</div></div><div><div class="rs-label">Costo ${hoy.slice(0,4)} (neto)</div><div class="rs-big">${money(cRep+cDeal)}</div><div class="rs-small rs-muted">Repuestos ${money(cRep)} · Concesionario ${money(cDeal)}</div></div></div>
+<div class="rs-g2" style="margin:0"><div><div class="rs-label" style="margin-bottom:6px">Mantenciones por mes</div>${bars(mM,"var(--ok)",v=>v)}</div>
+<div><div class="rs-label" style="margin-bottom:6px">Próximas mantenciones</div><div class="rs-list">${prox.map(x=>`<div class="rs-item click" onclick="${goVeh(x.v.id,"plan")}" style="padding:6px 0"><div class="t rs-small">${H(fmtPat(x.v))} <span class="rs-muted" style="font-weight:400">${H(vname(x.v))}</span></div><span class="rs-chip ${x.c}">${x.t}</span></div>`).join("")||'<div class="rs-small rs-muted">Ningún vehículo tiene plan de mantención.</div>'}</div></div></div>
+${Object.keys(tiposC).length?`<div><div class="rs-label" style="margin-bottom:6px">Trabajos realizados en ${hoy.slice(0,4)}</div><div class="rs-row">${Object.entries(tiposC).sort((a,b)=>b[1]-a[1]).map(([k,n])=>`<span class="rs-chip acc">${H(k)} · ${n}</span>`).join("")}</div></div>`:""}
+${m6.length?`<div><div class="rs-label" style="margin-bottom:6px">Más de 6 meses sin mantención</div><div class="rs-row">${m6.slice(0,10).map(x=>`<span class="rs-chip warn" style="cursor:pointer" onclick="${goVeh(x.v.id,"mant")}">${H(fmtPat(x.v))} · ${x.x.m} meses</span>`).join("")}</div></div>`:""}</div>
+<div class="rs-g2">
+<div class="card rs-c"><div class="rs-row rs-btw"><h3 style="margin:0">⛽ Combustible</h3><span class="rs-small rs-muted">${cMes?money(cMes)+" este mes":""}</span></div>
+<div class="rs-nums"><div><div class="rs-label">Este mes</div><div class="rs-pill">${nf(Math.round(lMes))} L</div></div><div><div class="rs-label">Últimos 30 días</div><div class="rs-pill">${nf(Math.round(l30t))} L</div></div><div><div class="rs-label">Cargas (30 d)</div><div class="rs-pill">${l30.length}</div></div></div>
+${bars(lM,"var(--run)",v=>v>=1000?(v/1000).toLocaleString("es-CL",{maximumFractionDigits:1})+"k":fk(v))}
+<div class="rs-kv rs-small">${topC.map(x=>`<span>${H(fmtPat(x.v))} <span class="rs-muted">${H(vname(x.v))}</span></span><span class="v">${nf(Math.round(x.li))} L${x.k?` · ${(x.k/x.li).toLocaleString("es-CL",{maximumFractionDigits:1})} km/L`:""}</span>`).join("")||'<span class="rs-muted">Sin cargas en 30 días.</span>'}</div></div>
+<div class="card rs-c"><div class="rs-row rs-btw"><h3 style="margin:0">📦 Repuestos y stock</h3><button onclick="ftype='__rep';render();window.scrollTo(0,0)" style="min-height:0;padding:4px 10px;font-size:13px">Abrir →</button></div>
+<div class="rs-nums"><div><div class="rs-label">Valor en stock</div><div class="rs-pill">${money(vStock)}</div></div><div><div class="rs-label">Repuestos</div><div class="rs-pill">${PAR.length}</div></div><div><div class="rs-label">Compras del mes</div><div class="rs-pill">${money(compMes)}</div><div class="rs-tiny rs-muted">${compN} documento(s), neto</div></div></div>
+<div class="rs-row">${bajo.length?`<span class="rs-chip warn">${bajo.length} sin stock o bajo mínimo</span>`:'<span class="rs-chip ok">Stock sobre mínimos</span>'}${pend?`<span class="rs-chip acc">${pend} por aprobar</span>`:""}${porVal?`<span class="rs-chip warn">${porVal} sin valorizar</span>`:""}</div>
+<div class="rs-label">Documentos</div><div class="rs-row">${venc.length?`<span class="rs-chip bad">${venc.length} vencidos</span>`:'<span class="rs-chip ok">Ninguno vencido</span>'}${porV.length?`<span class="rs-chip warn">${porV.length} por vencer</span>`:""}${sinSeg.length?`<span class="rs-chip bad">${sinSeg.length} sin seguro</span>`:""}</div>
+<div class="rs-label">Últimos 30 días</div><div class="rs-row"><span class="rs-chip">⚠️ ${dano30} daño(s) / entrega(s)</span><span class="rs-chip">🧽 ${lav30} vale(s) de lavado</span></div></div>
+</div>
+<div class="card rs-c"><div class="rs-row rs-btw"><h2 style="margin:0">Últimos registros</h2>${sel_}</div><div class="rs-list">${recent||'<div class="rs-empty">Sin registros.</div>'}</div>
+${RT.length>RSN?`<button onclick="RSN+=20;render(true)">Ver más (${RT.length-RSN} restantes)</button>`:""}</div>`}
+const resCard=()=>`<div class="card v" onclick="ftype='__res';render();window.scrollTo(0,0)" style="border-color:var(--ac);display:flex;align-items:center;gap:12px"><span class="rs-ic" style="width:42px;height:42px;font-size:22px;background:var(--acc-soft)">📊</span><div><b style="font-family:var(--f-display);font-size:1.15rem">Resumen global de la flota</b><div class="mu">Kilometraje, mantenciones, combustible, stock, alertas y últimos registros</div></div></div>`;
 const vcard=v=>`<div class="card v" onclick="sel='${H(v.id)}';tab='res';render()"><div class="top" style="margin:0"><span class="pl">${H(v.id)}${alertsOf(v)?` <span title="${alertsOf(v)} alerta(s)" style="color:var(--er);font-size:.8em">⚠️${alertsOf(v)>1?alertsOf(v):""}</span>`:""}${v.sold?' <span class="b mu">Vendido</span>':""}</span><span class="mu">${usoTxt(v)}</span></div><div>${H([v.marca,v.model,v.year].filter(Boolean).join(" "))}</div><div class="mu">📍 ${H(v.assign||"Sin asignar")}</div>${v.sold?"":`<div>${DOCS.map(([k,n])=>badge(docName(v,k,n),docDate(v,k),noAtt(v,k))).join("")}${segBadge(v)}${mbadge(v)}${hbadge(v)}${attBadge(v)}</div>`}</div>`;
-function listHtml(){if(ftype==="__rep"&&showAdm())return partsHtml();const qq=q.trim().toUpperCase();
+function listHtml(){if(ftype==="__rep"&&showAdm())return partsHtml();if(ftype==="__res"&&showAdm())return resHtml();const qq=q.trim().toUpperCase();
 const head=`<div class="top"><input id="q" type="search" placeholder="🔍 Buscar por patente, marca o modelo…" value="${H(q)}" style="flex:1"><button class="p" onclick="adding=true;render()">+ Vehículo</button></div>`;
 const r=V.filter(v=>alertsOf(v)>0),ban=r.length?`<div class="card er" style="border-color:var(--er)"><b>⚠ ${r.length} vehículo(s) con alertas:</b> ${r.map(v=>H(v.id)).join(", ")}</div>`:"";
 const empty='<div class="card mu">Sin vehículos.</div>';
 if(qq){const f=V.filter(v=>match(v,qq));return head+`<div class="mu" style="margin:6px 0">${f.length} resultado(s)</div>`+(f.map(vcard).join("")||empty)}
 if(ftype==="__sd"&&canSeeAtt()){const f=sinDoc().sort((a,b)=>a.id.localeCompare(b.id));return head+`<button onclick="ftype=null;render()" style="margin-bottom:10px">← Tipos</button><h2>📎 Sin documentos (${f.length})</h2><p class="mu">Estos vehículos no tienen ningún documento adjunto.</p>`+(f.map(vcard).join("")||'<div class="card mu">Todos los vehículos tienen documentos 👍</div>')}
-if(ftype===null)return head+ban+sdCard()+`<h2>Elige el tipo de vehículo</h2><div class="g">${tipos().map(t=>{const f=V.filter(v=>tp(v)===t),act=f.filter(v=>!v.sold),al=f.filter(v=>alertsOf(v)>0).length,so=f.length-act.length;return `<div class="card v" onclick="ftype='${H(t)}';render()"><b>${H(t)}</b><div class="mu">${act.length} activos${so?` · ${so} vendidos`:""}</div>${al?`<span class="b er">⚠ ${al} con alertas</span>`:""}</div>`}).join("")}</div>`+infCard()+(showAdm()?partsCard()+pkgCard()+pinCard()+bkCard():"");
+if(ftype===null)return head+(showAdm()?resCard():"")+ban+sdCard()+`<h2>Elige el tipo de vehículo</h2><div class="g">${tipos().map(t=>{const f=V.filter(v=>tp(v)===t),act=f.filter(v=>!v.sold),al=f.filter(v=>alertsOf(v)>0).length,so=f.length-act.length;return `<div class="card v" onclick="ftype='${H(t)}';render()"><b>${H(t)}</b><div class="mu">${act.length} activos${so?` · ${so} vendidos`:""}</div>${al?`<span class="b er">⚠ ${al} con alertas</span>`:""}</div>`}).join("")}</div>`+infCard()+(showAdm()?partsCard()+pkgCard()+pinCard()+bkCard():"");
 const f=V.filter(v=>tp(v)===ftype).sort((a,b)=>(a.sold?1:0)-(b.sold?1:0)||a.id.localeCompare(b.id));
 return head+`<button onclick="ftype=null;render()" style="margin-bottom:10px">← Tipos</button><h2>${H(ftype)} (${f.length})</h2>`+(f.map(vcard).join("")||empty)}
 function datosHtml(v){const F=[["tipo","Tipo"],["marca","Marca"],["model","Modelo"],["year","Año"],["color","Color"],["chasis","N° chasis"],["motor","N° motor"]];
