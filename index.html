@@ -487,7 +487,7 @@ if(t==="mant")return [(l.tipos||[]).map(x=>x==="Otro"&&l.otro?"Otro: "+l.otro:x)
 if(t==="comb")return [(+l.liters?nf(l.liters)+" L":""),l.km?fk(l.km)+" km":"",l.cost&&showAdm()?money(l.cost):""].filter(Boolean).join(" · ");
 if(t==="dano")return [l.km?fk(l.km)+" km":"",l.driver?"Chofer: "+l.driver:"",String(l.desc||"").slice(0,90)].filter(Boolean).join(" · ");
 return String(l.text||"").slice(0,90)}
-function resHtml(){const hoy=today(),d30=addD(-29),mes0=hoy.slice(0,8)+"01",y0=hoy.slice(0,4)+"-01-01",act=VALL.filter(v=>!v.sold),M6=mesesAtras(6);
+function fleetHtml(){const hoy=today(),d30=addD(-29),mes0=hoy.slice(0,8)+"01",y0=hoy.slice(0,4)+"-01-01",act=VALL.filter(v=>!v.sold),M6=mesesAtras(6);
 const inR=(l,f,t)=>(l.date||"")>=f&&(l.date||"")<=(t||hoy);
 // flota
 const porTipo=tipos().map(t=>[t,act.filter(v=>tp(v)===t).length]).filter(x=>x[1]),conAl=act.filter(v=>alertsOf(v)>0),sinAs=act.filter(v=>!String(v.assign||"").trim()).length;
@@ -589,7 +589,7 @@ if(vsort==="al"){const c=new Map(V.map(v=>[v.id,urgency(v)]));return(a,b)=>(a.so
 return(a,b)=>(a.sold?1:0)-(b.sold?1:0)||pl(a,b)}
 const vSortSel=()=>`<div style="margin:0 0 8px"><label>Ordenar por</label><select onchange="vsort=this.value;try{localStorage.setItem('vsort',this.value)}catch(e){}render(true)">${Object.entries(VSORT).map(([k,n])=>`<option value="${k}"${vsort===k?" selected":""}>${n}</option>`).join("")}</select></div>`;
 const vcard=v=>`<div class="card v" onclick="sel='${H(v.id)}';tab='res';render()"><div class="top" style="margin:0"><span class="pl">${H(v.id)}${alertsOf(v)?` <span title="${alertsOf(v)} alerta(s)" style="color:var(--er);font-size:.8em">⚠️${alertsOf(v)>1?alertsOf(v):""}</span>`:""}${v.sold?' <span class="b mu">Vendido</span>':""}</span><span class="mu">${usoTxt(v)}</span></div><div>${H([v.marca,v.model,v.year].filter(Boolean).join(" "))}</div><div class="mu">📍 ${H(v.assign||"Sin asignar")}</div>${v.sold?"":`<div>${DOCS.map(([k,n])=>badge(docName(v,k,n),docDate(v,k),noAtt(v,k))).join("")}${segBadge(v)}${mbadge(v)}${hbadge(v)}${attBadge(v)}</div>`}</div>`;
-function listHtml(){if(ftype==="__rep"&&showAdm())return partsHtml();if(ftype==="__res"&&showAdm())return resHtml();if(ftype==="__al")return alHtml();const qq=q.trim().toUpperCase();
+function listHtml(){if(ftype==="__rep"&&showAdm())return partsHtml();if(ftype==="__res"&&showAdm())return fleetHtml();if(ftype==="__al")return alHtml();const qq=q.trim().toUpperCase();
 const head=`<div class="top"><input id="q" type="search" placeholder="🔍 Buscar por patente, marca o modelo…" value="${H(q)}" style="flex:1"><button class="p" onclick="adding=true;render()">+ Vehículo</button></div>`;
 const r=V.filter(v=>alertsOf(v)>0),ban=r.length?`<div class="card er v" onclick="ftype='__al';render();window.scrollTo(0,0)" style="border-color:var(--er);display:flex;justify-content:space-between;align-items:center;gap:8px"><span><b>⚠ ${r.length} vehículo(s) con alertas:</b> ${r.map(v=>H(v.id)).join(", ")}</span><span style="white-space:nowrap;font-weight:600">Revisar →</span></div>`:"";
 const empty='<div class="card mu">Sin vehículos.</div>';
