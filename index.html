@@ -175,6 +175,7 @@ async function init(){
   db.collection("parts").onSnapshot(s=>{PAR=items(s);render()});
   db.collection("pins").onSnapshot(s=>{PIN=items(s);render()});
   db.collection("compras").onSnapshot(s=>{COM=items(s);render()});
+  db.collection("pcats").onSnapshot(s=>{PCAT=items(s);render()});
   db.collection("counters").doc("lv"+new Date().getFullYear()%100).onSnapshot(d=>{CT=d.exists?(+d.data().last||0):0;render()});
   render();
 }
@@ -916,7 +917,7 @@ const bkCard=()=>`<div class="card"><h2>💾 Respaldo</h2><p class="mu">Descarga
 async function importBackup(){const f=$("#imp_f").files[0],st=$("#imp_s");if(!f)return al("Elige primero el archivo JSON");
 let d;try{d=JSON.parse(await f.text())}catch(e){return al("El archivo no es un respaldo válido")}
 if(!d||d.app!=="control-flota")return al("El archivo no parece un respaldo de Control de Flota");
-const map={vehicles:d.vehicles,logs:d.logs,vales:d.vales,docfiles:d.docfiles,vdocs:d.vdocs,parts:d.parts,pins:d.pins,compras:d.compras},tot=Object.values(map).reduce((a,x)=>a+(x||[]).length,0);
+const map={vehicles:d.vehicles,logs:d.logs,vales:d.vales,docfiles:d.docfiles,vdocs:d.vdocs,parts:d.parts,pins:d.pins,compras:d.compras,pcats:d.pcats},tot=Object.values(map).reduce((a,x)=>a+(x||[]).length,0);
 if(!await cf(`Se importarán ${tot} registros. ¿Continuar?`))return;
 let ok=0,bad=0,lastE="";
 try{for(const [coll,arr] of Object.entries(map)){if(!arr)continue;
@@ -930,7 +931,7 @@ catch(e){al("No se pudo importar: "+((e&&e.message)||"error"))}}
 async function backup(){if(!showAdm())return;if(!window.ExcelJS)return al("No se pudo cargar el generador de Excel");
 const dl=await claude.use("downloads");if(!dl)return al("La descarga no está disponible en este momento.");
 const d=today(),yy=new Date().getFullYear()%100;
-const data={app:"control-flota",version:1,fecha:new Date().toISOString(),counter:{yy,last:CT},vehicles:VALL,logs:L,vales:VL,docfiles:DF,vdocs:VD,parts:PAR,pins:PIN,compras:COM};
+const data={app:"control-flota",version:1,fecha:new Date().toISOString(),counter:{yy,last:CT},vehicles:VALL,logs:L,vales:VL,docfiles:DF,vdocs:VD,parts:PAR,pins:PIN,compras:COM,pcats:PCAT};
 try{await dl.save({filename:`Respaldo_Flota_${d}.json`,data:new Blob([JSON.stringify(data)],{type:"application/json"})})}catch(e){if(!e||e.code!=="declined")al("No se pudo descargar el respaldo");return}
 const wb=new ExcelJS.Workbook(),sheet=(name,cols,rows,nums)=>{const ws=wb.addWorksheet(name);ws.columns=cols.map(c=>({header:c[0],width:c[1]}));rows.forEach(r=>ws.addRow(r));xs(ws,rows.length,nums||[]);ws.autoFilter={from:{row:1,column:1},to:{row:1,column:cols.length}}};
 const pv=id=>VALL.find(x=>x.id===id),pat=id=>{const v=pv(id);return v?fmtPat(v):id};
@@ -949,7 +950,18 @@ const isAceite=l=>(l.tipos||[]).includes("Cambio de aceite");
 let PAR=[],PIN=[],PU=[],psq="",pgrp=(()=>{try{return localStorage.getItem("pgrp")||"none"}catch(e){return"none"}})();
 const vehList=a=>Array.isArray(a)?a:String(a||"").split(",").map(x=>x.trim()).filter(Boolean);
 const vehNames=()=>[...new Set(V.concat(VALL||[]).map(v=>[v.marca,v.model].filter(Boolean).join(" ")).filter(Boolean))].sort();
-const catNames=()=>[...new Set(PAR.map(x=>(x.cat||"").trim()).filter(Boolean))].sort();
+let PCAT=[];
+const catNames=()=>{const m=new Map();[...PCAT.map(c=>c.name),...PAR.map(x=>x.cat)].forEach(n=>{n=String(n||"").trim();if(n&&!m.has(normN(n)))m.set(normN(n),n)});return[...m.values()].sort((a,b)=>a.localeCompare(b))};
+const catOpts=(sel)=>`<option value=""${!sel?" selected":""}>Sin categoría</option>${catNames().map(c=>`<option${normN(c)===normN(sel)?" selected":""}>${H(c)}</option>`).join("")}<option value="__new">➕ Crear nueva categoría…</option>`;
+async function ensureCat(n){n=String(n||"").trim();if(!n||PCAT.some(c=>normN(c.name)===normN(n)))return;try{await db.collection("pcats").doc("k"+Date.now()+Math.floor(Math.random()*1000)).set({name:n})}catch(e){}}
+function catNew(sel,id){const e=document.getElementById(id);if(e)e.style.display=sel.value==="__new"?"block":"none";if(sel.value==="__new"&&e)e.focus()}
+const catVal=(selEl,inEl)=>selEl.value==="__new"?inEl.value.trim():selEl.value;
+async function catAdd(){const i=$("#cat_n"),n=i.value.trim();if(!n)return al("Escribe el nombre de la categoría");if(catNames().some(c=>normN(c)===normN(n)))return al("Esa categoría ya existe");try{await db.collection("pcats").doc("k"+Date.now()).set({name:n});i.value="";al("Categoría creada ✔")}catch(e){al("No se pudo crear")}}
+async function catRen(name){const n=await pr("Nuevo nombre de la categoría",name);if(n===null)return;const nn=n.trim();if(!nn)return al("El nombre no puede quedar vacío");if(normN(nn)!==normN(name)&&catNames().some(c=>normN(c)===normN(nn)))return al("Ya existe una categoría con ese nombre");
+try{for(const c of PCAT.filter(c=>normN(c.name)===normN(name)))await db.collection("pcats").doc(c.id).update({name:nn});if(!PCAT.some(c=>normN(c.name)===normN(name)))await db.collection("pcats").doc("k"+Date.now()).set({name:nn});for(const x of PAR.filter(x=>normN(x.cat)===normN(name)))await db.collection("parts").doc(x.id).update({cat:nn});al("Categoría renombrada ✔")}catch(e){al("No se pudo renombrar")}}
+async function catDel(name){const k=PAR.filter(x=>normN(x.cat)===normN(name)).length;if(!await cf(`¿Eliminar la categoría «${name}»?${k?`\n${k} repuesto(s) quedarán sin categoría.`:""}`))return;
+try{for(const c of PCAT.filter(c=>normN(c.name)===normN(name)))await db.collection("pcats").doc(c.id).delete();for(const x of PAR.filter(x=>normN(x.cat)===normN(name)))await db.collection("parts").doc(x.id).update({cat:""});al("Categoría eliminada")}catch(e){al("No se pudo eliminar")}}
+const catCard=()=>{const cs=catNames();return `<div class="card"><h2>🗂 Categorías de repuestos (${cs.length})</h2><p class="mu">Crea las categorías aquí (ej: Filtro de aceite, Pastillas de freno) y luego asígnalas a cada repuesto con ✏️.</p><div style="display:flex;gap:8px"><input id="cat_n" placeholder="Nueva categoría" style="flex:1" onkeydown="if(event.key==='Enter')catAdd()"><button class="p" onclick="catAdd()">Crear</button></div>${cs.length?cs.map(c=>{const n=PAR.filter(x=>normN(x.cat)===normN(c)).length;return `<div class="row"><div><b>${H(c)}</b> <span class="mu">· ${n} repuesto(s)</span></div><span style="white-space:nowrap"><button onclick="catRen(this.dataset.n)" data-n="${H(c)}" title="Renombrar">✏️</button> <button onclick="catDel(this.dataset.n)" data-n="${H(c)}" title="Eliminar">🗑</button></span></div>`}).join(""):'<div class="mu" style="margin-top:8px">Aún no hay categorías.</div>'}</div>`};
 let PAV=new Set();
 const vehChk=(sel,extra,fn)=>{const all=[...new Set([...vehNames(),...extra])].sort();return all.length?`<div style="max-height:170px;overflow:auto;border:1px solid var(--bd);border-radius:8px;padding:6px 8px">${all.map(n=>`<label class="chk" style="display:flex;gap:8px;align-items:center;margin:2px 0"><input type="checkbox" style="width:auto" data-v="${H(n)}" ${sel.has(n)?"checked":""} onchange="${fn}"> ${H(n)}</label>`).join("")}</div>`:'<div class="mu">No hay vehículos registrados aún.</div>'};
 function pavT(el){el.checked?PAV.add(el.dataset.v):PAV.delete(el.dataset.v)}
@@ -1063,18 +1075,19 @@ ${PC.open?pcForm():pcBtn()}
 <div class="card"><h2>Agregar repuesto</h2><div class="g"><div><label>Código (opcional)</label><input id="pa_c"></div><div><label>Nombre del repuesto</label><input id="pa_n"></div>
 <div><label>Unidad</label><select id="pa_u">${un.map(u=>`<option>${u}</option>`).join("")}</select></div><div><label>Stock inicial</label><input id="pa_s" type="number" step="any" min="0" inputmode="decimal"></div>
 <div><label>Valor unitario ($ por unidad)</label><input id="pa_v" type="number" step="any" min="0" inputmode="decimal"></div><div><label>Stock mínimo (opcional)</label><input id="pa_m" type="number" step="any" min="0" inputmode="decimal"></div>
-<div><label>Tipo de repuesto (opcional)</label><input id="pa_cat" list="dl_cat" placeholder="Ej: Filtro de aceite"></div><div style="grid-column:1/-1"><label>Vehículos / modelos compatibles (opcional) — marca los que correspondan</label>${vehChk(PAV,[...PAV],"pavT(this)")}</div>
-<datalist id="dl_cat">${catNames().map(c=>`<option value="${H(c)}">`).join("")}</datalist><datalist id="dl_veh">${vehNames().map(c=>`<option value="${H(c)}">`).join("")}</datalist>
+<div><label>Categoría (opcional)</label><select id="pa_cat" onchange="catNew(this,'pa_catn')">${catOpts("")}</select><input id="pa_catn" placeholder="Nombre de la nueva categoría" style="display:none;margin-top:4px"></div><div style="grid-column:1/-1"><label>Vehículos / modelos compatibles (opcional) — marca los que correspondan</label>${vehChk(PAV,[...PAV],"pavT(this)")}</div>
+<datalist id="dl_veh">${vehNames().map(c=>`<option value="${H(c)}">`).join("")}</datalist>
 <div><label>N° orden de compra (opcional)</label><input id="pa_oc"></div><div><label>Adjuntar documento (opcional)</label><input id="pa_f" type="file" accept="image/*,application/pdf"></div></div>
 <p><button class="p" onclick="pAdd()">Agregar repuesto</button></p><div id="pa_err" class="er" style="font-size:14px"></div></div>
-<div class="card"><h2>Stock (${PAR.length})</h2><input id="ps" type="search" placeholder="🔍 Buscar por nombre, código, tipo o vehículo" value="${H(psq)}" oninput="psq=this.value;pdraw()" style="margin-bottom:8px"><label>Agrupar por</label><select onchange="setGrp(this.value)" style="margin-bottom:8px"><option value="none"${pgrp==="none"?" selected":""}>Sin agrupar</option><option value="cat"${pgrp==="cat"?" selected":""}>Tipo de repuesto</option><option value="veh"${pgrp==="veh"?" selected":""}>Vehículo (modelo)</option></select><div id="pl_list">${plistHtml()}</div>
+${catCard()}
+<div class="card"><h2>Stock (${PAR.length})</h2><input id="ps" type="search" placeholder="🔍 Buscar por nombre, código, tipo o vehículo" value="${H(psq)}" oninput="psq=this.value;pdraw()" style="margin-bottom:8px"><label>Agrupar por</label><select onchange="setGrp(this.value)" style="margin-bottom:8px"><option value="none"${pgrp==="none"?" selected":""}>Sin agrupar</option><option value="cat"${pgrp==="cat"?" selected":""}>Categoría</option><option value="veh"${pgrp==="veh"?" selected":""}>Vehículo (modelo)</option></select><div id="pl_list">${plistHtml()}</div>
 <p><button class="p" style="width:100%" onclick="pDownload()">Descargar stock (Excel)</button></p></div>
 <div class="card"><h2>Últimos ingresos de stock</h2>${pinsHtml()}</div>
 ${comHtml()}`}
 function plistHtml(){const qq=psq.trim().toUpperCase();const f=[...PAR].filter(x=>!qq||(x.name+" "+(x.code||"")+" "+(x.cat||"")+" "+vehList(x.veh).join(" ")).toUpperCase().includes(qq)).sort((a,b)=>a.name.localeCompare(b.name));
 if(!f.length)return '<div class="mu">Sin repuestos.</div>';
 if(pgrp==="none")return f.map(pRow).join("");
-const SN=pgrp==="cat"?"Sin tipo asignado":"Sin vehículo asignado",gs=new Map();
+const SN=pgrp==="cat"?"Sin categoría":"Sin vehículo asignado",gs=new Map();
 f.forEach(x=>{const ks=pgrp==="cat"?[(x.cat||"").trim()||SN]:(vehList(x.veh).length?vehList(x.veh):[SN]);ks.forEach(k=>{if(!gs.has(k))gs.set(k,[]);gs.get(k).push(x)})});
 const ks=[...gs.keys()].sort((a,b)=>a===SN?1:b===SN?-1:a.localeCompare(b));
 return ks.map(k=>{const it=gs.get(k),val=it.reduce((a,x)=>a+Math.max(+x.stock||0,0)*(+x.cost||0),0),low=it.filter(x=>(+x.stock||0)<=0||(x.min!=null&&x.min!==""&&(+x.stock||0)<=+x.min)).length;
@@ -1124,11 +1137,11 @@ async function pAdd(){bl();const nm=$("#pa_n").value.trim(),st=num($("#pa_s").va
 if(!nm)m.push("Nombre del repuesto");if(st===null||st<0)m.push("Stock inicial (puede ser 0)");if(st>0&&(cv===null||cv<0))m.push("Valor unitario ($ por unidad)");
 if(nm&&PAR.some(x=>x.name.trim().toUpperCase()===nm.toUpperCase()))m.push("Ya existe un repuesto con ese nombre");
 if(m.length)return showErr("pa_err",m);showErr("pa_err",[]);
-const d={name:nm,code:$("#pa_c").value.trim(),unit:$("#pa_u").value,stock:st,created:today()};const ct=$("#pa_cat").value.trim(),vh=[...PAV];if(ct)d.cat=ct;if(vh.length)d.veh=vh;if(mn!==null&&mn>=0)d.min=mn;if(cv!==null&&cv>=0)d.cost=cv;
+const d={name:nm,code:$("#pa_c").value.trim(),unit:$("#pa_u").value,stock:st,created:today()};const ct=catVal($("#pa_cat"),$("#pa_catn")),vh=[...PAV];if(ct)d.cat=ct;if(vh.length)d.veh=vh;if(mn!==null&&mn>=0)d.min=mn;if(cv!==null&&cv>=0)d.cost=cv;
 const oc=$("#pa_oc").value.trim(),fl=$("#pa_f").files[0];if(fl&&!oc&&!await cf("Adjuntaste un documento sin N° de orden de compra. ¿Continuar?"))return;
 const pid="p"+Date.now();let up=null;if(fl){up=await upPin(fl);if(up===false)return}
-try{await db.collection("parts").doc(pid).set(d);if(st>0)await db.collection("pins").doc("i"+Date.now()).set({pid,name:nm,unit:d.unit,qty:st,oc,aid:up?up.aid:"",fname:up?up.name:"",date:today(),by:meName()||"Administrador",kind:"inicial",...(cv!==null?{ucost:cv}:{})});
-["pa_c","pa_n","pa_s","pa_v","pa_m","pa_oc","pa_f","pa_cat"].forEach(i=>$("#"+i).value="");PAV=new Set();render(true);al("Repuesto agregado ✔")}catch(e){showErr("pa_err",["No se pudo guardar (revisa tu conexión)"])}}
+try{await ensureCat(ct);await db.collection("parts").doc(pid).set(d);if(st>0)await db.collection("pins").doc("i"+Date.now()).set({pid,name:nm,unit:d.unit,qty:st,oc,aid:up?up.aid:"",fname:up?up.name:"",date:today(),by:meName()||"Administrador",kind:"inicial",...(cv!==null?{ucost:cv}:{})});
+["pa_c","pa_n","pa_s","pa_v","pa_m","pa_oc","pa_f","pa_catn"].forEach(i=>$("#"+i).value="");PAV=new Set();$("#pa_cat").value="";render(true);al("Repuesto agregado ✔")}catch(e){showErr("pa_err",["No se pudo guardar (revisa tu conexión)"])}}
 async function upPin(f){let as=null;try{as=await claude.use("assets")}catch(e){}
 if(!as){al("Subir archivos no está disponible en este momento.");return false}
 try{const r=await as.upload(f);return {aid:r.id,name:f.name}}catch(e){al("No se pudo subir el archivo (máximo 20 MB).");return false}}
@@ -1145,11 +1158,13 @@ return f.length?f.map(g=>`<div class="row"><div><b>${H(g.name)}</b>${g.sku?` <sp
 async function pVal(id){const x=PAR.find(y=>y.id===id);if(!x)return;const v=await pr(`Valor unitario de «${x.name}» ($ por ${x.unit||"un"})`,x.cost!=null?x.cost:"");if(v===null)return;const q=num(v);if(q===null||q<0)return al("Valor no válido");try{await db.collection("parts").doc(id).update({cost:q});al("Valor actualizado ✔")}catch(e){al("No se pudo actualizar")}}
 async function pSet(id){const x=PAR.find(y=>y.id===id);if(!x)return;const v=await pr(`Nuevo stock de «${x.name}» (${x.unit||"un"})`,x.stock);if(v===null)return;const q=num(v);if(q===null||q<0)return al("Stock no válido");
 try{await db.collection("parts").doc(id).update({stock:q});al("Stock ajustado ✔")}catch(e){al("No se pudo actualizar")}}
-async function pEdit(id){const x=PAR.find(y=>y.id===id);if(!x)return;const n=await pr("Nombre del repuesto",x.name);if(n===null)return;if(!n.trim())return al("El nombre no puede quedar vacío");
-const c=await pr("Código (opcional)",x.code||"");if(c===null)return;const m=await pr("Stock mínimo (opcional, vacío = sin mínimo)",x.min==null?"":x.min);if(m===null)return;
-const ed=await dlg(`<h3 style="margin:0 0 6px">Tipo y vehículos</h3><p class="mu" style="margin:0 0 6px">${H(x.name)}</p><label>Tipo de repuesto</label><input data-k="cat" list="dl_cat2" value="${H(x.cat||"")}" placeholder="Ej: Filtro de aceite"><datalist id="dl_cat2">${catNames().map(c=>`<option value="${H(c)}">`).join("")}</datalist><label>Vehículos / modelos compatibles</label>${vehChk(new Set(vehList(x.veh)),vehList(x.veh),"")}<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px"><button id="dn">Cancelar</button><button class="p" id="dy">Aceptar</button></div>`,(o,d)=>{o.querySelector("#dn").onclick=()=>d(null);o.querySelector("#dy").onclick=()=>d({cat:o.querySelector('[data-k="cat"]').value.trim(),veh:[...o.querySelectorAll("input[data-v]")].filter(i=>i.checked).map(i=>i.dataset.v)})});if(ed===null)return;const ct=ed.cat,vh=ed.veh;
-const d={name:n.trim(),code:c.trim(),cat:ct,veh:vh};const mm=num(m);if(mm!==null&&mm>=0)d.min=mm;else if(String(m).trim()==="")d.min=null;
-try{await db.collection("parts").doc(id).update(d);al("Repuesto actualizado ✔")}catch(e){al("No se pudo actualizar")}}
+async function pEdit(id){const x=PAR.find(y=>y.id===id);if(!x)return;
+const ed=await dlg(`<h3 style="margin:0 0 6px">Editar repuesto</h3><div style="max-height:75vh;overflow:auto"><label>Nombre del repuesto</label><input data-k="n" value="${H(x.name)}"><label>Código / SKU (opcional)</label><input data-k="c" value="${H(x.code||"")}"><label>Stock mínimo (opcional)</label><input data-k="m" type="number" step="any" min="0" inputmode="decimal" value="${H(x.min==null?"":x.min)}"><label>Categoría</label><select data-k="cat" onchange="catNew(this,'ed_catn')">${catOpts(x.cat||"")}</select><input id="ed_catn" data-k="catn" placeholder="Nombre de la nueva categoría" style="display:none;margin-top:4px"><label>Vehículos / modelos compatibles</label>${vehChk(new Set(vehList(x.veh)),vehList(x.veh),"")}</div><div id="ed_err" class="er" style="font-size:14px"></div><div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px"><button id="dn">Cancelar</button><button class="p" id="dy">Guardar</button></div>`,(o,d)=>{const g=k=>o.querySelector(`[data-k="${k}"]`);o.querySelector("#dn").onclick=()=>d(null);
+o.querySelector("#dy").onclick=()=>{const n=g("n").value.trim();if(!n){o.querySelector("#ed_err").textContent="El nombre no puede quedar vacío";return}if(PAR.some(y=>y.id!==id&&normN(y.name)===normN(n)&&normN(y.code)===normN(g("c").value)))return o.querySelector("#ed_err").textContent="Ya existe otro repuesto con ese nombre y código";
+const sl=g("cat"),cat=sl.value==="__new"?g("catn").value.trim():sl.value;if(sl.value==="__new"&&!cat){o.querySelector("#ed_err").textContent="Escribe el nombre de la nueva categoría";return}
+d({n,c:g("c").value.trim(),m:g("m").value,cat,veh:[...o.querySelectorAll("input[data-v]")].filter(i=>i.checked).map(i=>i.dataset.v)})}});
+if(ed===null)return;const d={name:ed.n,code:ed.c,cat:ed.cat,veh:ed.veh};const mm=num(ed.m);if(mm!==null&&mm>=0)d.min=mm;else if(String(ed.m).trim()==="")d.min=null;
+try{await ensureCat(ed.cat);await db.collection("parts").doc(id).update(d);al("Repuesto actualizado ✔")}catch(e){al("No se pudo actualizar")}}
 async function pDel(id){const x=PAR.find(y=>y.id===id);if(!x||!await cf(`¿Eliminar «${x.name}» del stock? Las mantenciones ya registradas conservan su nombre.`))return;
 try{await db.collection("parts").doc(id).delete();al("Repuesto eliminado")}catch(e){al("No se pudo eliminar")}}
 async function pDownload(){if(!showAdm())return;if(!window.ExcelJS)return al("No se pudo cargar el generador de Excel");

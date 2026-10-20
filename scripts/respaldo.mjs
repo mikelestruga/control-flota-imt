@@ -30,7 +30,7 @@ export function armarJson(filas) {
   return {
     app: "control-flota", version: 1, fecha: new Date().toISOString(),
     counters: cs.map(c => ({ id: c.id, last: +c.last || 0 })),
-    vehicles: by.vehicles || [], logs: by.logs || [], vales: by.vales || [], docfiles: by.docfiles || [], vdocs: by.vdocs || [], parts: by.parts || [], pins: by.pins || [], compras: by.compras || [],
+    vehicles: by.vehicles || [], logs: by.logs || [], vales: by.vales || [], docfiles: by.docfiles || [], vdocs: by.vdocs || [], parts: by.parts || [], pins: by.pins || [], compras: by.compras || [], pcats: by.pcats || [],
   };
 }
 
