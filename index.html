@@ -1081,7 +1081,7 @@ const vehNames=()=>[...new Set(V.concat(VALL||[]).map(v=>[v.marca,v.model].filte
 let PCAT=[];
 const pinName=g=>{const x=g.pid&&PAR.find(y=>y.id===g.pid);return x?x.name:g.name};
 const catNames=()=>{const m=new Map();[...PCAT.map(c=>c.name),...PAR.map(x=>x.cat)].forEach(n=>{n=String(n||"").trim();if(n&&!m.has(normN(n)))m.set(normN(n),n)});return[...m.values()].sort((a,b)=>a.localeCompare(b))};
-const catOpts=(sel)=>`<option value=""${!sel?" selected":""}>Sin categoría</option>${catNames().map(c=>`<option${normN(c)===normN(sel)?" selected":""}>${H(c)}</option>`).join("")}<option value="__new">➕ Crear nueva categoría…</option>`;
+const catOpts=(sel)=>`<option value=""${!sel?" selected":""}>Sin categoría</option>${catNames().map(c=>`<option${sel&&normN(c)===normN(sel)?" selected":""}>${H(c)}</option>`).join("")}<option value="__new"${sel==="__new"?" selected":""}>➕ Crear nueva categoría…</option>`;
 async function ensureCat(n){n=String(n||"").trim();if(!n||PCAT.some(c=>normN(c.name)===normN(n)))return;try{await db.collection("pcats").doc("k"+Date.now()+Math.floor(Math.random()*1000)).set({name:n})}catch(e){}}
 function catNew(sel,id){const e=document.getElementById(id);if(e)e.style.display=sel.value==="__new"?"block":"none";if(sel.value==="__new"&&e)e.focus()}
 const catVal=(selEl,inEl)=>selEl.value==="__new"?inEl.value.trim():selEl.value;
@@ -1155,6 +1155,8 @@ function pcTot(){PC.items.forEach((it,i)=>{const e=$("#pc_s"+i);if(e)e.textConte
 const pcRow=(it,i,so)=>`<div style="border-top:1px solid var(--bd);padding-top:6px;margin-top:6px"><label>Repuesto en stock</label><select onchange="pcSel(${i},this.value)"><option value="__new"${!it.pid?" selected":""}>➕ Crear repuesto nuevo</option>${so.map(x=>`<option value="${H(x.id)}"${it.pid===x.id?" selected":""}>${H(x.name)} (stock ${nf(x.stock)})</option>`).join("")}</select>
 <div class="g"><div><label>SKU / código</label><input value="${H(it.code)}" oninput="PC.items[${i}].code=this.value"></div><div><label>${it.pid?"Descripción en la factura":"Nombre del repuesto nuevo"}</label><input value="${H(it.name)}" oninput="PC.items[${i}].name=this.value"></div></div>
 <div class="g"><div><label>Cantidad</label><input type="number" step="any" min="0" inputmode="decimal" value="${H(it.qty)}" oninput="PC.items[${i}].qty=this.value;pcTot()"></div><div><label>Unidad</label><select onchange="PC.items[${i}].unit=this.value">${PCU.map(u=>`<option${u===it.unit?" selected":""}>${u}</option>`).join("")}</select></div><div><label>Valor unitario neto ($)</label><input type="number" step="any" min="0" inputmode="decimal" value="${H(it.ucost)}" oninput="PC.items[${i}].ucost=this.value;pcTot()"></div></div>
+${it.pid?"":`<div style="background:var(--bg2);border-radius:8px;padding:8px;margin-top:6px"><div class="g"><div><label>Categoría del repuesto nuevo</label><select onchange="pcCat(${i},this)">${catOpts(it.cat||"")}</select><input placeholder="Nombre de la nueva categoría" value="${H(it.catN||"")}" oninput="PC.items[${i}].catN=this.value" style="display:${it.cat==="__new"?"block":"none"};margin-top:4px"></div></div>
+<label style="margin-top:6px">Vehículos / modelos compatibles</label><label class="chk" style="display:flex;gap:8px;align-items:center"><input type="checkbox" style="width:auto" ${it.uni?"checked":""} onchange="PC.items[${i}].uni=this.checked;uniTog(this,'pc_vw${i}')"> 🌐 Universal (sirve para todos los vehículos)</label><div id="pc_vw${i}" style="${it.uni?"opacity:.4;pointer-events:none":""}">${vehChk(new Set(it.veh||[]),it.veh||[],`pcVeh(${i},this)`)}</div></div>`}
 <div class="top" style="margin:4px 0 0"><span class="mu">Subtotal: <b id="pc_s${i}">${money(pcSub(it))}</b></span><button onclick="pcDelRow(${i})">🗑 Quitar línea</button></div></div>`;
 function pcForm(){const f=PC.f,so=[...PAR].sort((a,b)=>a.name.localeCompare(b.name));
 return `<div class="card"><h2>🧾 Ingresar compra de stock</h2><p class="mu">Sube la factura u orden de compra: la IA lee los productos y tú los revisas antes de ingresarlos. El documento queda guardado en «Compras de stock».</p>
@@ -1165,6 +1167,8 @@ ${PC.items.map((it,i)=>pcRow(it,i,so)).join("")||'<div class="mu">Aún no hay pr
 <p><button onclick="pcAddRow()">+ Agregar línea</button></p><p>Total de las líneas: <b id="pc_t">${(()=>{const t=PC.items.reduce((a,it)=>a+pcSub(it),0);return money(t)+" neto · "+money(Math.round(t*1.19))+" con IVA"})()}</b></p>
 <p><button class="p" onclick="pcSave()">Ingresar al stock</button> <button onclick="pcCancel()">Cancelar</button></p><div id="pc_err" class="er" style="font-size:14px"></div></div>`}
 function pcSel(i,v){const it=PC.items[i];it.pid=v==="__new"?"":v;if(it.pid){const x=PAR.find(y=>y.id===it.pid);if(x&&x.unit)it.unit=x.unit}render(true)}
+function pcCat(i,el){const it=PC.items[i];it.cat=el.value;const n=el.nextElementSibling;if(n){n.style.display=el.value==="__new"?"block":"none";if(el.value==="__new")n.focus()}}
+function pcVeh(i,el){const it=PC.items[i],s=new Set(it.veh||[]);el.checked?s.add(el.dataset.v):s.delete(el.dataset.v);it.veh=[...s]}
 function pcAddRow(){PC.items.push({name:"",code:"",qty:"",unit:"un",ucost:"",pid:""});render(true)}
 function pcDelRow(i){PC.items.splice(i,1);render(true)}
 function pcCancel(){PC=PC0();render(true)}
@@ -1188,7 +1192,7 @@ PC.msg=(PC.items.length?"✅ La IA leyó "+PC.items.length+" producto(s)"+(nu?" 
 render(true)}
 async function pcSave(){if(!showAdm())return;bl();const m=[],f=PC.f,its=PC.items.filter(i=>(num(i.qty)||0)>0||String(i.name).trim());
 if(!its.length)m.push("Al menos un producto");
-its.forEach((i,k)=>{const n="Línea "+(k+1);if(!(num(i.qty)>0))m.push(n+": cantidad mayor a 0");if(!i.pid&&!String(i.name).trim())m.push(n+": nombre del repuesto");const c=num(i.ucost);if(c===null||c<0)m.push(n+": valor unitario neto")});
+its.forEach((i,k)=>{const n="Línea "+(k+1);if(!(num(i.qty)>0))m.push(n+": cantidad mayor a 0");if(!i.pid&&!String(i.name).trim())m.push(n+": nombre del repuesto");if(!i.pid&&i.cat==="__new"&&!String(i.catN||"").trim())m.push(n+": nombre de la nueva categoría");const c=num(i.ucost);if(c===null||c<0)m.push(n+": valor unitario neto")});
 its.filter(i=>!i.pid&&String(i.name).trim()).forEach(i=>{const c=normN(i.code);if(c&&PAR.some(x=>normN(x.code)===c))m.push("El SKU «"+i.code+"» ya existe en el stock: elígelo en la lista «Repuesto en stock»");else if(PAR.some(x=>normN(x.name)===normN(i.name)&&(!c||!normN(x.code)||normN(x.code)===c)))m.push("«"+i.name+"» ya existe en el stock: elígelo en la lista «Repuesto en stock» o distínguelo con un SKU/nombre distinto")});
 if(!f.fecha)m.push("Fecha del documento");
 if(m.length)return showErr("pc_err",m);showErr("pc_err",[]);
@@ -1199,7 +1203,7 @@ try{await db.collection("compras").doc(cid).set({tipo:f.tipo,numero:f.numero.tri
 for(const it of its){k++;const q=num(it.qty),uc=num(it.ucost);let pid=it.pid,pn=String(it.name).trim(),un=it.unit||"un";
 const cur=pid&&(cache[pid]||PAR.find(y=>y.id===pid));
 if(cur){pn=cur.name;un=cur.unit||un;const base=Math.max(+cur.stock||0,0),old=+cur.cost||0,avg=old&&base?(base*old+q*uc)/(base+q):uc,ns=(+cur.stock||0)+q,nc=Math.round(avg*100)/100;const up={stock:ns,cost:nc},sk=String(it.code||"").trim();if(sk&&!cur.code)up.code=sk;await db.collection("parts").doc(pid).update(up);cache[pid]={...cur,...up}}
-else{pid="p"+Date.now()+"_"+k;const d={name:pn,code:String(it.code||"").trim(),unit:un,stock:q,cost:uc,created:today()};await db.collection("parts").doc(pid).set(d);cache[pid]={id:pid,...d}}
+else{pid="p"+Date.now()+"_"+k;const d={name:pn,code:String(it.code||"").trim(),unit:un,stock:q,cost:uc,created:today()};const ct=it.cat==="__new"?String(it.catN||"").trim():(it.cat||"");if(ct){d.cat=ct;await ensureCat(ct)}if(it.uni)d.uni=true;else if((it.veh||[]).length)d.veh=[...it.veh];await db.collection("parts").doc(pid).set(d);cache[pid]={id:pid,...d}}
 await db.collection("pins").doc("i"+Date.now()+"_"+k).set({pid,name:pn,unit:un,qty:q,oc:f.numero.trim(),cid,aid:PC.aid,fname:PC.fname,prov:f.proveedor.trim(),date:f.fecha||today(),by,kind:"compra",ucost:uc,sku:String(it.code||"").trim()||(cache[pid]&&cache[pid].code)||""})}
 PC=PC0();al("Compra ingresada al stock ✔")}catch(e){showErr("pc_err",["No se pudo completar el ingreso ("+((e&&e.message)||"error")+"). Revisa el stock antes de reintentar para no duplicar."])}}
 const comHtml=()=>{const q=normN(pcq),f=[...COM].filter(c=>!q||normN((c.numero||"")+" "+(c.proveedor||"")+" "+(c.fname||"")).includes(q)).sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||"")||b.id.localeCompare(a.id));
