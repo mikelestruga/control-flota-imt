@@ -860,20 +860,26 @@ const sinDoc=()=>V.filter(v=>!v.sold&&attOf(v.id)===0);
 const sdCard=()=>{if(!canSeeAtt()||!VDok||!DFok)return"";const n=sinDoc().length;return n?`<div class="card v" onclick="ftype='__sd';render()" style="border-color:var(--wa)"><b>📎 ${n} sin documentos</b><div class="mu">Vehículos activos sin ningún documento adjunto</div></div>`:""};
 const DKEYS=[...DOCS,["seguro","Seguro (póliza)"],["jaula","Jaula antivuelco"],["lamina","Lámina de seguridad"],["otro","Otros documentos"],["paquete","Paquete original"]];
 const xOpts=(t,qq,selId)=>{const f=V.filter(v=>!v.sold&&(qq?match(v,qq):t&&tp(v)===t)).sort((a,b)=>a.id.localeCompare(b.id));return(f.length!==1?`<option value="">${f.length?"Elegir vehículo…":(qq||t?"Sin resultados":"Primero elige el tipo")}</option>`:"")+f.map(v=>`<option value="${H(v.id)}"${v.id===selId?" selected":""}>${H(v.id)} · ${H(vname(v))}</option>`).join("")};
-function xfill(){const t=$("#x_t").value,qq=$("#x_q").value.trim().toUpperCase(),el=$("#x_p");el.innerHTML=xOpts(t,qq,"");OD=el.value||"";const l=$("#x_l");if(l)l.innerHTML=docList(OD)}
-function xpick(v){OD=v;const l=$("#x_l");if(l)l.innerHTML=docList(OD)}
-function opDocs(){const cur=OD&&V.find(v=>v.id===OD),t=cur?tp(cur):"";
-return `<div class="card"><h2>📁 Documentos del vehículo</h2><p class="mu">Aquí puedes ver y descargar los documentos de cada vehículo.</p><div class="g">
-<div style="grid-column:1/-1"><label>🔍 Buscar por patente, marca o modelo</label><input id="x_q" type="search" oninput="xfill()" placeholder="Ej: PRLV96 o Hilux"></div>
-<div><label>1. Tipo de vehículo</label><select id="x_t" onchange="xfill()"><option value="">Elegir tipo…</option>${tipos().map(x=>`<option${x===t?" selected":""}>${H(x)}</option>`).join("")}</select></div>
-<div><label>2. Vehículo</label><select id="x_p" onchange="xpick(this.value)">${xOpts(t,"",OD)}</select></div></div>
-<div id="x_l" style="margin-top:8px">${docList(OD)}</div></div>`}
+let OQ="",OT_="",ON=30;
+const xRes=()=>{const qq=normN(OQ);return V.filter(v=>!v.sold&&(!OT_||tp(v)===OT_)&&(!qq||normN([v.id,v.marca,v.model,v.chasis,v.assign,v.tipo].join(" ")).includes(qq))).sort((a,b)=>a.id.localeCompare(b.id))};
+const xChips=()=>`<button class="${!OT_?"p":""}" onclick="xtype('')" style="min-height:40px;white-space:nowrap">Todos</button>${tipos().map(t=>`<button class="${OT_===t?"p":""}" onclick="xtype(this.dataset.t)" data-t="${H(t)}" style="min-height:40px;white-space:nowrap">${H(TIC&&TIC[t]?TIC[t]+" ":"")}${H(t)}</button>`).join("")}`;
+const xList=()=>{const f=xRes(),sh=f.slice(0,ON);return `<div class="mu" style="margin:8px 0 4px">${f.length} vehículo(s)</div>`+(sh.map(v=>{const n=attOf(v.id);return `<div class="card v" onclick="xpick('${H(v.id)}')" style="margin:0 0 8px;padding:12px;display:flex;align-items:center;gap:12px"><div style="min-width:0;flex:1"><div class="pl" style="font-size:20px">${H(fmtPat(v))}</div><div>${H([v.marca,v.model,v.year].filter(Boolean).join(" "))}</div><div class="mu">${H(tp(v))}${v.assign?" · 📍 "+H(v.assign):""}</div></div><div style="text-align:right;white-space:nowrap"><span class="b ${n?"ok":"mu"}">📎 ${n}</span><div class="mu" style="font-size:22px;line-height:1">›</div></div></div>`}).join("")||'<div class="card mu">Sin resultados.</div>')+(f.length>ON?`<button style="width:100%" onclick="ON+=30;xdraw()">Ver más (${f.length-ON})</button>`:"")};
+function xdraw(){const l=$("#x_r"),c=$("#x_c");if(l)l.innerHTML=xList();if(c)c.innerHTML=xChips()}
+function xfill(){OQ=$("#x_q").value;ON=30;xdraw()}
+function xtype(t){OT_=t;ON=30;xdraw()}
+function xpick(v){OD=v;render(true);window.scrollTo(0,0)}
+function xback(){OD="";render(true)}
+function opDocs(){const cur=OD&&V.find(v=>v.id===OD);
+if(cur)return `<button onclick="xback()" style="width:100%;margin-bottom:10px;min-height:48px;font-size:17px">← Buscar otro vehículo</button><div class="card"><h2>📁 Documentos</h2><div id="x_l">${docList(OD)}</div></div>`;
+return `<div class="card"><h2>📁 Documentos del vehículo</h2><p class="mu">Busca el vehículo y toca para ver y descargar sus documentos.</p>
+<input id="x_q" type="search" value="${H(OQ)}" oninput="xfill()" placeholder="🔍 Patente, marca o modelo (ej: Hilux)" style="min-height:52px;font-size:17px" autocomplete="off">
+<div id="x_c" style="display:flex;gap:8px;overflow-x:auto;padding:10px 0 4px">${xChips()}</div><div id="x_r">${xList()}</div></div>`}
 function docList(pl){if(!pl)return'<div class="mu">Elige un vehículo para ver sus documentos.</div>';const v=V.find(x=>x.id===pl);if(!v)return"";
 const fl=VD.filter(x=>x.plate===pl),old=DF.filter(x=>x.plate===pl);
-const head=`<div style="margin:8px 0"><b>${H(pl)}</b> · ${H(vname(v))}</div><div>${DOCS.map(([k,n])=>badge(docName(v,k,n),docDate(v,k),noAtt(v,k))).join("")}${segBadge(v)}</div>${certLine(v)}`;
+const head=`<div style="margin:4px 0 8px"><div class="pl" style="font-size:22px">${H(fmtPat(v))}</div><div>${H(vname(v))}</div></div><div>${DOCS.map(([k,n])=>badge(docName(v,k,n),docDate(v,k),noAtt(v,k))).join("")}${segBadge(v)}</div>${certLine(v)}`;
 const body=DKEYS.map(([k,n])=>{const g=fl.filter(f=>f.key===k),o=old.filter(d=>d.key===k);if(!g.length&&!o.length)return"";
 const yrs=[...new Set(g.map(f=>f.year||""))].sort((a,b)=>b.localeCompare(a));
-return `<div style="margin-top:12px;padding-top:6px;border-top:1px solid var(--bd)"><b>${H(n)}</b>${o.map(d=>`<div><img src="${d.img}" onclick="big(this.src)" style="height:60px;border-radius:4px;margin-top:4px;cursor:pointer"></div>`).join("")}${yrs.map(y=>`<div class="mu" style="margin-top:6px">${y?"Válido "+H(y):"Sin año"}</div>`+g.filter(f=>(f.year||"")===y).sort((a,b)=>(b.date||"").localeCompare(a.date||"")).map(f=>`<div class="row"><span>📄 ${H(f.name||"Documento")}</span><span style="white-space:nowrap"><button onclick="viewDoc('${f.id}')">Ver</button> <button onclick="dlDoc('${f.id}')">Descargar</button></span></div>`).join("")).join("")}</div>`}).join("");
+return `<div style="margin-top:12px;padding-top:6px;border-top:1px solid var(--bd)"><b>${H(n)}</b>${o.map(d=>`<div><img src="${d.img}" onclick="big(this.src)" style="height:60px;border-radius:4px;margin-top:4px;cursor:pointer"></div>`).join("")}${yrs.map(y=>`<div class="mu" style="margin-top:6px">${y?"Válido "+H(y):"Sin año"}</div>`+g.filter(f=>(f.year||"")===y).sort((a,b)=>(b.date||"").localeCompare(a.date||"")).map(f=>`<div style="border:1px solid var(--bd);border-radius:10px;padding:10px;margin-top:8px"><div style="word-break:break-word;margin-bottom:8px">📄 ${H(f.name||"Documento")}</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><button class="p" style="min-height:48px" onclick="viewDoc('${f.id}')">👁 Ver</button><button style="min-height:48px" onclick="dlDoc('${f.id}')">⬇ Descargar</button></div></div>`).join("")).join("")}</div>`}).join("");
 return head+(body||'<div class="mu" style="margin-top:8px">Este vehículo no tiene documentos adjuntos.</div>')}
 function viewDoc(id){const f=VD.find(x=>x.id===id);if(f)window.open(blobUrl(f.aid),"_blank","noopener")}
 async function dlDoc(id){const f=VD.find(x=>x.id===id);if(!f)return;
