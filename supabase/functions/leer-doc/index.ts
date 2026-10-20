@@ -105,6 +105,8 @@ Reglas:
 - Fechas chilenas DD/MM/AAAA; devuélvelas como AAAA-MM-DD.
 - Montos en pesos chilenos, números sin puntos ni símbolo $. "neto" = monto neto (sin IVA), "iva", "total" = total a pagar con IVA.
 - Cada línea: "descripcion" (texto tal como aparece), "codigo" si existe, "cantidad" (número), "unidad" (un, lt, kg, m, juego, etc.; si no se indica, "un"), "precio_unitario_neto": precio por unidad SIN IVA. Si el documento solo muestra precios con IVA incluido, divide por 1,19 y avísalo en "advertencias". Si solo hay total de la línea, calcula el unitario = total de la línea / cantidad.
+- "categoria": clasifica cada línea según su tipo de repuesto. Si te entrego una lista de categorías existentes, usa EXACTAMENTE una de ellas cuando corresponda; si ninguna calza, propón un nombre corto y genérico (ej: "Filtro de aceite", "Filtro de combustible", "Pastillas de freno", "Aceite de motor", "Correa", "Batería"). null si no puedes clasificarla.
+- "universal": true solo para insumos que sirven para cualquier vehículo (aceites, lubricantes, refrigerante, grasa, líquido de frenos, limpiadores, etc.); false para repuestos específicos de un modelo.
 - No incluyas como líneas los descuentos globales, fletes, IVA ni totales.
 - No inventes: si un dato no se lee, null y avisa en "advertencias".
 No escribas texto: responde ÚNICAMENTE llamando a la herramienta "registrar_compra".`;
@@ -129,6 +131,8 @@ const SCHEMA_COMPRA = {
           cantidad: { type: "number" },
           unidad: { type: ["string", "null"] },
           precio_unitario_neto: { type: ["number", "null"] },
+          categoria: { type: ["string", "null"], description: "Categoría del repuesto" },
+          universal: { type: "boolean", description: "true si sirve para cualquier vehículo (aceites, lubricantes, refrigerante, grasa, limpiadores, etc.)" },
         },
         required: ["descripcion", "cantidad"],
       },
@@ -161,7 +165,7 @@ Deno.serve(async (req) => {
     if (!rol) return out({ error: "solo_admin" }, 403);
 
     // 2) Archivo
-    const { path, modo } = await req.json();
+    const { path, modo, categorias } = await req.json();
     const fact = modo === "factura", comp = modo === "compra";
     if (!path || typeof path !== "string" || path.includes("..")) return out({ error: "ruta" }, 400);
     const { data: blob, error: ed } = await svc.storage.from("archivos").download(path);
@@ -190,7 +194,7 @@ Deno.serve(async (req) => {
           : fact
           ? [{ name: "registrar_factura", description: "Registra los datos de la factura", input_schema: SCHEMA_FACTURA }]
           : [{ name: "registrar", description: "Registra los documentos encontrados", input_schema: SCHEMA }],
-        messages: [{ role: "user", content: [part, { type: "text", text: comp ? PROMPT_COMPRA : fact ? PROMPT_FACTURA : PROMPT }] }],
+        messages: [{ role: "user", content: [part, { type: "text", text: comp ? PROMPT_COMPRA + (Array.isArray(categorias) && categorias.length ? "\n\nCategorías existentes: " + categorias.slice(0, 80).map((c: unknown) => String(c).slice(0, 60)).join("; ") : "\n\nNo hay categorías existentes: propón nombres.") : fact ? PROMPT_FACTURA : PROMPT }] }],
       }),
     });
     const j = await r.json();
