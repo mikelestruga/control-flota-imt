@@ -1435,5 +1435,22 @@ if("serviceWorker"in navigator)window.addEventListener("load",()=>navigator.serv
 (function(){const A=["addDano","saveVeh","addLog","addDealer","saveKm","closeOp","cbSave","mkVale","saveDanoOp","pcSave","pAdd","pIn","pApprove","pReject","catAdd","catRen","catDel","pkSaveAll","editLog","editVeh","delLog","delVale","pInDel","pSet","pVal","pEdit","pDel","comDel","upFile","attach","pValSave","chPlate","toggleSold","delVeh","changePin","importBackup"],S=["puAdd","pcAddRow"];
 A.forEach(n=>{const f=window[n];if(typeof f!=="function")return;let busy=false;window[n]=async function(...a){if(busy)return;busy=true;try{return await f.apply(this,a)}finally{setTimeout(()=>{busy=false},600)}}});
 S.forEach(n=>{const f=window[n];if(typeof f!=="function")return;let t=0;window[n]=function(...a){const x=Date.now();if(x-t<600)return;t=x;return f.apply(this,a)}})})();
+/* ===== Actualización automática: busca versión nueva cada 15 min y al volver a la app; recarga sola si no hay nada a medio escribir, y además una vez al día ===== */
+(function(){const LOADED=Date.now(),DAY0=today();let base=null,last=Date.now(),newV=false;
+["pointerdown","keydown","touchstart","input"].forEach(e=>window.addEventListener(e,()=>{last=Date.now()},{passive:true,capture:true}));
+const hsh=t=>{let h=0;for(let i=0;i<t.length;i++)h=(h*31+t.charCodeAt(i))|0;return h+":"+t.length};
+const getV=async()=>{const r=await fetch(location.pathname+"?v="+Date.now(),{cache:"no-store"});if(!r.ok)throw 0;return hsh(await r.text())};
+const dirty=()=>{if(document.querySelector('div[style*="z-index:99"]'))return true;const ae=document.activeElement;if(ae&&/INPUT|TEXTAREA|SELECT/.test(ae.tagName)&&ae.type!=="search")return true;
+try{if((typeof PU!=="undefined"&&PU.length)||(typeof PH!=="undefined"&&PH.length)||(typeof PF!=="undefined"&&PF.length)||(typeof PC!=="undefined"&&PC.open))return true}catch(e){}
+for(const el of document.querySelectorAll("#app input,#app textarea,#app select")){if(el.type==="search"||el.type==="file"&&!el.files.length)continue;if(el.type==="file")return true;
+if(el.type==="checkbox"||el.type==="radio"){if(el.checked!==el.defaultChecked)return true}else if(el.tagName==="SELECT"){if([...el.options].some(o=>o.selected!==o.defaultSelected)&&el.options.length&&[...el.options].some(o=>o.defaultSelected))return true}else if(el.value!==el.defaultValue)return true}return false};
+const idle=m=>Date.now()-last>m*60000;
+const go=()=>{try{navigator.serviceWorker&&navigator.serviceWorker.getRegistration().then(r=>r&&r.update()).catch(()=>{})}catch(e){}location.reload()};
+const banner=()=>{if(document.getElementById("upd_b"))return;const b=document.createElement("div");b.id="upd_b";b.style.cssText="position:fixed;left:50%;transform:translateX(-50%);top:calc(10px + env(safe-area-inset-top,0px));z-index:98;background:var(--ac);color:#fff;padding:8px 10px 8px 14px;border-radius:10px;display:flex;gap:10px;align-items:center;box-shadow:0 4px 16px #0004;max-width:94%";b.innerHTML='<span>🔄 Hay una versión nueva de la app</span><button style="min-height:34px;padding:4px 10px;background:#fff;color:var(--ac);border:0;font-weight:700">Actualizar</button>';b.querySelector("button").onclick=go;document.body.appendChild(b)};
+async function check(){try{const v=await getV();if(base===null){base=v;return}if(v!==base)newV=true}catch(e){}
+if(newV){if(!dirty()&&(document.hidden||idle(3)))return go();banner()}
+else if(today()!==DAY0&&Date.now()-LOADED>6*3600000&&!dirty()&&(document.hidden||idle(10)))go()}
+setTimeout(check,8000);setInterval(check,15*60000);
+document.addEventListener("visibilitychange",()=>{if(!document.hidden)check()});window.addEventListener("focus",()=>check());window.flotaCheckUpdate=check})();
 init();
 </script></body></html>
