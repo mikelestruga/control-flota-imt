@@ -44,8 +44,8 @@ export async function armarExcel(d) {
   const TL = { mant: "Mantención", comb: "Combustible", asig: "Asignación", km: "Kilometraje", dano: "Daño / entrega" };
   sheet("Registros", [["Patente", 12], ["Tipo", 16], ["Fecha", 13], ["Kilometraje", 13], ["Horas", 9], ["Litros", 9], ["Costo", 11], ["Tipos de mantención", 40], ["Detalle", 50], ["Registrado por", 22], ["Módulo de origen", 16]],
     [...d.logs].sort((a, b) => pat(a.plate).localeCompare(pat(b.plate)) || (a.date || "").localeCompare(b.date || "")).map(l => [pat(l.plate), TL[l.type] || l.type, fdate(l.date), l.km || l.kmFin || null, l.hrs || null, l.liters || null, l.cost || null, (l.tipos || []).join(", "), [l.desc, l.text].filter(Boolean).join(" · "), l.cargo || l.op || l.mec || "", l.src || ""]));
-  sheet("Vales de lavado", [["N° de vale", 12], ["Fecha", 13], ["Patente", 12], ["Vehículo", 24], ["Kilometraje", 14], ["Solicitante", 24], ["Faena", 26]],
-    [...d.vales].sort((a, b) => (a.yy - b.yy) || (a.num - b.num)).map(v => [v.code, fdate(v.fecha), v.plate, v.vehicle, v.km || "", v.solicitante, v.faena || ""]));
+  sheet("Vales de lavado", [["Tipo", 18], ["N° de vale", 12], ["Fecha", 13], ["Patente", 12], ["Vehículo", 24], ["Kilometraje", 14], ["Solicitante", 24], ["Faena", 26]],
+    [...d.vales].sort((a, b) => ((a.kind === "chasis") - (b.kind === "chasis")) || (a.yy - b.yy) || (a.num - b.num)).map(v => [v.kind === "chasis" ? "Lavado de chasis" : "Lavado", v.code, fdate(v.fecha), v.plate, v.vehicle, v.km || "", v.solicitante, v.faena || ""]));
   sheet("Repuestos", [["Código", 14], ["Repuesto", 34], ["Unidad", 9], ["Stock", 10], ["Stock mínimo", 13]], [...d.parts].sort((a, b) => (a.name || "").localeCompare(b.name || "")).map(x => [x.code || "", x.name, x.unit || "un", +x.stock || 0, x.min == null ? null : +x.min]));
   sheet("Documentos adjuntos", [["Patente", 12], ["Documento", 16], ["Año", 8], ["Archivo", 44], ["Fecha de subida", 16]], d.vdocs.map(x => [pat(x.plate), x.key + (x.cuota ? " (cuota " + x.cuota + ")" : ""), x.year || "", x.name || "", fdate(x.date)]));
   return Buffer.from(await wb.xlsx.writeBuffer());
