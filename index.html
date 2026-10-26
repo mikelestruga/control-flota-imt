@@ -709,18 +709,36 @@ function pkRetry(i){PK.items[i].st="queued";PK.items[i].err="";pkRun()}
 function pkManual(a){const x=typeof a==="number"?PK.items[a]:a;x.docs=[{tipo:"permiso",from:1,to:x.pages||1,date:"",year:String(new Date().getFullYear()),incl:true,note:""}];x.warn=x.warn||[];x.st="ready";pkRender()}
 function pkAdd(files){for(const f of files)PK.items.push({file:f,st:"queued",plate:PK.forced||(matchVeh(f.name)||{}).id||"",docs:[],warn:[],isPdf:/pdf/i.test(f.type)||/\.pdf$/i.test(f.name)});pkRender();pkRun()}
 async function pkRun(){if(PK.busy)return;PK.busy=true;try{for(const x of PK.items){if(x.st==="queued")await pkProc(x);if(!$("#pk"))return}}finally{PK.busy=false;pkRender()}}
+const PKLIM=18*1048576;
+async function pkErr(error){let m="No se pudo leer con IA";try{const st=error.context&&error.context.status;if(st===404)m="La función leer-doc no está instalada en Supabase";const b=await error.context.json();m=({tope:"Se alcanzó el tope diario de 100 lecturas. Usa «Ingresar a mano» o prueba mañana.",solo_admin:"Solo el Administrador puede leer con IA",sin_clave:"Falta configurar la clave de IA en Supabase",muy_pesado:"El archivo pesa más de 30 MB",no_autenticado:"Sesión no válida: recarga la página",anthropic:"La IA no respondió ("+(b.detalle||b.status)+")",sin_respuesta:"La IA no devolvió resultado (el archivo puede ser muy pesado o ilegible). Reintenta o ingresa a mano.",interno:"Error interno de la función: "+(b.detalle||""),no_archivo:"No se encontró el archivo subido: reintenta",ruta:"Ruta de archivo inválida"})[b.error]||b.detalle||m}catch(_){m=m+" [HTTP "+((error.context&&error.context.status)||"?")+"]"}return m}
+async function pkChunks(x){const L=await loadPL(),src=await L.PDFDocument.load(x.buf,{ignoreEncryption:true}),N=src.getPageCount(),bpp=x.file.size/N,out=[],per=Math.max(1,Math.min(100,Math.floor(PKLIM*.85/bpp)));
+const make=async(a,b)=>{const nd=await L.PDFDocument.create(),ix=[];for(let k=a;k<=b;k++)ix.push(k);(await nd.copyPages(src,ix)).forEach(pg=>nd.addPage(pg));const by=await nd.save();
+if(by.length>PKLIM&&b>a){const m=Math.floor((a+b)/2);await make(a,m);await make(m+1,b)}else if(by.length>PKLIM)throw{pk:"La página "+(a+1)+" sola pesa más de "+Math.round(PKLIM/1048576)+" MB: comprime el PDF (escaneo en blanco y negro o a menor resolución)"};else out.push({from:a+1,to:b+1,bytes:by})};
+for(let a=0;a<N;a+=per){x.prog="Dividiendo el archivo… (página "+(a+1)+" de "+N+")";pkRender();await make(a,Math.min(N,a+per)-1)}return out}
+async function pkReadBig(x){x.st="read";const parts=await pkChunks(x);
+if(!await cf("«"+x.file.name+"» ("+Math.round(x.file.size/1048576)+" MB, "+x.pages+" páginas) es muy grande para leerlo de una vez.\n\nSe dividirá en "+parts.length+" partes y cada parte gasta 1 lectura de IA ("+parts.length+" en total). ¿Continuar?"))throw{pk:"Lectura cancelada: puedes reintentar, ingresar a mano o comprimir el archivo"};
+const as=await claude.use("assets"),all=[],adv=[];let used=null;
+for(let i=0;i<parts.length;i++){const pt=parts[i];x.prog="Leyendo con IA la parte "+(i+1)+" de "+parts.length+" (páginas "+pt.from+"–"+pt.to+")…";pkRender();
+const r=await as.upload(new File([pt.bytes],"parte_"+(i+1)+".pdf",{type:"application/pdf"}));let res;try{res=await window.flotaFn("leer-doc",{path:r.id})}finally{as.delete(r.id).catch(()=>{})}
+if(res.error)throw{pk:"Parte "+(i+1)+" de "+parts.length+": "+await pkErr(res.error)};const R=(res.data&&res.data.resultado)||{};if(res.data&&res.data.usadas!=null)used=res.data.usadas;
+(R.documentos||[]).forEach(d=>{d.paginas_desde=(+d.paginas_desde||1)+pt.from-1;d.paginas_hasta=(+d.paginas_hasta||+d.paginas_desde||1)+pt.from-1;if(d.paginas_hasta>pt.to)d.paginas_hasta=pt.to;all.push(d)});(R.advertencias||[]).forEach(w=>adv.push("Parte "+(i+1)+" (págs. "+pt.from+"–"+pt.to+"): "+w))}
+all.sort((a,b)=>a.paginas_desde-b.paginas_desde);const ends=new Set(parts.map(p=>p.to)),mg=[];
+for(const d of all){const p=mg[mg.length-1];if(p&&ends.has(p.paginas_hasta)&&d.paginas_desde===p.paginas_hasta+1&&d.tipo===p.tipo&&(d.placa||"")===(p.placa||"")){p.paginas_hasta=d.paginas_hasta;p.vencimiento=p.vencimiento||d.vencimiento;p.detalle=[p.detalle,d.detalle].filter(Boolean).join(" ")}else mg.push(d)}
+adv.unshift("Archivo grande: se leyó en "+parts.length+" partes. Revisa los documentos que quedan entre una parte y otra.");
+return{resultado:{total_paginas:x.pages,documentos:mg,advertencias:adv},usadas:used}}
 async function pkProc(x){try{
 x.st="up";pkRender();x.err="";x.fp=x.file.name+"|"+x.file.size;
-if(x.file.size>30*1024*1024){x.err="Pesa más de 30 MB";x.st="err";return}
+if(!x.isPdf&&x.file.size>PKLIM){x.err="La imagen pesa más de "+Math.round(PKLIM/1048576)+" MB: redúcela o conviértela a PDF";x.st="err";return}if(x.file.size>300*1048576){x.err="Pesa más de 300 MB: divide o comprime el archivo";x.st="err";return}
 x.other="";if(!x.force){const pv=VD.filter(d=>d.fp===x.fp||String(d.fp||"").startsWith(x.fp+"#")),prev=pv.find(d=>!x.plate||d.plate===x.plate),oth=x.plate&&pv.find(d=>d.plate!==x.plate);if(oth)x.other="Ojo: un archivo con el mismo nombre y tamaño está guardado en OTRO vehículo ("+oth.plate+"). Aquí se leerá y se guardará solo en "+x.plate+"; no se toca el otro vehículo.";const q=PK.items.find(o=>o!==x&&o.fp===x.fp&&["up","read","ready","saved"].includes(o.st));if(prev||q){x.err=prev?`Este archivo ya fue subido (${prev.plate}, ${fdate(prev.date)}). No se leyó con IA para no gastar lecturas.`:"Este mismo archivo ya está en esta subida.";x.st="dup";return}}
 x.buf=await x.file.arrayBuffer();
 if(x.isPdf){try{const L=await loadPL(),d=await L.PDFDocument.load(x.buf,{ignoreEncryption:true});x.pages=d.getPageCount()}catch(e){x.pages=0}
-if(x.pages>100){x.err="Tiene más de 100 páginas: ingresa a mano";x.st="err";return}}
+x.big=x.pages>100||x.file.size>PKLIM;if(x.big&&!x.pages){x.err="No se pudo abrir el PDF para dividirlo";x.st="err";return}}
 if(!PK.ia){pkManual(x);if(x.other)x.warn.unshift(x.other);return}
-const as=await claude.use("assets");if(!x.aid){x.aid=(await as.upload(x.file)).id}
+let data,error;if(x.big){try{data=await pkReadBig(x)}catch(e){x.prog="";x.err=(e&&e.pk)||((e&&e.message)||"No se pudo leer con IA");x.st="err";return}x.prog=""}
+else{const as=await claude.use("assets");if(!x.aid){x.aid=(await as.upload(x.file)).id}
 x.st="read";pkRender();
-const {data,error}=await window.flotaFn("leer-doc",{path:x.aid});
-if(error){let m="No se pudo leer con IA";try{const st=error.context&&error.context.status;if(st===404)m="La función leer-doc no está instalada en Supabase";const b=await error.context.json();m=({tope:"Se alcanzó el tope diario de 100 lecturas. Usa «Ingresar a mano» o prueba mañana.",solo_admin:"Solo el Administrador puede leer con IA",sin_clave:"Falta configurar la clave de IA en Supabase",muy_pesado:"El archivo pesa más de 30 MB",no_autenticado:"Sesión no válida: recarga la página",anthropic:"La IA no respondió ("+(b.detalle||b.status)+")",sin_respuesta:"La IA no devolvió resultado (el archivo puede ser muy pesado o ilegible). Reintenta o ingresa a mano.",interno:"Error interno de la función: "+(b.detalle||""),no_archivo:"No se encontró el archivo subido: reintenta",ruta:"Ruta de archivo inválida"})[b.error]||b.detalle||m}catch(_){m=m+" [HTTP "+((error.context&&error.context.status)||"?")+"]"}x.err=m;x.st="err";return}
+({data,error}=await window.flotaFn("leer-doc",{path:x.aid}));
+if(error){x.err=await pkErr(error);x.st="err";return}}
 pkParse(x,data);if(x.other)x.warn.unshift(x.other);x.st="ready";if(!PK.forced)pkSplit(x)
 }catch(e){x.err=(e&&e.message)||"Error";x.st="err"}finally{pkRender()}}
 function pkSplit(x){if(!x.isPdf||!x.docs||x.docs.length<2)return;const ds=[...x.docs].sort((a,b)=>a.from-b.from),pl=[...new Set(ds.map(d=>d.placa).filter(Boolean))];if(pl.length<2)return;
@@ -755,13 +773,13 @@ if(olds.length&&!await cf("Se van a REEMPLAZAR (borrar) estos documentos de "+v.
 try{pg("Preparando…");const as=await claude.use("assets"),cy=String(new Date().getFullYear()),uid=ME_ID,docs={...(v.docs||{})},cert={...(v.cert||{})};
 const mk=async(key,name,aid,type,yr,cu)=>db.collection("vdocs").doc("d"+Date.now()+Math.random().toString(36).slice(2,5)).set({plate:v.id,key,name,aid,type,year:yr||"",date:today(),uid,fp:x.fp||"",...(key==="permiso"&&cu?{cuota:cu}:{})});
 const up=async()=>{if(!x.aid)x.aid=(await as.upload(x.file)).id;return x.aid};
-const whole=x.isPdf&&sl.length===1&&x.pages&&sl[0].from===1&&sl[0].to===x.pages;
+const whole=x.isPdf&&!x.big&&sl.length===1&&x.pages&&sl[0].from===1&&sl[0].to===x.pages;
 if(!x.isPdf||whole){const d=sl[0];await mk(d.tipo,`${v.id} - ${tnm(d)}${d.year?" "+d.year:""}${x.isPdf?".pdf":""}`,await up(),x.file.type||"application/pdf",d.year,d.cuota)}
 else{pg("Cortando el PDF…");const L=await loadPL(),src=await L.PDFDocument.load(x.buf,{ignoreEncryption:true});
 for(const d of sl){const nd=await L.PDFDocument.create(),idx=[];for(let p=d.from-1;p<=d.to-1;p++)idx.push(p);(await nd.copyPages(src,idx)).forEach(pg=>nd.addPage(pg));
 pg("Subiendo "+TN[d.tipo]+"…");const f=new File([await nd.save()],`${v.id}_${TN[d.tipo]}_${d.year||""}.pdf`,{type:"application/pdf"});const r=await as.upload(f);
 await mk(d.tipo,`${v.id} - ${tnm(d)}${d.year?" "+d.year:""}.pdf`,r.id,"application/pdf",d.year,d.cuota)}
-const yrs=sl.map(d=>d.year).filter(Boolean).sort();if(!x.split)await mk("paquete",x.file.name,await up(),"application/pdf",yrs.length?yrs[yrs.length-1]:cy)}
+const yrs=sl.map(d=>d.year).filter(Boolean).sort();if(!x.split&&!x.big)await mk("paquete",x.file.name,await up(),"application/pdf",yrs.length?yrs[yrs.length-1]:cy)}
 let pc=v.pcuota||"",seg=false;for(const d of sl){if(KD.includes(d.tipo)&&d.date&&(!docs[d.tipo]||d.date>=docs[d.tipo])){docs[d.tipo]=d.date;if(d.tipo==="permiso"&&d.cuota)pc=d.cuota==="1"?"1":"total"}if(d.tipo==="jaula"||d.tipo==="lamina")cert[d.tipo]=true;if(d.tipo==="seguro")seg=true}
 if(olds.length){pg("Reemplazando los anteriores…");for(const z of olds){const cur=VD.find(q=>q.id===z.id);if(!cur||cur.plate!==v.id||cur.key!==z.key)continue;await db.collection("vdocs").doc(z.id).delete();try{await as.delete(z.aid)}catch(e){}}}
 pg("Actualizando la ficha…");await db.collection("vehicles").doc(v.id).update({docs,cert,pcuota:pc,...(seg?{asegurado:true}:{})});
