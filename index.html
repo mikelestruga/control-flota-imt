@@ -1276,6 +1276,7 @@ function pcVeh(i,el){const it=PC.items[i],s=new Set(it.veh||[]);el.checked?s.add
 function pcAddRow(){PC.items.push({name:"",code:"",qty:"",unit:"un",ucost:"",pid:""});render(true)}
 function pcDelRow(i){PC.items.splice(i,1);render(true)}
 function pcCancel(){PC=PC0();render(true)}
+function secClose(k){PDO[k]=false;try{localStorage.setItem("pdo",JSON.stringify(PDO))}catch(e){}}
 async function pcFile(el){const f=el.files[0];if(!f)return;if(f.size>20*1024*1024){el.value="";return al(f.name+" pesa más de 20 MB")}
 setPcMsg("Subiendo documento…");let r;try{const as=await claude.use("assets");r=await as.upload(f);PC.aid=r.id;PC.fname=f.name}catch(e){el.value="";setPcMsg("");return al("No se pudo subir "+f.name)}
 el.value="";if(!PC.ia){setPcMsg("Documento adjuntado (sin lectura con IA). Completa los datos a mano.");render(true);return}
@@ -1309,7 +1310,7 @@ const cur=pid&&(cache[pid]||PAR.find(y=>y.id===pid));
 if(cur){pn=cur.name;un=cur.unit||un;const base=Math.max(+cur.stock||0,0),old=+cur.cost||0,avg=old&&base?(base*old+q*uc)/(base+q):uc,ns=(+cur.stock||0)+q,nc=Math.round(avg*100)/100;const up={stock:ns,cost:nc,mod:new Date().toISOString()},sk=String(it.code||"").trim();if(sk&&!cur.code)up.code=sk;if(!cur.cat){const ct=it.cat==="__new"?String(it.catN||"").trim():(it.cat||"");if(ct){up.cat=ct;await ensureCat(ct)}}await db.collection("parts").doc(pid).update(up);cache[pid]={...cur,...up}}
 else{pid="p"+Date.now()+"_"+k;const d={name:pn,code:String(it.code||"").trim(),unit:un,stock:q,cost:uc,created:today(),mod:new Date().toISOString()};const ct=it.cat==="__new"?String(it.catN||"").trim():(it.cat||"");if(ct){d.cat=ct;await ensureCat(ct)}if(it.uni)d.uni=true;else if((it.veh||[]).length)d.veh=[...it.veh];await db.collection("parts").doc(pid).set(d);cache[pid]={id:pid,...d}}
 await db.collection("pins").doc("i"+Date.now()+"_"+k).set({pid,name:pn,unit:un,qty:q,oc:f.numero.trim(),cid,aid:PC.aid,fname:PC.fname,prov:f.proveedor.trim(),date:f.fecha||today(),by,kind:"compra",ucost:uc,sku:String(it.code||"").trim()||(cache[pid]&&cache[pid].code)||""})}
-PC=PC0();al("Compra ingresada al stock ✔")}catch(e){showErr("pc_err",["No se pudo completar el ingreso ("+((e&&e.message)||"error")+"). Revisa el stock antes de reintentar para no duplicar."])}}
+PC=PC0();secClose("add");render(true);window.scrollTo(0,0);al("Compra ingresada al stock ✔")}catch(e){showErr("pc_err",["No se pudo completar el ingreso ("+((e&&e.message)||"error")+"). Revisa el stock antes de reintentar para no duplicar."])}}
 const comHtml=()=>{const q=normN(pcq),f=[...COM].filter(c=>!q||normN((c.numero||"")+" "+(c.proveedor||"")+" "+(c.fname||"")).includes(q)).sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||"")||b.id.localeCompare(a.id));
 return `<div class="card"><h2>📁 Compras de stock (${COM.length})</h2><p class="mu">Facturas y órdenes de compra de los repuestos ingresados.</p><input type="search" placeholder="🔍 Buscar por N°, proveedor o archivo" value="${H(pcq)}" oninput="pcq=this.value;const e=$('#pc_list');if(e)e.innerHTML=comList()" style="margin-bottom:8px"><div id="pc_list">${comList()}</div></div>`};
 const comList=()=>{const q=normN(pcq),f=[...COM].filter(c=>!q||normN((c.numero||"")+" "+(c.proveedor||"")+" "+(c.fname||"")).includes(q)).sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||"")||b.id.localeCompare(a.id));
@@ -1386,7 +1387,7 @@ const d={name:nm,code:$("#pa_c").value.trim(),unit:$("#pa_u").value,stock:st,cre
 const oc=$("#pa_oc").value.trim(),fl=$("#pa_f").files[0];if(fl&&!oc&&!await cf("Adjuntaste un documento sin N° de orden de compra. ¿Continuar?"))return;
 const pid="p"+Date.now();let up=null;if(fl){up=await upPin(fl);if(up===false)return}
 try{await ensureCat(ct);await db.collection("parts").doc(pid).set(d);if(st>0)await db.collection("pins").doc("i"+Date.now()).set({pid,name:nm,unit:d.unit,qty:st,oc,aid:up?up.aid:"",fname:up?up.name:"",date:today(),by:meName()||"Administrador",kind:"inicial",prov:$("#pa_pv").value.trim(),...(cv!==null?{ucost:cv}:{})});
-["pa_c","pa_n","pa_s","pa_v","pa_m","pa_oc","pa_f","pa_catn","pa_pv"].forEach(i=>$("#"+i).value="");PAV=new Set();PAU=false;$("#pa_cat").value="";render(true);al("Repuesto agregado ✔")}catch(e){showErr("pa_err",["No se pudo guardar (revisa tu conexión)"])}}
+["pa_c","pa_n","pa_s","pa_v","pa_m","pa_oc","pa_f","pa_catn","pa_pv"].forEach(i=>$("#"+i).value="");PAV=new Set();PAU=false;$("#pa_cat").value="";secClose("add");render(true);al("Repuesto agregado ✔")}catch(e){showErr("pa_err",["No se pudo guardar (revisa tu conexión)"])}}
 async function upPin(f){let as=null;try{as=await claude.use("assets")}catch(e){}
 if(!as){al("Subir archivos no está disponible en este momento.");return false}
 try{const r=await as.upload(f);return {aid:r.id,name:f.name}}catch(e){al("No se pudo subir el archivo (máximo 20 MB).");return false}}
