@@ -266,7 +266,7 @@ async function addLog(){
   if(tab==="mant"){const h=+$("#n_h").value||0;if(h)r.hrs=h;const mo=+String($("#n_mo").value).replace(",",".")||0;if(mo>0)r.mo=mo;r.tipos=[...MS];if(MS.has("Otro"))r.otro=OT.trim();if(MS.has("Mantención mayor"))r.mayor=[...MMS];if(PU.length){r.parts=PU.map(x=>({...x}));r.pstat="pending"}}
   if(JSON.stringify(r).length>240000)return showErr("n_err",["Las fotos pesan demasiado: usa menos fotos"]);
   showErr("n_err",[]);
-  try{await db.collection("logs").doc("l"+Date.now()).set(r);PH=[];PF=[];MS.clear();MMS.clear();OT="";PU=[];
+  try{await db.collection("logs").doc("l"+Date.now()).set(r);PH=[];PF=[];MS.clear();MMS.clear();OT="";PU=[];PUC="";
   const v=V.find(x=>x.id===sel);if(v&&r.km>(v.km||0))await db.collection("vehicles").doc(sel).update({km:r.km});if(v&&r.hrs&&r.hrs>(+v.hrs||0))await db.collection("vehicles").doc(sel).update({hrs:r.hrs});al("Registro agregado ✔");render(true)}
   catch(e){showErr("n_err",["No se pudo guardar (revisa tu conexión)"])}}
 // --- Mantención en concesionario (solo Administrador)
@@ -350,7 +350,7 @@ try{history.replaceState({mode,sel,adding,tab,ftype},"")}catch(e){}
 function hist(){const g=sig();if(g!==last){try{history.pushState({mode,sel,adding,tab,ftype},"")}catch(e){}last=g}}
 addEventListener("popstate",e=>{const t=e.state;if(t){mode=t.mode;sel=t.sel;adding=t.adding;tab=t.tab;ftype=t.ftype??null}else{sel=null;adding=false;tab="res";ftype=null}last=sig();render(true)});
 const HID=["Carro de arrastre"];
-const _r=render;render=function(f){if(sel!==_ls){MS.clear();MMS.clear();OT="";PU=[];DLO=false;DLV={};DLM="";DIM="";_ls=sel}V=VALL.filter(v=>!(HID.includes(v.tipo)&&!showAdm()));
+const _r=render;render=function(f){if(sel!==_ls){MS.clear();MMS.clear();OT="";PU=[];PUC="";DLO=false;DLV={};DLM="";DIM="";_ls=sel}V=VALL.filter(v=>!(HID.includes(v.tipo)&&!showAdm()));
 if(sel&&!V.some(x=>x.id===sel)&&VALL.some(x=>x.id===sel))sel=null;if(HID.includes(ftype)&&!showAdm())ftype=null;if(ftype==="__rep"&&!showAdm())ftype=null;
 _r(f);hist();if(!canW()){$("#st").textContent="Solo lectura: pide acceso de Colaborador";document.querySelectorAll("#app input,#app select,#app textarea,#app button.p").forEach(e=>{if(e.id!=="q")e.disabled=true})}};
 const isAdm=()=>!!U&&(U.isOwner()||U.canEdit());
@@ -1050,7 +1050,7 @@ try{const buf=await wb.xlsx.writeBuffer();await dl.save({filename:`Reporte_Lavad
 let OT="",MS=new Set(),MMS=new Set(),mf="",msort="fd",_ls=null;
 const MT=["Cambio de aceite","Filtro de aceite","Cambio de filtro de combustible","Filtro de aire","Torqueo de ruedas","Batería","Sensores","Revisión general","Pintura","Reparación o cambio de piezas de carrocería","Mantención mayor","Otro"];
 const MM=["Frenos","Neumáticos","Suspensión","Dirección","Correas de accesorios","Distribución","Refrigeración","Transmisión"];
-function msel(el){const S=el.name==="mm"?MMS:MS;el.checked?S.add(el.value):S.delete(el.value);if(el.value==="Mantención mayor")$("#mm").style.display=el.checked?"block":"none";if(el.value==="Otro")$("#ot").style.display=el.checked?"block":"none"}
+function msel(el){const S=el.name==="mm"?MMS:MS;el.checked?S.add(el.value):S.delete(el.value);if(el.checked)puCatAuto(el.value);if(el.value==="Mantención mayor")$("#mm").style.display=el.checked?"block":"none";if(el.value==="Otro")$("#ot").style.display=el.checked?"block":"none"}
 function mantSel(){const sub=`<div id="mm" style="display:${MS.has("Mantención mayor")?"block":"none"};margin:2px 0 6px 14px;padding-left:10px;border-left:3px solid var(--ac)"><label>Mantención mayor: marca los sistemas intervenidos</label><div>${MM.map(t=>`<label class="chk"><input type="checkbox" name="mm" value="${H(t)}"${MMS.has(t)?" checked":""} onchange="msel(this)"> ${H(t)}</label>`).join("")}</div></div>`,
 otro=`<div id="ot" style="display:${MS.has("Otro")?"block":"none"};margin:2px 0 6px 14px"><label>Otro: ingresa el detalle</label><input value="${H(OT)}" oninput="OT=this.value" placeholder="Describe el trabajo"></div>`;
 return `<div style="margin-top:8px"><label>Tipo de mantención (marca uno o varios)</label><div>${MT.map(t=>`<label class="chk"><input type="checkbox" name="mt" value="${H(t)}"${MS.has(t)?" checked":""} onchange="msel(this)"> ${H(t)}</label>${t==="Mantención mayor"?sub:t==="Otro"?otro:""}`).join("")}</div></div>`}
@@ -1218,9 +1218,15 @@ const compatOf=(x,vn)=>{if(x.uni)return"si";const l=vehList(x.veh);if(!l.length)
 function puOpts(q){const qq=normN(q),ce=$("#pu_c"),cc=ce?ce.value:"",ck=$("#pu_cv"),vn=curVN(),onlyC=!!(ck&&ck.checked);
 const f=[...PAR].filter(x=>(!qq||normN(x.name+" "+(x.code||"")+" "+(x.cat||"")+" "+(x.uni?"universal":vehList(x.veh).join(" "))).includes(qq))&&(!cc||normN(x.cat)===normN(cc))&&(!onlyC||compatOf(x,vn)!=="no")).sort((a,b)=>{const ca=compatOf(a,vn)==="si"?0:1,cb=compatOf(b,vn)==="si"?0:1;return ca-cb||a.name.localeCompare(b.name)});
 return '<option value="">Elegir repuesto…</option>'+f.map(x=>`<option value="${H(x.id)}">${compatOf(x,vn)==="si"?"✔ ":""}${H(x.name)}${x.code?" ["+H(x.code)+"]":""}${x.cat?" · "+H(x.cat):""} (stock ${nf(x.stock)} ${H(x.unit||"un")})</option>`).join("")+'<option value="__req">➕ Repuesto a pedido (no está en la lista)</option>'}
+let PUC="";
+const puChips=()=>[["","Todas"],...catNames().map(c=>[c,c])].map(([v,n])=>`<button type="button" data-c="${H(v)}" onclick="puCat(this.dataset.c)" class="${normN(PUC)===normN(v)?"p":""}" style="min-height:38px;padding:6px 12px;white-space:nowrap;font-size:14px">${H(n)}</button>`).join("");
+function puCat(c){PUC=c;const h=$("#pu_c");if(h)h.value=c;const e=$("#pu_cc");if(e)e.innerHTML=puChips();if($("#pu_s"))puFill();const b=e&&e.querySelector("button.p");if(b&&b.scrollIntoView)b.scrollIntoView({block:"nearest",inline:"center"})}
+function puCatAuto(t){const cs=catNames();if(!cs.length)return;const base=normN(String(t).replace(/^cambio de /i,"")),words=base.split(" ").filter(w=>w.length>2);
+let best="",bs=0;for(const c of cs){const n=normN(c);let sc=0;if(n===base)sc=3;else if(n.includes(base)||base.includes(n))sc=2+(n.startsWith(base)?.5:0)-(n.includes("FILTRO")&&!base.includes("FILTRO")?.4:0);else if(words.length&&words.every(w=>n.includes(w)))sc=1.5;if(sc>bs){bs=sc;best=c}}
+if(best)puCat(best)}
 function puSel(){const vn=curVN(),cs=catNames();return `<div style="margin-top:8px"><label>Repuestos utilizados</label><div class="g">
 <div><label>Buscar repuesto</label><input id="pu_q" type="search" oninput="puFill()" placeholder="Nombre, código, categoría o modelo"></div>
-${cs.length?`<div><label>Categoría</label><select id="pu_c" onchange="puFill()"><option value="">Todas las categorías</option>${cs.map(c=>`<option>${H(c)}</option>`).join("")}</select></div>`:""}
+${cs.length?`<div style="grid-column:1/-1"><label>Categoría de repuesto</label><input type="hidden" id="pu_c" value="${H(PUC)}"><div id="pu_cc" style="display:flex;gap:6px;overflow-x:auto;padding:2px 0 6px">${puChips()}</div></div>`:""}
 ${vn?`<div style="grid-column:1/-1"><label class="chk"><input type="checkbox" id="pu_cv" style="width:auto" onchange="puFill()"> Solo compatibles con ${H(vn)} (incluye los sin modelo asignado)</label></div>`:""}
 <div><label>Repuesto</label><select id="pu_s" onchange="puPick()">${puOpts("")}</select><div id="pu_info" class="mu" style="margin-top:4px"></div></div>
 <div id="pu_rw" style="display:none"><label>Nombre del repuesto a pedido</label><input id="pu_rn" placeholder="Describe el repuesto"></div>
