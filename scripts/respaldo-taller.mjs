@@ -19,7 +19,7 @@ const hoy = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Santiago" }).f
 const TABLAS = {
   config: "clave", tarifas: "id", perfiles: "id", operaciones: "id", maquinas: "id", procesos: "id", materiales: "id",
   dias_especiales: "fecha", ots: "id", ot_ppto: "ot_id", hh_registros: "id", hh_costo: "registro_id", asistencia: "id",
-  consumos: "id", servicios: "id", stock_ingresos: "id", produccion: "id", compras: "id", ot_stock: "id", documentos: "id",
+  consumos: "id", servicios: "id", stock_ingresos: "id", produccion: "id", compras: "id", ot_stock: "id", documentos: "id", auditoria: "id",
 };
 const hdr = (auth = KEY_T.startsWith("eyJ")) => ({ apikey: KEY_T, ...(auth ? { Authorization: "Bearer " + KEY_T } : {}) });
 
@@ -80,6 +80,9 @@ export async function armarExcel(d) {
     (d.ot_stock || []).map(l => { const sal = salidasL(l.id), sd = +l.cantidad - +l.traspasado - sal; return [ot(l.ot_id), CO[l.compra_id]?.numero || "", l.descripcion, l.unidad, n(l.cantidad), sal, n(l.traspasado), sd, n(l.costo_unit), n(l.kg_unidad), l.costo_unit != null ? Math.round(sd * l.costo_unit) : null]; }));
   hoja("Documentos", [["OT", 11], ["Tipo", 18], ["Archivo", 40], ["N° compra", 14], ["Fecha", 17], ["Tamaño KB", 11], ["Subido por", 22], ["Nota", 28]],
     (d.documentos || []).map(x => [ot(x.ot_id), TIPOS_DOC[x.tipo] || x.tipo, x.nombre, CO[x.compra_id]?.numero || "", fch(x.creado), x.tamano ? Math.round(x.tamano / 1024) : null, per(x.subido_por), x.nota || ""]));
+  hoja("Registro de cambios", [["Fecha", 17], ["Usuario", 22], ["Rol", 12], ["Sección", 22], ["Acción", 11], ["Detalle", 46], ["Cambios", 60]],
+    (d.auditoria || []).sort((a, b) => b.id - a.id).map(x => [fch(x.fecha), x.usuario_nombre || "", x.usuario_rol || "", x.seccion, x.accion, x.detalle || "",
+      Object.entries(x.cambios || {}).map(([k, [a, b]]) => x.accion === "modificar" ? `${k}: ${a ?? "—"} → ${b ?? "—"}` : `${k}: ${(x.accion === "crear" ? b : a) ?? "—"}`).join(" · ")]));
   hoja("Trabajadores", [["Nombre", 24], ["Usuario", 14], ["Rol", 14], ["Categoría", 18], ["Activo", 8]], (d.perfiles || []).map(p => [p.nombre, p.usuario || "", p.rol, TF[p.tarifa_id]?.nombre || "", p.activo ? "Sí" : "No"]));
   hoja("Tarifas HH", [["Categoría", 22], ["Costo hora normal", 17], ["Costo hora extra", 16], ["Estimada", 10]], (d.tarifas || []).map(t => [t.nombre, n(t.costo_hh), n(t.costo_hh_extra), t.estimada ? "Sí" : ""]));
   return Buffer.from(await wb.xlsx.writeBuffer());
