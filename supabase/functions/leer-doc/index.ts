@@ -15,7 +15,7 @@ const out = (o: unknown, s = 200) => new Response(JSON.stringify(o), { status: s
 const PROMPT = `Eres un asistente que lee documentos de vehículos de Chile. El archivo puede traer VARIOS documentos juntos (uno tras otro, a veces escaneados), de UN vehículo o de VARIOS vehículos distintos. Identifica cada documento, en qué páginas está (numeración desde 1) y a qué patente corresponde.
 
 Tipos permitidos:
-- permiso: Permiso de circulación (vence normalmente el 31 de marzo; usa la fecha de vencimiento/vigencia que figure). En el comprobante de pago aparecen casillas CUOTA 1, CUOTA 2 y TOTAL; la que está marcada (X) indica qué se pagó. Devuelve "cuota": "total" si se pagó el total, "1" si solo se pagó la primera cuota, "2" si es el pago de la segunda cuota, o null si no se distingue. Si es cuota "1" y el documento muestra la fecha límite de la segunda cuota, devuélvela en "venc_2da_cuota" (AAAA-MM-DD); si no, null.
+- permiso: Permiso de circulación (vence normalmente el 31 de marzo; usa la fecha de vencimiento/vigencia que figure). En el comprobante de pago aparecen casillas CUOTA 1, CUOTA 2 y TOTAL. Una casilla con "X", "XX", "XXX" (o varias x, asteriscos o una marca similar) significa que ESA cuota o el total está PAGADO; una casilla vacía significa que no está pagada. Esas x son una marca, no un texto o un valor: no las interpretes como dato. Reglas para "cuota": si está marcada la casilla TOTAL, devuelve "total". Si está marcada la CUOTA 2, devuelve "2" (la 2ª cuota solo se puede pagar con la 1ª ya pagada, por lo tanto ambas cuotas están pagadas aunque la casilla de la CUOTA 1 aparezca vacía en ese documento). Si está marcada solo la CUOTA 1, devuelve "1". Si no se distingue ninguna marca, null. Si es cuota "1" y el documento muestra la fecha límite de la segunda cuota, devuélvela en "venc_2da_cuota" (AAAA-MM-DD); si no, null.
 - revision: Certificado de revisión técnica (usa la fecha de vencimiento o "válido hasta"; suele venir como mes y año). Un certificado de homologación también va como "revision" (la reemplaza mientras esté vigente): indica en "detalle" que es un certificado de homologación.
 - soap: Seguro obligatorio SOAP (vigencia hasta una fecha, normalmente 31 de marzo).
 - seguro: Póliza de seguro adicional (vigencia hasta).
@@ -44,7 +44,7 @@ const SCHEMA = {
         type: "object",
         properties: {
           tipo: { type: "string", enum: ["permiso", "revision", "soap", "seguro", "jaula", "lamina", "otro"] },
-          cuota: { type: ["string", "null"], enum: ["total", "1", "2", null], description: "Solo permiso: qué cuota se pagó" },
+          cuota: { type: ["string", "null"], enum: ["total", "1", "2", null], description: "Solo permiso: total = pagado el total; 2 = marcada la cuota 2 (implica 1 y 2 pagadas); 1 = solo la cuota 1 pagada" },
           venc_2da_cuota: { type: ["string", "null"], description: "AAAA-MM-DD, solo permiso con cuota 1" },
           paginas_desde: { type: "integer" },
           paginas_hasta: { type: "integer" },
