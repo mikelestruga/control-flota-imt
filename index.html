@@ -510,8 +510,8 @@ const fk=n=>Math.round(+n||0).toLocaleString("es-CL");
 const bars=(arr,col,fmt)=>{const mx=Math.max(1,...arr.map(x=>x.v));return `<div class="rs-bars" role="img">${arr.map(x=>`<div><span class="rs-tiny" style="font-weight:600">${x.v?fmt(x.v):""}</span><i style="height:${Math.max(x.v?3:1,x.v/mx*72)}px;background:${x.v?col:"var(--bd)"}"></i><span class="rs-tiny rs-muted">${x.n}</span></div>`).join("")}</div>`};
 const goVeh=(id,t)=>`sel='${H(id)}';tab='${t||"res"}';render();window.scrollTo(0,0)`;
 function rsLogTxt(l){const t=l.type;if(t==="lav")return [l.km,l.faena?"Faena: "+l.faena:"",l.encargado?"Autoriza: "+l.encargado:""].filter(Boolean).join(" · ");if(t==="km")return kmTxt(l);
-if(t==="mant")return [(l.tipos||[]).map(x=>x==="Otro"&&l.otro?"Otro: "+l.otro:x).join(", ")||"Mantención",l.km?fk(l.km)+" km":"",l.hrs?fk(l.hrs)+" h":"",l.dealer&&l.dname?l.dname:"",(l.parts||[]).length?(l.parts.length+" repuesto(s)"):""].filter(Boolean).join(" · ");
-if(t==="comb")return [(+l.liters?nf(l.liters)+" L":""),l.km?fk(l.km)+" km":"",l.cost&&showAdm()?money(l.cost):""].filter(Boolean).join(" · ");
+if(t==="mant")return [l.km?fk(l.km)+" km":"",l.hrs?fk(l.hrs)+" h":"",(l.tipos||[]).map(x=>x==="Otro"&&l.otro?"Otro: "+l.otro:x).join(", ")||"Mantención",l.dealer&&l.dname?l.dname:"",(l.parts||[]).length?(l.parts.length+" repuesto(s)"):""].filter(Boolean).join(" · ");
+if(t==="comb")return [l.km?fk(l.km)+" km":"",(+l.liters?nf(l.liters)+" L":""),l.cost&&showAdm()?money(l.cost):""].filter(Boolean).join(" · ");
 if(t==="dano")return [l.km?fk(l.km)+" km":"",l.driver?"Chofer: "+l.driver:"",String(l.desc||"").slice(0,90)].filter(Boolean).join(" · ");
 return String(l.text||"").slice(0,90)}
 function fleetHtml(){const hoy=today(),d30=addD(-29),mes0=hoy.slice(0,8)+"01",y0=hoy.slice(0,4)+"-01-01",act=VALL.filter(v=>!v.sold),M6=mesesAtras(6);
