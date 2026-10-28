@@ -678,7 +678,8 @@ const lastDay=d=>{const m=/^(\d{4})-(\d{2})/.exec(d||"");if(!m)return d||"";retu
 const matchVeh=n=>{const b=np(String(n).replace(/\.[^.]+$/,""));let best=null;for(const v of V){const q=np(v.id);if(q&&b.includes(q)&&(!best||q.length>np(best.id).length))best=v}return best};
 let _pl=null;const loadPL=()=>_pl||(_pl=new Promise((ok,ko)=>{if(window.PDFLib)return ok(window.PDFLib);const e=document.createElement("script");e.src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js";e.onload=()=>ok(window.PDFLib);e.onerror=()=>{_pl=null;ko(new Error("No se pudo cargar el cortador de PDF"))};document.head.appendChild(e)}));
 let PK={items:[],ia:true,forced:"",busy:false,used:null};
-const dupOf=(x,d)=>d.tipo==="otro"||!x.plate?[]:VD.filter(z=>z.plate===x.plate&&z.key===d.tipo&&(z.year||"")===String(d.year||"")&&(d.tipo!=="permiso"||(z.cuota||"")===(d.cuota||"")));
+const dupOf=(x,d)=>{if(d.tipo==="otro"||!x.plate)return[];const all=VD.filter(z=>z.plate===x.plate&&z.key===d.tipo),r=all.filter(z=>(z.venc&&d.date&&z.venc===d.date)||((!z.year||!d.year||String(z.year)===String(d.year))&&(d.tipo!=="permiso"||!z.cuota||!d.cuota||z.cuota===d.cuota)));
+if(r.length||!all.length||!d.date)return r;const v=V.find(z=>z.id===x.plate),cur=v&&(v.docs||{})[d.tipo];return cur&&cur===d.date&&(d.tipo!=="permiso"||!d.cuota||(v.pcuota==="1")===(d.cuota==="1"))?[all.slice().sort((a,b)=>String(b.id).localeCompare(String(a.id)))[0]]:[]};
 const tnm=d=>TN[d.tipo]+(d.tipo==="permiso"&&d.cuota==="1"?" (1ª cuota)":d.tipo==="permiso"&&d.cuota==="2"?" (2ª cuota)":"");
 const pkDefIncl=(x,d)=>{if(d.tipo==="otro"||dupOf(x,d).length)return false;const v=V.find(z=>z.id===x.plate),c=v&&(v.docs||{})[d.tipo];return !(KD.includes(d.tipo)&&c&&d.date&&c>d.date)};
 const certLine=v=>[["jaula","Jaula antivuelco"],["lamina","Lámina de seguridad"]].map(([k,n])=>`<div class="row"><span>${n}</span><span>${(v.cert||{})[k]?'<span class="b ok">Sí</span>':'<span class="mu">No</span>'}</span></div>`).join("");
@@ -793,14 +794,14 @@ if(mis.length&&!await cf("⚠ La patente leída en el documento ("+mis.join(", "
 const olds=mis.length?[]:[...new Map(sl.filter(d=>d.replace).flatMap(d=>dupOf(x,d)).filter(z=>z.plate===v.id).map(z=>[z.id,z])).values()];
 if(olds.length&&!await cf("Se van a REEMPLAZAR (borrar) estos documentos de "+v.id+":\n• "+olds.map(z=>(z.name||"archivo")+" ("+(TN[z.key]||z.key)+" "+(z.year||"sin año")+")").join("\n• ")+"\n\nLos documentos de otros vehículos no se tocan. ¿Continuar?"))return;
 try{pg("Preparando…");const as=await claude.use("assets"),cy=String(new Date().getFullYear()),uid=ME_ID,docs={...(v.docs||{})},cert={...(v.cert||{})};
-const mk=async(key,name,aid,type,yr,cu)=>db.collection("vdocs").doc("d"+Date.now()+Math.random().toString(36).slice(2,5)).set({plate:v.id,key,name,aid,type,year:yr||"",date:today(),uid,fp:x.fp||"",hash:x.hash||"",...(key==="permiso"&&cu?{cuota:cu}:{})});
+const mk=async(key,name,aid,type,yr,cu,ve)=>db.collection("vdocs").doc("d"+Date.now()+Math.random().toString(36).slice(2,5)).set({plate:v.id,key,name,aid,type,year:yr||"",date:today(),uid,fp:x.fp||"",hash:x.hash||"",...(ve?{venc:ve}:{}),...(key==="permiso"&&cu?{cuota:cu}:{})});
 const up=async()=>{if(!x.aid)x.aid=(await as.upload(x.file)).id;return x.aid};
 const whole=x.isPdf&&!x.big&&sl.length===1&&x.pages&&sl[0].from===1&&sl[0].to===x.pages;
-if(!x.isPdf||whole){const d=sl[0];await mk(d.tipo,`${v.id} - ${tnm(d)}${d.year?" "+d.year:""}${x.isPdf?".pdf":""}`,await up(),x.file.type||"application/pdf",d.year,d.cuota)}
+if(!x.isPdf||whole){const d=sl[0];await mk(d.tipo,`${v.id} - ${tnm(d)}${d.year?" "+d.year:""}${x.isPdf?".pdf":""}`,await up(),x.file.type||"application/pdf",d.year,d.cuota,d.date)}
 else{pg("Cortando el PDF…");const L=await loadPL(),src=await L.PDFDocument.load(x.buf,{ignoreEncryption:true});
 for(const d of sl){const nd=await L.PDFDocument.create(),idx=[];for(let p=d.from-1;p<=d.to-1;p++)idx.push(p);(await nd.copyPages(src,idx)).forEach(pg=>nd.addPage(pg));
 pg("Subiendo "+TN[d.tipo]+"…");const f=new File([await nd.save()],`${v.id}_${TN[d.tipo]}_${d.year||""}.pdf`,{type:"application/pdf"});const r=await as.upload(f);
-await mk(d.tipo,`${v.id} - ${tnm(d)}${d.year?" "+d.year:""}.pdf`,r.id,"application/pdf",d.year,d.cuota)}
+await mk(d.tipo,`${v.id} - ${tnm(d)}${d.year?" "+d.year:""}.pdf`,r.id,"application/pdf",d.year,d.cuota,d.date)}
 const yrs=sl.map(d=>d.year).filter(Boolean).sort();if(!x.split&&!x.big)await mk("paquete",x.file.name,await up(),"application/pdf",yrs.length?yrs[yrs.length-1]:cy)}
 let pc=v.pcuota||"",seg=false;for(const d of sl){if(KD.includes(d.tipo)&&d.date&&(!docs[d.tipo]||d.date>=docs[d.tipo])){docs[d.tipo]=d.date;if(d.tipo==="permiso"&&d.cuota)pc=d.cuota==="1"?"1":"total"}if(d.tipo==="jaula"||d.tipo==="lamina")cert[d.tipo]=true;if(d.tipo==="seguro")seg=true}
 if(olds.length){pg("Reemplazando los anteriores…");for(const z of olds){const cur=VD.find(q=>q.id===z.id);if(!cur||cur.plate!==v.id||cur.key!==z.key)continue;await db.collection("vdocs").doc(z.id).delete();try{await as.delete(z.aid)}catch(e){}}}
