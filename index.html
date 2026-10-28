@@ -809,7 +809,7 @@ x.st="saved";x.buf=null;x.msg="";x.prog="";pkRender();al("Guardado en "+v.id+" �
 async function pkSaveAll(){PK.bulk=true;try{for(let i=0;i<PK.items.length;i++){const x=PK.items[i];if(x.st==="ready"&&x.plate)await pkSave(i)}}finally{PK.bulk=false}pkDone();const f=PK.items.filter(x=>x.st==="ready"&&!x.plate).length;if(f)al(f+" archivo(s) sin vehículo: elígelo y guarda")}
 /* ===== Módulo Combustible ===== */
 const SRC={op:"Operador",mec:"Mecánico",adm:"Administrador",lav:"Lavado",comb:"Combustible"},CAT={proy:"Proyectos",mant:"Mantención"},FT={gasolina:"Gasolina",diesel:"Diésel"};
-let CB={tab:"proy",f:{p:"",n:"",d1:"",d2:"",c:"",t:""},m:""};
+let CB={tab:"proy",f:{p:"",n:"",d1:"",d2:"",c:"",t:"",a:""},m:"",cm:"",ca:"",cs:"",cc:""};
 const fnum=(n,d=0)=>(+n||0).toLocaleString("es-CL",{minimumFractionDigits:d,maximumFractionDigits:d}),money=n=>"$"+fnum(n);
 const fuelLogs=()=>L.filter(l=>l.type==="comb"&&+l.liters>0);
 const unitOf=l=>l.unit==="h"?"h":"km",odo=l=>unitOf(l)==="h"?(+l.hrs||+l.km||0):(+l.km||0);
@@ -828,11 +828,11 @@ if(eff<.8)return{t:`⚠ Rendimiento bajó ${Math.round((1-eff)*100)}% (revisar c
 if(eff>1.25)return{t:"ℹ Mejoró mucho: revisa que km/horas y litros estén bien",c:"wa"};
 return{t:"✔ Normal",c:"ok"}}
 const rtxt=(r,u)=>{const x=r&&r[u];return x&&x.avg?(u==="km"?fnum(x.avg,1)+" km/L":fnum(x.avg,2)+" L/h"):"—"};
-function cbFilter(){const f=CB.f,p=np(f.p),n=f.n.trim().toLowerCase();return fuelLogs().filter(l=>(!p||np(l.plate).includes(p))&&(!n||((l.cargo||"")+" "+(l.op||"")).toLowerCase().includes(n))&&(!f.d1||(l.date||"")>=f.d1)&&(!f.d2||(l.date||"")<=f.d2)&&(!f.c||(l.cat||"")===f.c)&&(!f.t||(l.ft||"")===f.t)).sort((a,b)=>(b.date||"").localeCompare(a.date||"")||String(b.id).localeCompare(String(a.id)))}
+function cbFilter(){const f=CB.f,p=np(f.p),n=f.n.trim().toLowerCase();return fuelLogs().filter(l=>(!p||np(l.plate).includes(p))&&(!n||((l.cargo||"")+" "+(l.op||"")).toLowerCase().includes(n))&&(!f.d1||(l.date||"")>=f.d1)&&(!f.d2||(l.date||"")<=f.d2)&&(!f.c||(l.cat||"")===f.c)&&(!f.t||(l.ft||"")===f.t)&&(!f.a||normN(l.faena)===normN(f.a))).sort((a,b)=>(b.date||"").localeCompare(a.date||"")||String(b.id).localeCompare(String(a.id)))}
 const sumL=r=>({n:r.length,l:r.reduce((s,x)=>s+ +x.liters,0),c:r.reduce((s,x)=>s+(+x.cost||0),0)});
-function combHtml(){const tabs=[["proy","⛽ Proyectos"],["mant","🛠 Mantención"],["hist","📋 Historial"],...(canCost()?[["stat","📊 Estadísticas"]]:[])];
+function combHtml(){const tabs=[["proy","⛽ Proyectos"],["mant","🛠 Mantención"],["hist","📋 Historial"],["cons","📈 Consumo"],...(canCost()?[["stat","📊 Estadísticas"]]:[])];
 if(CB.tab==="stat"&&!canCost())CB.tab="proy";
-const body=CB.tab==="proy"||CB.tab==="mant"?cbForm():CB.tab==="hist"?cbHist():cbStat();
+const body=CB.tab==="proy"||CB.tab==="mant"?cbForm():CB.tab==="hist"?cbHist():CB.tab==="cons"?cbCons():cbStat();
 return `<div class="tabs">${tabs.map(([k,n])=>`<button class="${CB.tab===k?"on":""}" onclick="CB.tab='${k}';render(true)">${n}</button>`).join("")}</div>${body}`}
 const cbRow=l=>`<div class="row"><div><b>${H(l.plate)}</b> · ${H(fdate(l.date))} · ${H(CAT[l.cat]||"Sin sección")}<div>${fnum(l.liters,1)} L${canCost()?` · ${money(l.cost)}${+l.liters&&+l.cost?` (${money(l.cost/l.liters)}/L)`:""}`:""} · ${H(FT[l.ft]||"")} · ${odo(l)?fnum(odo(l),unitOf(l)==="h"?1:0)+" "+unitOf(l):"sin km"}</div><div class="mu">Cargó: ${H(l.cargo||"—")} · Faena: ${H(l.faena||"—")}</div></div><span class="mu">${H(l.op||"")}<br>${adm(l)}</span></div>`;
 function cbForm(){const cat=CB.tab,vs=[...V].filter(v=>!v.sold).sort((a,b)=>a.id.localeCompare(b.id)),rec=fuelLogs().filter(l=>l.cat===cat).sort((a,b)=>(b.date||"").localeCompare(a.date||"")||String(b.id).localeCompare(String(a.id))).slice(0,10);
@@ -849,7 +849,7 @@ ${canCost()?`<div><label>Costo total de la carga ($)</label><input id="c_c" type
 <div><label>Faena de asignación</label><input id="c_f" autocomplete="off"></div></div>
 <label style="margin-top:8px">Notas (opcional)</label><textarea id="c_n" rows="2"></textarea>
 <p><button class="p" style="width:100%" onclick="cbSave()">Guardar carga</button></p><div id="c_err" class="er" style="font-size:14px"></div></div>
-<div class="card"><h2>Últimas cargas de ${cat==="proy"?"proyectos":"mantención"}</h2>${rec.map(cbRow).join("")||'<div class="mu">Aún no hay cargas.</div>'}</div>`}
+<div class="card"><h2>Últimas cargas de ${cat==="proy"?"proyectos":"mantención"}</h2>${rec.map(cbRow).join("")||'<div class="mu">Aún no hay cargas.</div>'}</div>`+consHtml(cat,"📈 Litros utilizados · "+(cat==="proy"?"Proyectos":"Mantención"),false)}
 function cbVeh(){const el=$("#c_p");if(!el)return;const v=V.find(x=>np(x.id)===np(el.value)&&np(el.value)),i=$("#c_vi");if(!v){if(i)i.textContent="";return}
 if(i)i.textContent=`${[v.marca,v.model].filter(Boolean).join(" ")} · último: ${fnum(v.km||0)} km${v.hrs?` · ${fnum(v.hrs,1)} h`:""}`;
 const f=$("#c_f");if(f&&!f.value)f.value=v.assign||"";const u=$("#c_u");if(u&&v.hrs&&!v.km){u.value="h";cbUnit()}}
@@ -882,7 +882,8 @@ return `<div class="card"><h2>Historial de combustible</h2><div class="g">
 <div><label>Desde</label><input type="date" value="${f.d1}" onchange="CB.f.d1=this.value;render(true)"></div>
 <div><label>Hasta</label><input type="date" value="${f.d2}" onchange="CB.f.d2=this.value;render(true)"></div>
 <div><label>Sección</label><select onchange="CB.f.c=this.value;render(true)">${opt([["","Todas"],["proy","Proyectos"],["mant","Mantención"]],f.c)}</select></div>
-<div><label>Combustible</label><select onchange="CB.f.t=this.value;render(true)">${opt([["","Todos"],["gasolina","Gasolina"],["diesel","Diésel"]],f.t)}</select></div></div>
+<div><label>Combustible</label><select onchange="CB.f.t=this.value;render(true)">${opt([["","Todos"],["gasolina","Gasolina"],["diesel","Diésel"]],f.t)}</select></div>
+<div><label>Asignación</label><select onchange="CB.f.a=this.value;render(true)">${opt([["","Todas"],...cbFaenas().map(x=>[H(x),H(x)])],H(f.a))}</select></div></div>
 <div style="margin:10px 0"><b>${s.n}</b> cargas · <b>${fnum(s.l,1)} L</b> · ${canCost()?` · <b>${money(s.c)}</b>${s.l?` · ${money(s.c/s.l)}/L`:""}`:""}</div>
 ${canCost()?`<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:end"><button class="p" onclick="cbXlsx('hist')">📥 Excel del historial (con estos filtros)</button>
 <div><label>Informe mensual</label><input type="month" value="${m}" onchange="CB.m=this.value"></div><button class="p" onclick="cbXlsx('mes')">📥 Excel mensual</button></div>`:""}</div>
@@ -921,6 +922,40 @@ grp(l=>l.faena||"Sin faena","Por faena","Faena");grp(l=>CAT[l.cat]||"Sin secció
 if(kind!=="mes"){const o={};rows.forEach(l=>{const k=(l.date||"").slice(0,7);(o[k]=o[k]||[]).push(l)});cbSheet(wb,"Por mes",[["Mes",10],["Cargas",8],["Litros",10],["Costo total ($)",14],["Proyectos ($)",14],["Mantención ($)",14]],Object.entries(o).sort((a,b)=>a[0].localeCompare(b[0])).map(([k,a])=>[k,a.length,sumL(a).l,sumL(a).c,sumL(a.filter(l=>l.cat==="proy")).c,sumL(a.filter(l=>l.cat==="mant")).c]),[null,null,D,P,P,P])}
 const dl=await claude.use("downloads");if(!dl)return al("La descarga no está disponible en este momento.");
 try{const buf=await wb.xlsx.writeBuffer();await dl.save({filename:`Combustible_${tag}.xlsx`,data:new Blob([buf],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"})})}catch(e){if(!e||e.code!=="declined")al("No se pudo descargar el informe")}}
+/* ===== Consumo de litros: mensual y anual por patente y por asignación ===== */
+const cbFaenas=()=>{const m=new Map();fuelLogs().forEach(l=>{const f=(l.faena||"").trim();if(f&&!m.has(normN(f)))m.set(normN(f),f)});return[...m.values()].sort((a,b)=>a.localeCompare(b))};
+function consCalc(cat){const m=CB.cm||today().slice(0,7),y=m.slice(0,4),fa=normN(CB.ca||"");
+const rows=fuelLogs().filter(l=>(!cat||l.cat===cat)&&(!fa||normN(l.faena)===fa)&&(l.date||"").slice(0,4)===y),mr=rows.filter(l=>(l.date||"").slice(0,7)===m),by={};
+rows.forEach(l=>{const o=by[l.plate]=by[l.plate]||{p:l.plate,ly:0,ny:0,lm:0,nm:0,fs:new Map()};o.ly+=+l.liters;o.ny++;if((l.date||"").slice(0,7)===m){o.lm+=+l.liters;o.nm++}const f=(l.faena||"").trim();if(f&&!o.fs.has(normN(f)))o.fs.set(normN(f),f)});
+const list=Object.values(by).sort(CB.cs==="pat"?(a,b)=>np(a.p).localeCompare(np(b.p)):CB.cs==="mes"?(a,b)=>b.lm-a.lm||b.ly-a.ly||np(a.p).localeCompare(np(b.p)):(a,b)=>b.ly-a.ly||np(a.p).localeCompare(np(b.p)));
+const fo={};rows.forEach(l=>{const f=(l.faena||"").trim()||"Sin asignación",k=normN(f);const o=fo[k]=fo[k]||{f,lm:0,ly:0};o.ly+=+l.liters;if((l.date||"").slice(0,7)===m)o.lm+=+l.liters});
+return{m,y,rows,mr,list,fa:Object.values(fo).sort((a,b)=>b.ly-a.ly),lm:sumL(mr).l,ly:sumL(rows).l,nm:mr.length,ny:rows.length}}
+const MESN=["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
+function consHtml(cat,title,big){const c=consCalc(cat),fo=cbFaenas(),mn=MESN[+c.m.slice(5,7)-1]+" "+c.y;
+const o=(a,v)=>a.map(([k,n])=>`<option value="${k}"${k===v?" selected":""}>${n}</option>`).join("");
+return `<div class="card"><h2>${title}</h2><div class="g">
+<div><label>Mes</label><input type="month" value="${c.m}" onchange="CB.cm=this.value;render(true)"></div>
+<div><label>Asignación</label><select onchange="CB.ca=this.value;render(true)">${o([["","Todas"],...fo.map(x=>[H(x),H(x)])],H(CB.ca))}</select></div>
+${big?`<div><label>Sección</label><select onchange="CB.cc=this.value;render(true)">${o([["","Proyectos + Mantención"],["proy","Proyectos"],["mant","Mantención"]],CB.cc)}</select></div>`:""}
+<div><label>Ordenar por</label><select onchange="CB.cs=this.value;render(true)">${o([["","Total utilizado del año"],["mes","Total utilizado del mes"],["pat","Patente"]],CB.cs)}</select></div></div>
+<div class="g" style="margin-top:10px"><div class="card" style="margin:0"><div class="mu">Litros en ${H(mn)}</div><div style="font-size:24px;font-weight:700">${fnum(c.lm,1)} L</div><div class="mu">${c.nm} cargas</div></div><div class="card" style="margin:0"><div class="mu">Litros en el año ${c.y}</div><div style="font-size:24px;font-weight:700">${fnum(c.ly,1)} L</div><div class="mu">${c.ny} cargas</div></div></div>
+${CB.ca?`<p class="mu" style="margin:8px 0 0">Solo asignación: <b>${H(CB.ca)}</b></p>`:""}
+<div style="overflow-x:auto;margin-top:10px"><table style="width:100%;border-collapse:collapse;font-size:13px"><tr style="text-align:left"><th>Patente</th><th>Asignación</th><th style="text-align:right">Mes (L)</th><th style="text-align:right">Año (L)</th></tr>
+${c.list.map(z=>`<tr style="border-top:1px solid var(--bd)"><td><b>${H(z.p)}</b></td><td>${H([...z.fs.values()].join(" / ")||"—")}</td><td style="text-align:right">${fnum(z.lm,1)}</td><td style="text-align:right"><b>${fnum(z.ly,1)}</b></td></tr>`).join("")||'<tr><td colspan="4" class="mu">Sin cargas en este año.</td></tr>'}
+${c.list.length?`<tr style="border-top:2px solid var(--bd);font-weight:700"><td>Total</td><td></td><td style="text-align:right">${fnum(c.lm,1)}</td><td style="text-align:right">${fnum(c.ly,1)}</td></tr>`:""}</table></div>
+${big&&c.fa.length>1?`<h3 style="margin:14px 0 4px">Por asignación</h3><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px"><tr style="text-align:left"><th>Asignación</th><th style="text-align:right">Mes (L)</th><th style="text-align:right">Año (L)</th></tr>${c.fa.map(z=>`<tr style="border-top:1px solid var(--bd)"><td>${H(z.f)}</td><td style="text-align:right">${fnum(z.lm,1)}</td><td style="text-align:right"><b>${fnum(z.ly,1)}</b></td></tr>`).join("")}</table></div>`:""}
+<p style="margin-top:10px"><button class="p" onclick="consXlsx('${cat||""}')">📥 Descargar informe de consumo (Excel)</button></p></div>`}
+function cbCons(){return consHtml(CB.cc,"📈 Informe de consumo de combustible (litros)",true)}
+async function consXlsx(cat){if(!window.ExcelJS)return al("No se pudo cargar el generador de Excel");if(cat===""&&CB.tab==="cons")cat=CB.cc;const c=consCalc(cat);if(!c.rows.length)return al("No hay cargas en "+c.y+" con esos filtros");
+const wb=new ExcelJS.Workbook(),D="#,##0.0",F="dd/mm/yyyy",dt=d=>{const[a,b,e]=(d||"").split("-");return e?new Date(+a,+b-1,+e):null},mn=MESN[+c.m.slice(5,7)-1]+" "+c.y;
+cbSheet(wb,"Por patente",[["Patente",12],["Asignación",34],["Cargas "+mn,14],["Litros "+mn,14],["Cargas año "+c.y,14],["Litros año "+c.y,14]],c.list.map(z=>[z.p,[...z.fs.values()].join(" / "),z.nm,z.lm,z.ny,z.ly]),[null,null,c.nm,c.lm,c.ny,c.ly].map((x,i)=>i===0?"Total":x),[null,null,"0",D,"0",D]);
+cbSheet(wb,"Por asignación",[["Asignación",34],["Litros "+mn,14],["Litros año "+c.y,14]],c.fa.map(z=>[z.f,z.lm,z.ly]),["Total",c.lm,c.ly],[null,D,D]);
+const mm=[];for(let i=1;i<=12;i++){const k=c.y+"-"+String(i).padStart(2,"0"),a=c.rows.filter(l=>(l.date||"").slice(0,7)===k);mm.push([MESN[i-1][0].toUpperCase()+MESN[i-1].slice(1),sumL(a.filter(l=>l.cat==="proy")).l,sumL(a.filter(l=>l.cat==="mant")).l,sumL(a).l])}
+cbSheet(wb,"Por mes",[["Mes",14],["Proyectos (L)",15],["Mantención (L)",15],["Total (L)",13]],mm,["Total año",c.rows.filter(l=>l.cat==="proy").reduce((s,l)=>s+ +l.liters,0),c.rows.filter(l=>l.cat==="mant").reduce((s,l)=>s+ +l.liters,0),c.ly],[null,D,D,D]);
+const det=[...c.rows].sort((a,b)=>np(a.plate).localeCompare(np(b.plate))||(a.date||"").localeCompare(b.date||""));
+cbSheet(wb,"Detalle",[["Fecha",12],["Patente",11],["Asignación",26],["Sección",13],["Combustible",12],["Litros",9],["Quién cargó",22]],det.map(l=>[dt(l.date),l.plate,l.faena||"",CAT[l.cat]||"Sin sección",FT[l.ft]||"",+l.liters,l.cargo||""]),["Total",null,null,null,null,c.ly,null],[F,null,null,null,null,D,null]);
+const dl=await claude.use("downloads");if(!dl)return al("La descarga no está disponible en este momento.");
+try{const buf=await wb.xlsx.writeBuffer();await dl.save({filename:`Consumo_combustible_${c.m}${CB.ca?"_"+CB.ca.replace(/[^A-Za-z0-9]+/g,"-"):""}.xlsx`,data:new Blob([buf],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"})})}catch(e){if(!e||e.code!=="declined")al("No se pudo descargar el informe")}}
 /* ===== Documentos por vehículo: consulta y descarga (solo lectura) ===== */
 let OD="",VDok=false,DFok=false;
 const FAB=[["permiso","P.C."],["revision","R.T."],["soap","SOAP"]];
