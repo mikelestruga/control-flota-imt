@@ -1,0 +1,37 @@
+name: Resumen semanal del taller por correo
+
+on:
+  schedule:
+    - cron: "0 11 * * 1"      # lunes, 07:00-08:00 hora de Chile
+  workflow_dispatch:
+    inputs:
+      prueba:
+        description: "Prueba: calcular el resumen sin enviar el correo"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  resumen:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Instalar nodemailer
+        run: npm install --no-save nodemailer@6.9.16
+      - name: Armar y enviar el resumen
+        env:
+          TALLER_SUPABASE_SERVICE_KEY: ${{ secrets.TALLER_SUPABASE_SERVICE_KEY }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          RESUMEN_PARA: ${{ secrets.RESUMEN_PARA }}
+          RESUMEN_ADMIN: ${{ secrets.RESUMEN_ADMIN }}
+          APP_URL: ${{ vars.TALLER_APP_URL }}
+          DRY_RUN: ${{ github.event.inputs.prueba == 'true' && '1' || '' }}
+        run: node scripts/resumen-taller.mjs

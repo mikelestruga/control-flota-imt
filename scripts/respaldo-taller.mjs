@@ -117,6 +117,7 @@ async function main() {
   const token = await accessToken();
   await subir(token, `${RAIZ}/Respaldo general JSON/${nombre}.json`, json);
   await subir(token, `${RAIZ}/Excel/${nombre}.xlsx`, xlsx);
+  await setState("taller_ultimo_respaldo", hoy);   // lo lee el resumen semanal
   console.log(`Subidos: ${nombre}.json (${(json.length / 1024).toFixed(0)} KB) y .xlsx (${(xlsx.length / 1024).toFixed(0)} KB)`);
 
   // Documentos de las OT: solo los nuevos desde el último respaldo
