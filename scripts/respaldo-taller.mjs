@@ -19,7 +19,7 @@ const hoy = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Santiago" }).f
 const TABLAS = {
   config: "clave", tarifas: "id", perfiles: "id", operaciones: "id", maquinas: "id", procesos: "id", materiales: "id",
   dias_especiales: "fecha", ots: "id", ot_ppto: "ot_id", hh_registros: "id", hh_costo: "registro_id", asistencia: "id",
-  consumos: "id", servicios: "id", stock_ingresos: "id", produccion: "id", compras: "id", ot_stock: "id", documentos: "id", maquina_uso: "id", maquina_uso_costo: "uso_id", auditoria: "id",
+  consumos: "id", servicios: "id", stock_ingresos: "id", produccion: "id", compras: "id", ot_stock: "id", documentos: "id", ot_items: "id", tipos_item: "id", maquina_uso: "id", maquina_uso_costo: "uso_id", auditoria: "id",
 };
 const hdr = (auth = KEY_T.startsWith("eyJ")) => ({ apikey: KEY_T, ...(auth ? { Authorization: "Bearer " + KEY_T } : {}) });
 
@@ -65,6 +65,8 @@ export async function armarExcel(d) {
   hoja("Horas hombre", [["Fecha", 12], ["Trabajador", 22], ["Categoría", 16], ["OT", 11], ["Operación", 18], ["Máquina", 18], ["Tipo", 13], ["Motivo", 24], ["Inicio", 17], ["Término", 17], ["Horas", 8], ["Horas extra", 11], ["Estado", 11], ["Costo normal", 13], ["Costo extra", 12], ["Costo máquina", 13], ["Manual", 8], ["Nota", 30]],
     (d.hh_registros || []).map(r => { const c = HC[r.id] || {}; return [fch(r.fecha), per(r.perfil_id), TF[r.tarifa_id]?.nombre || "", ot(r.ot_id), OP[r.operacion_id]?.nombre || "", MQ[r.maquina_id]?.nombre || "", r.tipo, r.motivo || "", fch(r.inicio), fch(r.fin), n(r.horas), n(r.horas_extra), r.estado, n(c.costo_hh), n(c.costo_extra), n(c.costo_maquina), r.manual ? "Sí" : "", r.nota || ""]; }));
   hoja("Asistencia", [["Fecha", 12], ["Trabajador", 24], ["Entrada", 17], ["Salida", 17]], (d.asistencia || []).map(a => [fch(a.fecha), per(a.perfil_id), fch(a.entrada), fch(a.salida)]));
+  { const ti = new Map((d.tipos_item || []).map(t => [t.id, t.nombre]));
+    hoja("Ítems de OT", [["OT", 11], ["Ítem", 36], ["Tipo", 16], ["Unidad", 9], ["Cantidad", 10], ["Kg", 10], ["HH estimadas", 12]], (d.ot_items || []).map(x => [ot(x.ot_id), x.nombre, ti.get(x.tipo_id) || "", x.unidad === "m" ? "m" : "pza", n(x.cantidad), n(x.kg), n(x.ppto_horas)])); }
   { const mq = new Map((d.maquinas || []).map(m => [m.id, m.nombre])), mc = new Map((d.maquina_uso_costo || []).map(c => [c.uso_id, c.costo]));
     hoja("Horas de máquina", [["Fecha", 12], ["OT", 11], ["Máquina", 24], ["Horas", 9], ["Costo", 12], ["Nota", 34], ["Registrado por", 22]], (d.maquina_uso || []).map(u => [fch(u.fecha), ot(u.ot_id), mq.get(u.maquina_id) || "", n(u.horas), n(mc.get(u.id)), u.nota || "", per(u.registrado_por)])); }
   hoja("Producción", [["Fecha", 12], ["OT", 11], ["Kg", 10], ["Piezas", 9], ["Nota", 34], ["Registrado por", 22]], (d.produccion || []).map(p => [fch(p.fecha), ot(p.ot_id), n(p.kg), n(p.piezas), p.nota || "", per(p.registrado_por)]));
