@@ -438,7 +438,7 @@ else if(m===0){const a=await pr(`Eliminaste el único registro con ${lab}. ${lab
 async function delLog(id){const l=L.find(x=>x.id===id);if(!await cf("¿Eliminar este registro? No se puede deshacer."))return;try{await db.collection("logs").doc(id).delete()}catch(e){return al("No se pudo eliminar")}
 if(l&&(l.files||[]).length){try{const as=await claude.use("assets");for(const f of l.files)await as.delete(f.aid).catch(()=>{})}catch(e){}}
 try{const v=l&&V.find(x=>x.id===l.plate);if(v)await fixOdo(v,l)}catch(e){al("El registro se eliminó, pero no se pudo ajustar el kilometraje: corrígelo en «Editar datos».")}}
-async function editVeh(){const v=V.find(x=>x.id===sel);if(!v)return;const m=await pr("Modelo",v.model||"");if(m===null)return;const y=await pr("Año",v.year||"");if(y===null)return;const k=await pr("Kilometraje actual",v.km||0);if(k===null)return;try{await db.collection("vehicles").doc(sel).update({model:m,year:y,km:+k||0})}catch(e){al("No se pudo editar")}}
+async function editVeh(){const v=V.find(x=>x.id===sel);if(!v)return;const m=await pr("Modelo",v.model||"");if(m===null)return;const y=await pr("Año",v.year||"");if(y===null)return;const k=await pr("Kilometraje actual",v.km||0);if(k===null)return;try{await db.collection("vehicles").doc(sel).update({model:m,year:y,km:+String(k).replace(/\D/g,"")||0})}catch(e){al("No se pudo editar")}}
 async function chPlate(){const old=sel,v=V.find(x=>x.id===old);if(!v||!showAdm())return;
 const raw=await pr("Nueva patente para "+old+" (corrige un error de digitación)",old);if(raw===null)return;const nw=norm(raw);if(!nw)return al("Ingresa la patente");if(nw===old)return al("La patente es la misma");
 const ex=V.find(x=>x.id===nw);if(ex&&ex.renameFrom!==old)return al("Ya existe un vehículo con la patente "+nw);
@@ -1591,5 +1591,26 @@ if(newV){if(!dirty()&&(document.hidden||idle(3)))return go();banner()}
 else if(today()!==DAY0&&Date.now()-LOADED>6*3600000&&!dirty()&&(document.hidden||idle(10)))go()}
 setTimeout(check,8000);setInterval(check,15*60000);
 document.addEventListener("visibilitychange",()=>{if(!document.hidden)check()});window.addEventListener("focus",()=>check());window.flotaCheckUpdate=check})();
+/* Números: en los campos de decimales, punto o coma = decimal; en kilometrajes y montos enteros, los puntos/comas se ignoran (miles). */
+(function(){
+const KM=new Set(["n_k","dl_k","x_k","d_k","f_k","m_l","m_e","f_y","l_n","l_kn"]),UNIT={c_k:"c_u",o_k:"o_u",o_i:"o_u"},KMD=new Set(["km","kmIni","kmFin"]),INTD=new Set(["cost","dneto","dcost","mo_h","mo_m"]);
+function kind(el){const id=el.id||"",dk=el.dataset.k||"";
+if(KM.has(id))return"i";if(UNIT[id])return"u:"+UNIT[id];
+if(INTD.has(dk))return"i";
+if(KMD.has(dk)){const lb=el.previousElementSibling,t=lb?lb.textContent:"";return/\(h\)|hora/i.test(t)?"d":"i"}
+const st=el.getAttribute("step"),im=el.getAttribute("inputmode");
+if(id==="n_c"||id==="c_c"||id==="dl_nt"||id==="dl_c"||id==="n_mo"||id==="n_mm")return"i";
+if(st==="any"||st==="0.1"||st==="0.01"||im==="decimal")return"d";
+return"i"}
+function enh(el){if(el.dataset.nm||el.type!=="number")return;const k=kind(el);el.dataset.nm=k;el.type="text";el.setAttribute("inputmode",k==="i"?"numeric":"decimal");el.removeAttribute("step");el.autocomplete="off"}
+function scan(r){if(!r||!r.querySelectorAll)return;if(r.matches&&r.matches('input[type="number"]'))enh(r);r.querySelectorAll('input[type="number"]').forEach(enh)}
+function isInt(el){const k=el.dataset.nm;if(k==="i")return true;if(k&&k.startsWith("u:")){const u=document.getElementById(k.slice(2));return !(u&&u.value==="h")}return false}
+document.addEventListener("input",e=>{const el=e.target;if(!el||!el.dataset||!el.dataset.nm)return;const v=el.value;let n;
+if(isInt(el))n=v.replace(/\D/g,"");else{n=v.replace(/[^\d.,]/g,"").replace(/,/g,".");const i=n.indexOf(".");if(i>=0)n=n.slice(0,i+1)+n.slice(i+1).replace(/\./g,"")}
+if(n!==v)el.value=n},true);
+try{new MutationObserver(m=>m.forEach(x=>x.addedNodes.forEach(n=>{if(n.nodeType===1)scan(n)}))).observe(document.documentElement,{childList:true,subtree:true})}catch(e){}
+scan(document);
+window.flotaNums=scan;
+})();
 init();
 </script></body></html>
