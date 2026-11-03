@@ -187,6 +187,7 @@ function danoHtml(v,ls){const t=ls.filter(l=>l.type==="dano");return `<div class
 <div class="card"><h2>Historial (${t.length})</h2>${t.length?t.map(l=>`<div class="row" style="flex-direction:column"><div><b>${H(l.kind)}</b> · ${H(l.date)} · ${kmTxt(l)} · Chofer: <b>${H(l.driver||"—")}</b> <span class="mu">(reg. ${H(who(l))})</span> ${adm(l)}</div><div>${H(l.desc||"")}</div><div class="mu">${H(l.text||"")}</div><div>${(l.photos||[]).map(p=>`<img src="${p}" onclick="big(this.src)" style="height:80px;border-radius:4px;margin:4px 4px 0 0;cursor:pointer">`).join("")}</div>${fileLinks(l)}</div>`).join(""):'<div class="mu">Sin registros.</div>'}</div>`}
 async function addDano(){bl();const xb=$("#x_b"),miss=[];if(!xb||!xb.value.trim())miss.push("Tu nombre");if(miss.length)return showErr("x_err",miss);
 const r={plate:sel,type:"dano",kind:$("#x_t").value,date:$("#x_d").value||today(),km:+$("#x_k").value||0,driver:$("#x_c").value,desc:$("#x_s").value,text:$("#x_m").value,op:xb.value.trim(),uid:ME_ID,photos:PH};if(PF.length)r.files=PF.slice();
+{const g=r.km>0?await kmGuard(V.find(x=>x.id===sel),r.km,"km"):null;if(g===false)return;if(g)r.rev=g}
 if(JSON.stringify(r).length>240000)return showErr("x_err",["Las fotos pesan demasiado: usa menos fotos"]);showErr("x_err",[]);
 try{await db.collection("logs").doc("l"+Date.now()).set(r);PH=[];PF=[];const v=V.find(x=>x.id===sel);if(v&&r.km>(v.km||0))await db.collection("vehicles").doc(sel).update({km:r.km});al("Registro agregado ✔");render(true)}catch(e){showErr("x_err",["No se pudo guardar (revisa tu conexión)"])}}
 async function init(){
@@ -274,6 +275,7 @@ async function addLog(){
   if(tab==="km"){const h=+String($("#n_h").value).replace(",",".")||0;if(h)r.hrs=h;if(h&&!(r.km>0))r.unit="h";else if(h)r.unit="km"}
   if(tab==="comb"){r.liters=+$("#n_l").value||0;r.cost=+(($("#n_c")||{}).value)||0}
   if(tab==="mant"){const h=+$("#n_h").value||0;if(h)r.hrs=h;const mo=Math.round(((+$("#n_mo").value||0)+(+(($("#n_mm")||{}).value)||0)/60)*1000)/1000;if(mo>0)r.mo=mo;r.tipos=[...MS];if(MS.has("Otro"))r.otro=OT.trim();if(MS.has("Mantención mayor"))r.mayor=[...MMS];if(PU.length){r.parts=PU.map(x=>({...x}));r.pstat="pending"}}
+  {const v0=V.find(x=>x.id===sel);let g=r.km>0?await kmGuard(v0,r.km,"km"):null;if(g===false)return;if(!g&&r.hrs>0){g=await kmGuard(v0,r.hrs,"h");if(g===false)return}if(g)r.rev=g}
   if(JSON.stringify(r).length>240000)return showErr("n_err",["Las fotos pesan demasiado: usa menos fotos"]);
   showErr("n_err",[]);
   try{await db.collection("logs").doc("l"+Date.now()).set(r);PH=[];PF=[];MS.clear();MMS.clear();OT="";PU=[];PUC="";
@@ -298,6 +300,7 @@ if(!MS.size)miss.push("Tipo de mantención (marca al menos uno)");if(MS.has("Otr
 if(miss.length)return showErr("n_err",miss);
 const r={plate:sel,type:"mant",dealer:true,dname:g("dl_n").trim(),dcost:c,dneto:nt,date:g("dl_d")||today(),km:k,text:g("dl_t"),op:g("dl_b").trim(),uid:ME_ID,photos:[],tipos:[...MS]};
 if(g("dl_f").trim())r.inv=g("dl_f").trim();const h=+g("dl_h").replace(",",".")||0;if(h)r.hrs=h;if(MS.has("Otro"))r.otro=OT.trim();if(MS.has("Mantención mayor"))r.mayor=[...MMS];if(PF.length)r.files=PF.slice();
+{const v0=V.find(x=>x.id===sel);let g=r.km>0?await kmGuard(v0,r.km,"km"):null;if(g===false)return;if(!g&&r.hrs>0){g=await kmGuard(v0,r.hrs,"h");if(g===false)return}if(g)r.rev=g}
 showErr("n_err",[]);
 try{await db.collection("logs").doc("l"+Date.now()).set(r);PF=[];MS.clear();MMS.clear();OT="";DLO=false;DLV={};DLM="";
 const v=V.find(x=>x.id===sel);if(v&&r.km>(v.km||0))await db.collection("vehicles").doc(sel).update({km:r.km});if(v&&r.hrs&&r.hrs>(+v.hrs||0))await db.collection("vehicles").doc(sel).update({hrs:r.hrs});al("Mantención en concesionario guardada ✔");render(true)}
@@ -361,7 +364,7 @@ function hist(){const g=sig();if(g!==last){try{history.pushState({mode,sel,addin
 addEventListener("popstate",e=>{const t=e.state;if(t){mode=t.mode;sel=t.sel;adding=t.adding;tab=t.tab;ftype=t.ftype??null}else{sel=null;adding=false;tab="res";ftype=null}last=sig();render(true)});
 const HID=["Carro de arrastre"];
 const _r=render;render=function(f){if(sel!==_ls){MS.clear();MMS.clear();OT="";PU=[];PUC="";DLO=false;DLV={};DLM="";DIM="";_ls=sel}V=VALL.filter(v=>!(HID.includes(v.tipo)&&!showAdm()));
-if(sel&&!V.some(x=>x.id===sel)&&VALL.some(x=>x.id===sel))sel=null;if(HID.includes(ftype)&&!showAdm())ftype=null;if((ftype==="__rep"||ftype==="__comb")&&!showAdm())ftype=null;
+if(sel&&!V.some(x=>x.id===sel)&&VALL.some(x=>x.id===sel))sel=null;if(HID.includes(ftype)&&!showAdm())ftype=null;if((ftype==="__rep"||ftype==="__comb"||ftype==="__rev")&&!showAdm())ftype=null;
 _r(f);hist();if(!canW()){$("#st").textContent="Solo lectura: pide acceso de Colaborador";document.querySelectorAll("#app input,#app select,#app textarea,#app button.p").forEach(e=>{if(e.id!=="q")e.disabled=true})}};
 const isAdm=()=>!!U&&(U.isOwner()||U.canEdit());
 const showAdm=()=>isAdm()&&mode==="adm";
@@ -488,9 +491,9 @@ return `<div class="card"><h2>🚗 Registrar operación</h2>${V.length?`<div cla
 async function saveKm(){bl();const pl=$("#o_p").value,u=$("#o_u").value,ki=+$("#o_i").value,kf=+$("#o_k").value||0,n=$("#o_n").value.trim(),fv=$("#o_f").value;
 if(!pl)return al("Elige el vehículo");if(!kf)return al("Ingresa el valor final de la operación");if(!n)return al("Ingresa tu nombre");
 if(ki&&kf<ki)return al("El valor final no puede ser menor al de inicio");
-const v=V.find(x=>x.id===pl),cur=v?(u==="h"?+v.hrs||0:v.km||0):0;if(v&&kf<cur&&!await cf(`El valor final (${kf}) es menor al registrado (${cur}). ¿Guardar igual?`))return;
+const v=V.find(x=>x.id===pl),cur=v?(u==="h"?+v.hrs||0:v.km||0):0;const kg=await kmGuard(v,kf,u);if(kg===false)return;
 const top=kf,r={plate:pl,type:"km",unit:u,date:$("#o_d").value||today(),kmFin:kf,km:top,text:$("#o_c").value,op:n,uid:ME_ID,photos:PH};
-if(ki)r.kmIni=ki;if(fv!=="")r.fuel=+fv;
+if(ki)r.kmIni=ki;if(fv!=="")r.fuel=+fv;if(kg)r.rev=kg;
 if(JSON.stringify(r).length>240000)return al("Las fotos pesan demasiado; usa menos fotos");
 try{await db.collection("logs").doc("l"+Date.now()).set(r);sn(n);PH=[];PF=[];
 if(v&&top>cur)await db.collection("vehicles").doc(pl).update(u==="h"?{hrs:top}:{km:top});al("Operación guardada ✔");render(true)}catch(e){al("No se pudo guardar (revisa tu conexión)")}}
@@ -564,6 +567,7 @@ const mAl=prox.filter(x=>x.c!=="ok");if(mAl.length)AL.push(`<div class="rs-item"
 if(pend)AL.push(`<div class="rs-item click" onclick="ftype='__rep';render();window.scrollTo(0,0)"><div class="t">📦 ${pend} descuento(s) de repuestos por aprobar</div><span class="rs-chip acc">Revisar →</span></div>`);
 if(bajo.length)AL.push(`<div class="rs-item click" onclick="ftype='__rep';render();window.scrollTo(0,0)"><div class="t">📦 ${bajo.length} repuesto(s) sin stock o bajo mínimo<div class="rs-small rs-muted">${bajo.slice(0,4).map(x=>H(x.name)).join(", ")}</div></div><span class="rs-chip warn">Ver stock →</span></div>`);
 if(porVal)AL.push(`<div class="rs-item click" onclick="ftype='__rep';render();window.scrollTo(0,0)"><div class="t">💲 ${porVal} repuesto(s) usado(s) sin valorizar</div><span class="rs-chip warn">Valorizar →</span></div>`);
+{const rv=revList().length;if(rv&&showAdm())AL.push(`<div class="rs-item click" onclick="ftype='__rev';render();window.scrollTo(0,0)"><div class="t">⚠ ${rv} registro(s) con kilometraje u horas menor al anterior: a revisar</div><span class="rs-chip bad">Revisar →</span></div>`)}
 if(sd)AL.push(`<div class="rs-item click" onclick="ftype='__sd';render();window.scrollTo(0,0)"><div class="t">⚠️ ${sd} vehículo(s) sin documentos adjuntos</div><span class="rs-chip">Ver →</span></div>`);
 // últimos registros
 const LAVR=VL.map(x=>{const v=VALL.find(y=>y.id===x.vid)||VALL.find(y=>np(y.id)===np(x.plate));return{...x,id:"lav_"+x.id,vale:x.id,type:"lav",date:x.fecha||String(x.created||"").slice(0,10),plate:v?v.id:(x.plate||""),op:x.solicitante||""}});
@@ -629,7 +633,7 @@ if(vsort==="al"){const c=new Map(V.map(v=>[v.id,urgency(v)]));return(a,b)=>(a.so
 return(a,b)=>(a.sold?1:0)-(b.sold?1:0)||pl(a,b)}
 const vSortSel=()=>`<div style="margin:0 0 8px"><label>Ordenar por</label><select onchange="vsort=this.value;try{localStorage.setItem('vsort',this.value)}catch(e){}render(true)">${Object.entries(VSORT).map(([k,n])=>`<option value="${k}"${vsort===k?" selected":""}>${n}</option>`).join("")}</select></div>`;
 const vcard=v=>`<div class="card v" onclick="sel='${H(v.id)}';tab='res';render()"><div class="top" style="margin:0"><span class="pl">${H(v.id)}${alertsOf(v)?` <span title="${alertsOf(v)} alerta(s)" style="color:var(--er);font-size:.8em">⚠️${alertsOf(v)>1?alertsOf(v):""}</span>`:""}${v.sold?' <span class="b mu">Vendido</span>':""}</span><span class="mu">${usoTxt(v)}</span></div><div>${H([v.marca,v.model,v.year].filter(Boolean).join(" "))}</div><div class="mu">📍 ${H(v.assign||"Sin asignar")}</div>${v.sold?"":`<div>${DOCS.map(([k,n])=>badge(docName(v,k,n),docDate(v,k),noAtt(v,k))).join("")}${segBadge(v)}${mbadge(v)}${hbadge(v)}${attBadge(v)}</div>`}</div>`;
-function listHtml(){if(ftype==="__comb"&&showAdm())return `<button onclick="ftype=null;render()" style="margin-bottom:10px">← Inicio</button>`+combHtml();if(ftype==="__rep"&&showAdm())return partsHtml();if(ftype==="__res"&&showAdm())return fleetHtml();if(ftype==="__al")return alHtml();const qq=q.trim().toUpperCase();
+function listHtml(){if(ftype==="__rev"&&showAdm())return revHtml();if(ftype==="__comb"&&showAdm())return `<button onclick="ftype=null;render()" style="margin-bottom:10px">← Inicio</button>`+combHtml();if(ftype==="__rep"&&showAdm())return partsHtml();if(ftype==="__res"&&showAdm())return fleetHtml();if(ftype==="__al")return alHtml();const qq=q.trim().toUpperCase();
 const head=`<div class="top"><input id="q" type="search" placeholder="🔍 Buscar por patente, marca o modelo…" value="${H(q)}" style="flex:1"><button class="p" onclick="adding=true;render()">+ Vehículo</button></div>`;
 const r=V.filter(v=>alertsOf(v)>0),ban=r.length?`<div class="card er v" onclick="ftype='__al';render();window.scrollTo(0,0)" style="border-color:var(--er);display:flex;justify-content:space-between;align-items:center;gap:8px"><span><b>⚠ ${r.length} vehículo(s) con alertas:</b> ${r.map(v=>H(v.id)).join(", ")}</span><span style="white-space:nowrap;font-weight:600">Revisar →</span></div>`:"";
 const empty='<div class="card mu">Sin vehículos.</div>';
@@ -877,12 +881,12 @@ if(!(k>0))miss.push(u==="h"?"Horas del vehículo":"Kilometraje del vehículo");i
 if(!g("c_d"))miss.push("Fecha");if(!fa)miss.push("Faena de asignación");
 if(miss.length)return showErr("c_err",miss);showErr("c_err",[]);
 const cur=u==="h"?+v.hrs||0:+v.km||0,uu=u==="h"?"horómetro":"kilometraje",dg=u==="h"?1:0;
-if(cur&&k<cur&&!await cf(`El ${uu} ingresado (${fnum(k,dg)}) es menor al último registrado (${fnum(cur,dg)}). ¿Guardar igual?`))return;
+const kg=await kmGuard(v,k,u);if(kg===false)return;
 if(cur&&k-cur>(u==="h"?500:3000)&&!await cf(`El ${uu} subió ${fnum(k-cur,dg)} desde el último registro (${fnum(cur,dg)}). ¿Es correcto?`))return;
 if(li>400&&!await cf(`${fnum(li,1)} litros es una carga muy grande. ¿Es correcto?`))return;
 const pp=co/li;if(co>0&&(pp<300||pp>3000)&&!await cf(`Con ese costo total y esos litros, el precio sale ${money(pp)} por litro, fuera de lo habitual. ¿Es correcto?`))return;
 const r={plate:v.id,type:"comb",cat:CB.tab,ft:g("c_t"),cargo:w,op:e,unit:u,liters:li,cost:co,date:g("c_d"),faena:fa,full:true,text:g("c_n").trim(),uid:ME_ID};
-if(u==="h"){r.hrs=k;r.km=0}else r.km=k;
+if(u==="h"){r.hrs=k;r.km=0}else r.km=k;if(kg)r.rev=kg;
 sn(e);
 try{const t=Date.now();await db.collection("logs").doc("l"+t).set(r);
 const up={};if(u==="h"){if(k>(+v.hrs||0))up.hrs=k}else if(k>(+v.km||0))up.km=k;
@@ -1110,7 +1114,15 @@ try{await db.collection("vales").doc(id).delete();const k=vkOf(r),rest=VL.filter
 if(r.num>Math.max(0,...rest))await setCounter(r.yy,Math.max(VK[k].base(r.yy),...rest),k);al("Vale eliminado")}catch(e){al("No se pudo eliminar el vale")}}
 function dlg(html,init){return new Promise(res=>{const o=document.createElement("div");o.style.cssText="position:fixed;inset:0;background:#0009;display:flex;align-items:center;justify-content:center;z-index:99;padding:16px";o.innerHTML=`<div class="card" style="max-width:380px;width:100%;margin:0;max-height:92vh;overflow:auto">${html}</div>`;document.body.appendChild(o);init(o,v=>{o.remove();res(v)})})}
 const cf=m=>dlg(`<p style="white-space:pre-line">${H(m)}</p><div style="display:flex;gap:8px;justify-content:flex-end"><button id="dn">Cancelar</button><button class="p" id="dy">Aceptar</button></div>`,(o,d)=>{o.querySelector("#dn").onclick=()=>d(false);o.querySelector("#dy").onclick=()=>d(true)});
-const pr=(m,v)=>dlg(`<p>${H(m)}</p><input id="di" value="${H(v??"")}"><div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px"><button id="dn">Cancelar</button><button class="p" id="dy">Aceptar</button></div>`,(o,d)=>{const i=o.querySelector("#di");i.focus();o.querySelector("#dn").onclick=()=>d(null);o.querySelector("#dy").onclick=()=>d(i.value)});
+
+async function kmGuard(v,val,unit){const u=unit==="h"?"h":"km",cur=v?(u==="h"?+v.hrs||0:+v.km||0):0;if(!v||!(val>0)||!cur||val>=cur)return null;const dg=u==="h"?1:0,nm=u==="h"?"horómetro":"kilometraje";
+if(!await cf(`⚠ El ${nm} ingresado (${fnum(val,dg)} ${u}) es MENOR al último registrado (${fnum(cur,dg)} ${u}).\n\nRevísalo de nuevo. Si lo guardas así, quedará marcado para que el administrador lo revise.\n\n¿Guardar igual?`))return false;
+return{prev:cur,val,unit:u}}
+const revList=()=>L.filter(l=>l.rev&&!l.revOk);
+const revTag=l=>l.rev&&!l.revOk?`<div><span class="b er">⚠ ${l.rev.unit==="h"?"Horómetro":"Kilometraje"} menor al anterior (${fnum(l.rev.prev,l.rev.unit==="h"?1:0)}): a revisar</span></div>`:"";
+async function revOk(id){try{await db.collection("logs").doc(id).update({revOk:true,revBy:meName()||"Administrador",revAt:today()},true);al("Marcado como revisado ✔")}catch(e){al(permMsg(e))}}
+function revHtml(){const a=revList().sort((x,y)=>(y.date||"").localeCompare(x.date||""));
+return `<button onclick="ftype=null;render()" style="margin-bottom:10px">← Inicio</button><div class="card" style="border-color:var(--er)"><h2>⚠ Datos a revisar (${a.length})</h2><p class="mu">Kilometrajes u horas ingresados con un valor <b>menor al último registrado</b>. Quien los ingresó confirmó que quería guardarlos así.</p>`+(a.map(l=>`<div class="row" style="flex-direction:column;align-items:stretch"><div>${vHead(l.plate)} · ${H(fdate(l.date))} · <span class="mu">${H(RSTN[l.type]||l.type)}</span></div><div>Ingresado: <b>${fnum(l.rev.val,l.rev.unit==="h"?1:0)} ${l.rev.unit}</b> · Último antes: <b>${fnum(l.rev.prev,l.rev.unit==="h"?1:0)} ${l.rev.unit}</b></div><div class="mu">Registrado por ${H(whoN(l))}</div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px"><button class="p" onclick="revOk('${l.id}')">✔ Está correcto</button><button onclick="editLog('${l.id}')">✏️ Corregir</button><button onclick="${goVeh(l.plate,l.type==="km"||l.type==="mant"||l.type==="comb"?l.type:"res")}">Ver vehículo</button></div></div>`).join("")||'<div class="mu">No hay datos pendientes de revisión 👍</div>')+`</div>`}const pr=(m,v)=>dlg(`<p>${H(m)}</p><input id="di" value="${H(v??"")}"><div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px"><button id="dn">Cancelar</button><button class="p" id="dy">Aceptar</button></div>`,(o,d)=>{const i=o.querySelector("#di");i.focus();o.querySelector("#dn").onclick=()=>d(null);o.querySelector("#dy").onclick=()=>d(i.value)});
 const al=m=>{const t=document.createElement("div");t.textContent=m;t.style.cssText="position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--tx);color:var(--bg);padding:10px 14px;border-radius:8px;z-index:100;max-width:90%;text-align:center";document.body.appendChild(t);setTimeout(()=>t.remove(),3500)};
 const f1=n=>(Math.round(n*10)/10).toLocaleString("es-CL");
 function maintInfoH(v){const m=v.maintH||{},own=+m.every||0,e=own||planDefH(v);if(!e)return null;const hs=L.filter(l=>l.plate===v.id&&l.type==="mant"&&l.hrs&&isAceite(l)).map(l=>+l.hrs),lh=+m.lastH||0;if(!own&&!hs.length&&!lh)return null;const last=hs.length?Math.max(...hs):lh,next=last+e;return{next,rem:next-(+v.hrs||0),every:e,warn:+m.warn||50,def:!own}}
@@ -1164,7 +1176,7 @@ function mantCtl(){const o=(v,t)=>`<option value="${v}"${msort===v?" selected":"
 function mantList(t){let r=mf?t.filter(l=>(l.tipos||[]).includes(mf)||(l.mayor||[]).includes(mf)):[...t];
 const d=(a,b)=>(b.date||"").localeCompare(a.date||"");
 if(msort==="fa")r.sort((a,b)=>-d(a,b));else if(msort==="km")r.sort((a,b)=>(b.km||0)-(a.km||0));else if(msort==="tp")r.sort((a,b)=>((a.tipos||[])[0]||"~").localeCompare((b.tipos||[])[0]||"~")||d(a,b));else r.sort(d);return r}
-const tagsHtml=l=>tagsOnly(l)+dealerLine(l)+partsLine(l);
+const tagsHtml=l=>revTag(l)+tagsOnly(l)+dealerLine(l)+partsLine(l);
 const tagsOnly=l=>(l.tipos&&l.tipos.length)?`<div>${l.tipos.map(t=>`<span class="b" style="color:var(--ac)">${H(t==="Otro"&&l.otro?"Otro: "+l.otro:t)}</span>`).join("")}${(l.mayor||[]).map(t=>`<span class="b" style="color:var(--ac);opacity:.8">› ${H(t)}</span>`).join("")}</div>`:"";
 const infCard=()=>`<div class="card" style="margin-top:12px"><h2>📊 Informes de mantención (Excel)</h2>
 <button class="p" style="width:100%" onclick="repMant('all')">Crear informe de historial completo</button>
@@ -1215,6 +1227,7 @@ return `<div class="card"><h2>⚠ Reportar daño</h2><div class="g">
 async function saveDanoOp(){bl();const pl=$("#d_p").value,n=$("#d_n").value.trim(),ds=$("#d_s").value.trim();
 if(!pl)return al("Elige el vehículo");if(!n)return al("Ingresa tu nombre");if(!ds)return al("Describe el daño");
 const r={plate:pl,type:"dano",kind:"Daño",date:$("#d_d").value||today(),km:+$("#d_k").value||0,driver:$("#d_c").value.trim(),desc:ds,text:$("#d_m").value,op:n,uid:ME_ID,photos:PH};
+{const g=r.km>0?await kmGuard(V.find(x=>x.id===pl),r.km,"km"):null;if(g===false)return;if(g)r.rev=g}
 if(JSON.stringify(r).length>240000)return al("Las fotos pesan demasiado; usa menos fotos");
 try{await db.collection("logs").doc("l"+Date.now()).set(r);sn(n);PH=[];PF=[];al("Daño registrado ✔");render(true)}catch(e){al("No se pudo guardar (revisa tu conexión)")}}
 const pinCard=()=>`<div class="card"><h2>🔑 Cambiar PIN</h2><p class="mu">Cambia el PIN de un perfil. Las sesiones abiertas de ese perfil se cierran y deben ingresar el PIN nuevo.</p>
@@ -1539,7 +1552,7 @@ if(!f.length)return '<div class="mu">'+(PIN.length?"Sin resultados.":"Sin ingres
 return `<div class="mu" style="margin-bottom:4px">${f.length} registro(s)</div>`+f.slice(0,IN).map(g=>`<div class="row"><div><b>${H(pinName(g))}</b>${g.sku?` <span class="mu">(SKU ${H(g.sku)})</span>`:""} · +${nf(g.qty)} ${H(g.unit||"un")}${g.ucost!=null?` · ${money(g.ucost)} c/u · <b>${money((+g.ucost||0)*(+g.qty||0))}</b>`:""}<div class="mu">${H(fdate(g.date))} · ${g.oc?"OC "+H(g.oc):"sin N° de OC"}${g.prov?" · "+H(g.prov):""} · ${H(g.by||"")}</div>${g.aid?`<a href="${blobUrl(g.aid)}" target="_blank" rel="noopener">📄 ${H(g.fname||"Documento")}</a>`:""}</div><button onclick="pInDel('${g.id}')" title="Eliminar registro">🗑</button></div>`).join("")+(f.length>IN?`<button style="width:100%;margin-top:6px" onclick="IN+=30;pinDraw()">Ver más (${f.length-IN})</button>`:"")}
 function pinDraw(){const e=$("#pi_list");if(e)e.innerHTML=pinRows()}
 const pinsHtml=()=>`<input type="search" placeholder="🔍 Buscar por repuesto, SKU, OC, proveedor, fecha o quién ingresó" value="${H(IQ)}" oninput="IQ=this.value;IN=30;pinDraw()" style="margin-bottom:6px"><div class="g" style="margin-bottom:8px"><div><label>Tipo</label><select onchange="IT=this.value;IN=30;pinDraw()"><option value="">Todos</option><option value="compra"${IT==="compra"?" selected":""}>Compras con factura/OC</option><option value="ingreso"${IT==="ingreso"?" selected":""}>Ingresos manuales</option><option value="inicial"${IT==="inicial"?" selected":""}>Stock inicial</option></select></div><div><label>Ordenar por</label><select onchange="IS=this.value;pinDraw()"><option value="new"${IS==="new"?" selected":""}>Fecha (más reciente)</option><option value="old"${IS==="old"?" selected":""}>Fecha (más antigua)</option><option value="name"${IS==="name"?" selected":""}>Repuesto (A → Z)</option><option value="prov"${IS==="prov"?" selected":""}>Proveedor (A → Z)</option></select></div></div><div id="pi_list">${pinRows()}</div>`;
-async function pVal(id){const x=PAR.find(y=>y.id===id);if(!x)return;const v=await pr(`Valor unitario de «${x.name}» ($ por ${x.unit||"un"})`,x.cost!=null?x.cost:"");if(v===null)return;const q=(t=>t===""?null:+t)(String(v).replace(/\D/g,""));if(q===null||q<0)return al("Valor no válido");try{await db.collection("parts").doc(id).update({cost:q,mod:new Date().toISOString()});al("Valor actualizado ✔")}catch(e){al("No se pudo actualizar")}}
+async function pVal(id){const x=PAR.find(y=>y.id===id);if(!x)return;const v=await pr(`Valor unitario de «${x.name}» ($ por ${x.unit||"un"})`,x.cost!=null?x.cost:"");if(v===null)return;const q=(t=>t===""||isNaN(+t)?null:+t)(String(v).trim().replace(/\./g,"").replace(",","."));if(q===null||q<0)return al("Valor no válido");try{await db.collection("parts").doc(id).update({cost:q,mod:new Date().toISOString()});al("Valor actualizado ✔")}catch(e){al("No se pudo actualizar")}}
 async function pSet(id){const x=PAR.find(y=>y.id===id);if(!x)return;const v=await pr(`Nuevo stock de «${x.name}» (${x.unit||"un"})`,x.stock);if(v===null)return;const q=num(v);if(q===null||q<0)return al("Stock no válido");
 try{await db.collection("parts").doc(id).update({stock:q,mod:new Date().toISOString()});al("Stock ajustado ✔")}catch(e){al("No se pudo actualizar")}}
 async function pEdit(id){const x=PAR.find(y=>y.id===id);if(!x)return;
@@ -1591,23 +1604,26 @@ if(newV){if(!dirty()&&(document.hidden||idle(3)))return go();banner()}
 else if(today()!==DAY0&&Date.now()-LOADED>6*3600000&&!dirty()&&(document.hidden||idle(10)))go()}
 setTimeout(check,8000);setInterval(check,15*60000);
 document.addEventListener("visibilitychange",()=>{if(!document.hidden)check()});window.addEventListener("focus",()=>check());window.flotaCheckUpdate=check})();
-/* Números: en los campos de decimales, punto o coma = decimal; en kilometrajes y montos enteros, los puntos/comas se ignoran (miles). */
+/* Números: decimales → coma o punto; pesos → punto = miles y coma = decimal; kilometrajes → solo enteros (se ignoran puntos y comas). */
 (function(){
-const KM=new Set(["n_k","dl_k","x_k","d_k","f_k","m_l","m_e","f_y","l_n","l_kn"]),UNIT={c_k:"c_u",o_k:"o_u",o_i:"o_u"},KMD=new Set(["km","kmIni","kmFin"]),INTD=new Set(["cost","dneto","dcost","mo_h","mo_m"]);
-function kind(el){const id=el.id||"",dk=el.dataset.k||"";
+const KM=new Set(["n_k","dl_k","x_k","d_k","f_k","m_l","m_e","f_y","l_n","l_kn","n_mo","n_mm","ri_a"]),UNIT={c_k:"c_u",o_k:"o_u",o_i:"o_u"},KMD=new Set(["km","kmIni","kmFin"]),INTD=new Set(["mo_h","mo_m"]),MONEYD=new Set(["cost","dneto","dcost"]),MONEY=new Set(["n_c","c_c","dl_nt","dl_c","pa_v","di_v"]);
+function kind(el){const id=el.id||"",dk=el.dataset.k||"",oi=el.getAttribute("oninput")||"";
 if(KM.has(id))return"i";if(UNIT[id])return"u:"+UNIT[id];
-if(INTD.has(dk))return"i";
+if(INTD.has(dk))return"i";if(MONEYD.has(dk))return"m";
+if(MONEY.has(id)||/^(pc_|pv_)/.test(id)||/ucost|PC\.f\.(total|neto)/.test(oi))return"m";
 if(KMD.has(dk)){const lb=el.previousElementSibling,t=lb?lb.textContent:"";return/\(h\)|hora/i.test(t)?"d":"i"}
 const st=el.getAttribute("step"),im=el.getAttribute("inputmode");
-if(/^(pa_v|di_v|pc_|pv_)/.test(id)||/ucost/.test(el.getAttribute("oninput")||""))return"i";
-if(id==="n_c"||id==="c_c"||id==="dl_nt"||id==="dl_c"||id==="n_mo"||id==="n_mm")return"i";
 if(st==="any"||st==="0.1"||st==="0.01"||im==="decimal")return"d";
 return"i"}
-function enh(el){if(el.dataset.nm||el.type!=="number")return;const k=kind(el);el.dataset.nm=k;if(k==="i"&&/^\d+\.\d+$/.test(el.value))el.value=String(Math.round(parseFloat(el.value)));el.type="text";el.setAttribute("inputmode",k==="i"?"numeric":"decimal");el.removeAttribute("step");el.autocomplete="off"}
+function enh(el){if(el.dataset.nm||el.type!=="number")return;const k=kind(el);el.dataset.nm=k;el.type="text";el.setAttribute("inputmode",k==="i"?"numeric":"decimal");el.removeAttribute("step");el.autocomplete="off"}
 function scan(r){if(!r||!r.querySelectorAll)return;if(r.matches&&r.matches('input[type="number"]'))enh(r);r.querySelectorAll('input[type="number"]').forEach(enh)}
 function isInt(el){const k=el.dataset.nm;if(k==="i")return true;if(k&&k.startsWith("u:")){const u=document.getElementById(k.slice(2));return !(u&&u.value==="h")}return false}
+function dec(n){const i=n.indexOf(".");return i>=0?n.slice(0,i+1)+n.slice(i+1).replace(/\./g,""):n}
 document.addEventListener("input",e=>{const el=e.target;if(!el||!el.dataset||!el.dataset.nm)return;const v=el.value;let n;
-if(isInt(el))n=v.replace(/\D/g,"");else{n=v.replace(/[^\d.,]/g,"").replace(/,/g,".");const i=n.indexOf(".");if(i>=0)n=n.slice(0,i+1)+n.slice(i+1).replace(/\./g,"")}
+if(isInt(el))n=v.replace(/\D/g,"");
+else if(el.dataset.nm==="m"){if(e.inputType==="insertText"&&(e.data==="."||e.data===",")){const p=el.selectionStart-1;const hasDot=v.slice(0,p).includes(".")||v.slice(p+1).includes(".");n=v.slice(0,p)+(e.data==="."||hasDot?"":".")+v.slice(p+1);n=n.replace(/[^\d.]/g,"");el.value=n;try{el.setSelectionRange(p+(n.length>v.length-1?1:0),p+(n.length>v.length-1?1:0))}catch(_){}return}
+if(/^(insertFromPaste|insertFromDrop|insertReplacementText)$/.test(e.inputType||"")||!e.inputType||(e.data&&e.data.length>1))n=dec(v.replace(/[^\d.,]/g,"").replace(/\./g,"").replace(/,/g,"."));else n=dec(v.replace(/[^\d.]/g,""))}
+else n=dec(v.replace(/[^\d.,]/g,"").replace(/,/g,"."));
 if(n!==v)el.value=n},true);
 try{new MutationObserver(m=>m.forEach(x=>x.addedNodes.forEach(n=>{if(n.nodeType===1)scan(n)}))).observe(document.documentElement,{childList:true,subtree:true})}catch(e){}
 scan(document);
