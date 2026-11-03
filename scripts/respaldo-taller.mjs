@@ -84,7 +84,7 @@ export async function armarExcel(d) {
     (d.auditoria || []).sort((a, b) => b.id - a.id).map(x => [fch(x.fecha), x.usuario_nombre || "", x.usuario_rol || "", x.seccion, x.accion, x.detalle || "",
       Object.entries(x.cambios || {}).map(([k, [a, b]]) => x.accion === "modificar" ? `${k}: ${a ?? "—"} → ${b ?? "—"}` : `${k}: ${(x.accion === "crear" ? b : a) ?? "—"}`).join(" · ")]));
   hoja("Trabajadores", [["Nombre", 24], ["Usuario", 14], ["Rol", 14], ["Categoría", 18], ["Activo", 8]], (d.perfiles || []).map(p => [p.nombre, p.usuario || "", p.rol, TF[p.tarifa_id]?.nombre || "", p.activo ? "Sí" : "No"]));
-  hoja("Tarifas HH", [["Categoría", 22], ["Costo hora normal", 17], ["Costo hora extra", 16], ["Estimada", 10]], (d.tarifas || []).map(t => [t.nombre, n(t.costo_hh), n(t.costo_hh_extra), t.estimada ? "Sí" : ""]));
+  hoja("Tarifas HH", [["Categoría", 22], ["Sueldo del mes", 15], ["Horas del mes", 13], ["Costo hora normal", 17], ["Multiplicador extra", 18], ["Costo hora extra", 16], ["Estimada", 10]], (d.tarifas || []).map(t => [t.nombre, n(t.sueldo_mes), n(t.horas_mes), n(t.costo_hh), n(t.mult_extra), n(t.costo_hh_extra), t.estimada ? "Sí" : ""]));
   return Buffer.from(await wb.xlsx.writeBuffer());
 }
 
