@@ -38,7 +38,7 @@ label{font-size:12px;color:var(--mu);display:block;margin-bottom:2px}
 input,select,textarea,button{font-size:16px}button{min-height:44px;padding:10px 14px}input,select{min-height:44px}
 #f_p{text-transform:uppercase}
 .tabs{flex-wrap:nowrap;overflow-x:auto;position:sticky;top:env(safe-area-inset-top,0px);background:var(--bg);padding:6px 0;z-index:2}.tabs button{white-space:nowrap}
-.chk{display:inline-flex;align-items:center;gap:6px;margin:4px 14px 4px 0;font-size:15px;color:var(--tx)}.chk input{width:20px;height:20px;min-height:0;padding:0}
+.chk.blk{display:flex;margin:2px 0;padding:6px 0}details.mcat{border:1px solid var(--bd,#d0d5dd);border-radius:10px;margin:6px 0;background:var(--cd,transparent)}details.mcat>summary{cursor:pointer;padding:10px 12px;font-weight:600;list-style:none}details.mcat>summary::-webkit-details-marker{display:none}details.mcat>summary::before{content:"▸ ";color:var(--ac)}details.mcat[open]>summary::before{content:"▾ "}details.mcat .mn{color:var(--ac)}details.mcat .mb{padding:0 12px 8px}details.mcat .mg{font-size:12px;font-weight:700;opacity:.65;margin:8px 0 2px;text-transform:uppercase}.chk{display:inline-flex;align-items:center;gap:6px;margin:4px 14px 4px 0;font-size:15px;color:var(--tx)}.chk input{width:20px;height:20px;min-height:0;padding:0}
 details.dsec{padding:0}details.dsec>summary{cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center;gap:8px;padding:12px;font-family:var(--f-display);font-weight:700;font-size:1.25rem;min-height:44px}details.dsec>summary::-webkit-details-marker{display:none}details.dsec>summary::after{content:"▾";font-size:1rem;color:var(--mu);transition:transform .15s}details.dsec:not([open])>summary::after{transform:rotate(-90deg)}details.dsec>.dsec-b{padding:0 12px 12px}details.dsec .card{box-shadow:none}
 .act-t{display:flex;align-items:center;gap:12px;cursor:pointer}.act-h{font-family:var(--f-display);font-size:1.12rem}.tt{display:flex;align-items:center;gap:10px;cursor:pointer}.tt .n{font-family:var(--f-display);font-weight:700;font-size:1.6rem;line-height:1}.grid-t{display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(min(100%,260px),1fr))}.grid-t>.card{margin:0}
 .rs-label{font-size:.72rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--mu)}
@@ -378,8 +378,7 @@ h+=F("Fecha","date",l.date,"date");
 if(l.type==="km"){if(l.kmIni!=null)h+=F("Inicial ("+u+")","kmIni",l.kmIni,"number");h+=F((l.kmIni!=null?"Final":"Valor")+" ("+u+")",l.kmIni!=null?"kmFin":"km",l.kmIni!=null?l.kmFin:l.km,"number")}
 else if(l.type==="comb"){h+=F(u==="h"?"Horas del vehículo":"Kilometraje",u==="h"?"hrs":"km",u==="h"?l.hrs:l.km,"number")+F("Litros","liters",l.liters,"number")+F("Costo total de la carga ($)","cost",l.cost,"number")+`<label style="margin-top:6px">Combustible</label><select data-k="ft"><option value="gasolina"${l.ft==="gasolina"?" selected":""}>Gasolina</option><option value="diesel"${l.ft==="diesel"?" selected":""}>Diésel</option></select>`+F("Quién cargó","cargo",l.cargo)+F("Faena","faena",l.faena)}
 else if(l.type==="mant"){h+=F("Kilometraje","km",l.km,"number")+F("Horas vehículo","hrs",l.hrs,"number")+`<label style="margin-top:6px">Mano de obra</label><div style="display:flex;gap:6px"><input data-k="mo_h" type="number" min="0" step="1" inputmode="numeric" placeholder="Horas" value="${Math.floor(Math.round((+l.mo||0)*60)/60)||""}"><input data-k="mo_m" type="number" min="0" max="59" step="1" inputmode="numeric" placeholder="Minutos" value="${Math.round((+l.mo||0)*60)%60||""}"></div>`;
-h+=`<label style="margin-top:6px">Tipo de mantención</label><div>${MT.map(t=>`<label class="chk"><input type="checkbox" name="e_t" value="${H(t)}"${(l.tipos||[]).includes(t)?" checked":""}> ${H(t)}</label>`).join("")}</div>`;
-h+=`<label style="margin-top:6px">Mantención mayor: sistemas</label><div>${MM.map(t=>`<label class="chk"><input type="checkbox" name="e_m" value="${H(t)}"${(l.mayor||[]).includes(t)?" checked":""}> ${H(t)}</label>`).join("")}</div>`+F("Si es «Otro», detalle","otro",l.otro);
+h+=`<label style="margin-top:6px">Tipo de mantención</label>`+catHtml("e_t","e_m",t=>(l.tipos||[]).includes(t),t=>(l.mayor||[]).includes(t),' onchange="catUpd()"',F("Si es «Otro», detalle","otro",l.otro),(l.mayor||[]).filter(t=>!MM.includes(t)));
 if(l.dealer)h+=F("Concesionario","dname",l.dname)+F("N° factura / OT","inv",l.inv)+F("Costo neto SIN IVA ($)","dneto",l.dneto!=null?l.dneto:dealNet(l),"number")+F("Costo total CON IVA ($)","dcost",l.dcost,"number")}
 else if(l.type==="dano"){h+=F("Kilometraje","km",l.km,"number")+F("Tipo (daño / entrega)","kind",l.kind)+F("Chofer","driver",l.driver)}
 else if(l.type==="asig"){h+=F("Kilometraje","km",l.km,"number")}
@@ -404,7 +403,7 @@ const x=PAR.find(y=>y.id===sv);EP.push(sv==="__req"?{name:rn,qty:q,unit:"un",req
 }
 o.querySelector("#dn").onclick=()=>d(null);
 o.querySelector("#dy").onclick=()=>{const out={};o.querySelectorAll("[data-k]").forEach(e=>{out[e.dataset.k]=e.value});if(l.type==="mant"){const t=Math.round(((+out.mo_h||0)*60+(+out.mo_m||0))*1)/60;out.mo=t>0?String(Math.round(t*1000)/1000).replace(".",","):"";delete out.mo_h;delete out.mo_m}
-if(l.type==="mant"){out.__t=[...o.querySelectorAll('[name=e_t]:checked')].map(e=>e.value);out.__m=[...o.querySelectorAll('[name=e_m]:checked')].map(e=>e.value);const ep=EP;if(ep.some(x=>!(num(x.qty)>0))){o.querySelector("#ep_e").textContent="Hay repuestos con cantidad vacía o 0: corrígelos o quítalos.";return}out.__p=ep.map(x=>({...x,qty:num(x.qty)}))}d(out)}});
+if(l.type==="mant"){out.__t=[...o.querySelectorAll('[name=e_t]:checked')].map(e=>e.value);out.__m=[...o.querySelectorAll('[name=e_m]:checked')].map(e=>e.value);out.__t=out.__t.filter(t=>t!=="Mantención mayor");if(out.__m.length)out.__t.push("Mantención mayor");const ep=EP;if(ep.some(x=>!(num(x.qty)>0))){o.querySelector("#ep_e").textContent="Hay repuestos con cantidad vacía o 0: corrígelos o quítalos.";return}out.__p=ep.map(x=>({...x,qty:num(x.qty)}))}d(out)}});
 if(!r)return;
 const upd={},numK=["km","hrs","kmIni","kmFin","mo","liters","cost","dneto","dcost"];
 for(const [k,v] of Object.entries(r)){if(k.startsWith("__"))continue;
@@ -1165,13 +1164,33 @@ const tr=wp.addRow(["Total",`${rs.length} patente(s)`,"",rs.reduce((a,x)=>a+x.vs
 const dl=await claude.use("downloads");if(!dl)return al("La descarga no está disponible en este momento.");
 try{const buf=await wb.xlsx.writeBuffer();await dl.save({filename:`Reporte_Lavado_${m}.xlsx`,data:new Blob([buf],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"})})}catch(e){if(!e||e.code!=="declined")al("No se pudo descargar el reporte")}}
 let OT="",MS=new Set(),MMS=new Set(),mf="",msort="fd",_ls=null;
-const MT=["Cambio de aceite","Filtro de aceite","Cambio de filtro de combustible","Filtro de aire","Torqueo de ruedas","Batería","Sensores","Revisión general","Pintura","Reparación o cambio de piezas de carrocería","Mantención mayor","Otro"];
-const MM=["Frenos","Neumáticos","Suspensión","Dirección","Correas de accesorios","Distribución","Refrigeración","Transmisión"];
-function msel(el){const S=el.name==="mm"?MMS:MS;el.checked?S.add(el.value):S.delete(el.value);if(el.checked)puCatAuto(el.value);if(el.value==="Mantención mayor")$("#mm").style.display=el.checked?"block":"none";if(el.value==="Otro")$("#ot").style.display=el.checked?"block":"none"}
-function mantSel(){const sub=`<div id="mm" style="display:${MS.has("Mantención mayor")?"block":"none"};margin:2px 0 6px 14px;padding-left:10px;border-left:3px solid var(--ac)"><label>Mantención mayor: marca los sistemas intervenidos</label><div>${MM.map(t=>`<label class="chk"><input type="checkbox" name="mm" value="${H(t)}"${MMS.has(t)?" checked":""} onchange="msel(this)"> ${H(t)}</label>`).join("")}</div></div>`,
-otro=`<div id="ot" style="display:${MS.has("Otro")?"block":"none"};margin:2px 0 6px 14px"><label>Otro: ingresa el detalle</label><input value="${H(OT)}" oninput="OT=this.value" placeholder="Describe el trabajo"></div>`;
-return `<div style="margin-top:8px"><label>Tipo de mantención (marca uno o varios)</label><div>${MT.map(t=>`<label class="chk"><input type="checkbox" name="mt" value="${H(t)}"${MS.has(t)?" checked":""} onchange="msel(this)"> ${H(t)}</label>${t==="Mantención mayor"?sub:t==="Otro"?otro:""}`).join("")}</div></div>`}
-function mantCtl(){const o=(v,t)=>`<option value="${v}"${msort===v?" selected":""}>${t}</option>`;return `<div class="g" style="margin-bottom:8px"><div><label>Filtrar por tipo</label><select onchange="mf=this.value;render(true)"><option value="">Todos</option>${MT.map(t=>`<option${mf===t?" selected":""}>${H(t)}</option>`).join("")}<optgroup label="Mantención mayor">${MM.map(t=>`<option${mf===t?" selected":""}>${H(t)}</option>`).join("")}</optgroup></select></div>
+const CATS=[["Motor",["Cambio de aceite","Filtro de aceite","Cambio de filtro de combustible","Filtro de aire"]],
+["Eléctrico",["Batería","Sensores","Cableado","Ampolletas","Switch"]],
+["Carrocería",["Pintura","Reparación o cambio de piezas de carrocería","Focos"]],
+["Preventivo",["Revisión general","Revisión de niveles","Revisión de luces","Engrase"]],
+["Neumáticos y ruedas",["Cambio de neumático","Cambio de rueda completa","Torqueo de ruedas","Rotación","Alineación y balanceo"]],
+["Fluidos",["Refrigerante","Líquido de frenos"]],
+["Hidráulico (grúas y maquinaria)",["Aceite hidráulico","Filtro hidráulico","Mangueras y cilindros"]],
+["Aire acondicionado y calefacción",["Carga de gas","Filtro de cabina","Revisión del sistema","Cambio de condensador","Cambio de radiador calefacción"]]];
+const MMG=[["Frenos",["Frenos"]],["Suspensión y dirección",["Suspensión","Dirección"]],["Motor",["Distribución","Correas de accesorios","Refrigeración"]],["Transmisión",["Transmisión","Cambio de aceite caja","Cambio de aceite diferenciales","Cambio de embrague","Otro (transmisión)"]]];
+const MT=[...CATS.flatMap(c=>c[1]),"Mantención mayor","Otro"];
+const MM=MMG.flatMap(g=>g[1]);
+let CATOPEN=new Set();
+const mmLbl=t=>t==="Transmisión"?"Transmisión (general)":t;
+function catTog(d){const c=d.dataset.c;d.open?CATOPEN.add(c):CATOPEN.delete(c)}
+function catUpd(){document.querySelectorAll("details.mcat").forEach(d=>{const n=d.querySelectorAll("input[type=checkbox]:checked").length;const sp=d.querySelector(".mn");if(sp)sp.textContent=n?" ("+n+")":""})}
+function catHtml(tn,mn,hasT,hasM,oc,otroExtra,legacy){
+const box=(nm,t,on,lb)=>`<label class="chk blk"><input type="checkbox" name="${nm}" value="${H(t)}"${on?" checked":""}${oc}> ${H(lb||t)}</label>`;
+const det=(c,body,n)=>`<details class="mcat" data-c="${H(c)}"${(n||CATOPEN.has(c))?" open":""} ontoggle="catTog(this)"><summary>${H(c)}<span class="mn">${n?" ("+n+")":""}</span></summary><div class="mb">${body}</div></details>`;
+let h=CATS.map(([c,its])=>det(c,its.map(t=>box(tn,t,hasT(t))).join(""),its.filter(hasT).length)).join("");
+const nm=MM.filter(hasM).length+legacy.length;
+h+=det("Mantención mayor",MMG.map(([g,its])=>`<div class="mg">${H(g)}</div>`+its.map(t=>box(mn,t,hasM(t),mmLbl(t))).join("")).join("")+(legacy.length?`<div class="mg">Anteriores</div>`+legacy.map(t=>box(mn,t,true)).join(""):""),nm);
+h+=det("Otro",box(tn,"Otro",hasT("Otro"))+otroExtra,hasT("Otro")?1:0);
+return h}
+function msel(el){const S=el.name==="mm"?MMS:MS;el.checked?S.add(el.value):S.delete(el.value);if(el.name==="mm"){MMS.size?MS.add("Mantención mayor"):MS.delete("Mantención mayor")}if(el.checked&&el.name!=="mm")puCatAuto(el.value);if(el.value==="Otro"){const o=$("#ot");if(o)o.style.display=el.checked?"block":"none"}catUpd()}
+function mantSel(){const otro=`<div id="ot" style="display:${MS.has("Otro")?"block":"none"};margin:2px 0 6px 14px"><label>Otro: ingresa el detalle</label><input value="${H(OT)}" oninput="OT=this.value" placeholder="Describe el trabajo"></div>`;
+return `<div style="margin-top:8px"><label>Tipo de mantención (marca uno o varios)</label>${catHtml("mt","mm",t=>MS.has(t),t=>MMS.has(t),' onchange="msel(this)"',otro,[])}</div>`}
+function mantCtl(){const o=(v,t)=>`<option value="${v}"${msort===v?" selected":""}>${t}</option>`;return `<div class="g" style="margin-bottom:8px"><div><label>Filtrar por tipo</label><select onchange="mf=this.value;render(true)"><option value="">Todos</option>${CATS.map(([c,its])=>`<optgroup label="${H(c)}">${its.map(t=>`<option${mf===t?" selected":""}>${H(t)}</option>`).join("")}</optgroup>`).join("")}<option${mf==="Otro"?" selected":""}>Otro</option><optgroup label="Mantención mayor">${MM.map(t=>`<option value="${H(t)}"${mf===t?" selected":""}>${H(mmLbl(t))}</option>`).join("")}</optgroup></select></div>
 <div><label>Ordenar por</label><select onchange="msort=this.value;render(true)">${o("fd","Fecha (más reciente)")}${o("fa","Fecha (más antigua)")}${o("km","Kilometraje (mayor)")}${o("tp","Tipo de mantención")}</select></div></div>`}
 function mantList(t){let r=mf?t.filter(l=>(l.tipos||[]).includes(mf)||(l.mayor||[]).includes(mf)):[...t];
 const d=(a,b)=>(b.date||"").localeCompare(a.date||"");
