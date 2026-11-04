@@ -859,7 +859,7 @@ return `<div class="card"><h2>Combustible · ${cat==="proy"?"Proyectos":"Mantenc
 <div><label>Fecha</label><input id="c_d" type="date" value="${today()}"></div>
 <div><label>Quién cargó combustible</label><input id="c_w" placeholder="Nombre y apellido" autocomplete="off"></div>
 <div><label>Encargado que ingresa los datos</label><input id="c_e" value="${H(nm())}" placeholder="Nombre y apellido" autocomplete="off"></div>
-<div><label>Tipo de combustible</label><select id="c_t"><option value="gasolina">Gasolina</option><option value="diesel">Diésel</option></select></div>
+<div><label>Tipo de combustible</label><select id="c_t"><option value="diesel" selected>Diésel</option><option value="gasolina">Gasolina</option></select></div>
 <div><label>Medir en</label><select id="c_u" onchange="cbUnit()"><option value="km">Kilometraje</option><option value="h">Horas (horómetro)</option></select></div>
 <div><label id="c_kl">Kilometraje del vehículo</label><input id="c_k" type="number" step="any" inputmode="decimal"></div>
 <div><label>Litros</label><input id="c_l" type="number" step="0.01" inputmode="decimal"></div>
