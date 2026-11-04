@@ -1169,10 +1169,11 @@ const CATS=[["Motor",["Cambio de aceite","Filtro de aceite","Cambio de filtro de
 ["Carrocería",["Pintura","Reparación o cambio de piezas de carrocería","Focos"]],
 ["Preventivo",["Revisión general","Revisión de niveles","Revisión de luces","Engrase"]],
 ["Neumáticos y ruedas",["Cambio de neumático","Cambio de rueda completa","Torqueo de ruedas","Rotación","Alineación y balanceo"]],
+["Frenos",["Discos","Pastillas","Engrase pasadores","Caliper","Balatas","Tambor"]],
 ["Fluidos",["Refrigerante","Líquido de frenos"]],
 ["Hidráulico (grúas y maquinaria)",["Aceite hidráulico","Filtro hidráulico","Mangueras y cilindros"]],
 ["Aire acondicionado y calefacción",["Carga de gas","Filtro de cabina","Revisión del sistema","Cambio de condensador","Cambio de radiador calefacción"]]];
-const MMG=[["Frenos",["Frenos"]],["Suspensión y dirección",["Suspensión","Dirección"]],["Motor",["Distribución","Correas de accesorios","Refrigeración"]],["Transmisión",["Transmisión","Cambio de aceite caja","Cambio de aceite diferenciales","Cambio de embrague","Otro (transmisión)"]]];
+const MMG=[["Suspensión y dirección",["Suspensión","Dirección"]],["Motor",["Distribución","Correas de accesorios","Refrigeración"]],["Transmisión",["Transmisión","Cambio de aceite caja","Cambio de aceite diferenciales","Cambio de embrague","Otro (transmisión)"]]];
 const MT=[...CATS.flatMap(c=>c[1]),"Mantención mayor","Otro"];
 const MM=MMG.flatMap(g=>g[1]);
 let CATOPEN=new Set();
