@@ -38,7 +38,7 @@ label{font-size:12px;color:var(--mu);display:block;margin-bottom:2px}
 input,select,textarea,button{font-size:16px}button{min-height:44px;padding:10px 14px}input,select{min-height:44px}
 #f_p{text-transform:uppercase}
 .tabs{flex-wrap:nowrap;overflow-x:auto;position:sticky;top:env(safe-area-inset-top,0px);background:var(--bg);padding:6px 0;z-index:2}.tabs button{white-space:nowrap}
-.chk.blk{display:flex;margin:2px 0;padding:6px 0}details.mcat{border:1px solid var(--bd,#d0d5dd);border-radius:10px;margin:6px 0;background:var(--cd,transparent)}details.mcat>summary{cursor:pointer;padding:10px 12px;font-weight:600;list-style:none}details.mcat>summary::-webkit-details-marker{display:none}details.mcat>summary::before{content:"▸ ";color:var(--ac)}details.mcat[open]>summary::before{content:"▾ "}details.mcat .mn{color:var(--ac)}details.mcat .mb{padding:0 12px 8px}details.mcat .mg{font-size:12px;font-weight:700;opacity:.65;margin:8px 0 2px;text-transform:uppercase}.chk{display:inline-flex;align-items:center;gap:6px;margin:4px 14px 4px 0;font-size:15px;color:var(--tx)}.chk input{width:20px;height:20px;min-height:0;padding:0}
+.chk.blk{display:flex;margin:2px 0;padding:6px 0}.prow{display:flex;flex-wrap:wrap;align-items:flex-start;column-gap:14px}.pos{display:none;flex-wrap:wrap;gap:2px 16px;padding:2px 0 4px 26px;flex:1 1 auto}.pgrp{display:flex;flex-direction:column}.chk.sm{font-size:13px;margin:2px 0}.pgrp .chk.sm:not(:first-child){margin-left:18px}details.mcat{border:1px solid var(--bd,#d0d5dd);border-radius:10px;margin:6px 0;background:var(--cd,transparent)}details.mcat>summary{cursor:pointer;padding:10px 12px;font-weight:600;list-style:none}details.mcat>summary::-webkit-details-marker{display:none}details.mcat>summary::before{content:"▸ ";color:var(--ac)}details.mcat[open]>summary::before{content:"▾ "}details.mcat .mn{color:var(--ac)}details.mcat .mb{padding:0 12px 8px}details.mcat .mg{font-size:12px;font-weight:700;opacity:.65;margin:8px 0 2px;text-transform:uppercase}.chk{display:inline-flex;align-items:center;gap:6px;margin:4px 14px 4px 0;font-size:15px;color:var(--tx)}.chk input{width:20px;height:20px;min-height:0;padding:0}
 details.dsec{padding:0}details.dsec>summary{cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center;gap:8px;padding:12px;font-family:var(--f-display);font-weight:700;font-size:1.25rem;min-height:44px}details.dsec>summary::-webkit-details-marker{display:none}details.dsec>summary::after{content:"▾";font-size:1rem;color:var(--mu);transition:transform .15s}details.dsec:not([open])>summary::after{transform:rotate(-90deg)}details.dsec>.dsec-b{padding:0 12px 12px}details.dsec .card{box-shadow:none}
 .act-t{display:flex;align-items:center;gap:12px;cursor:pointer}.act-h{font-family:var(--f-display);font-size:1.12rem}.tt{display:flex;align-items:center;gap:10px;cursor:pointer}.tt .n{font-family:var(--f-display);font-weight:700;font-size:1.6rem;line-height:1}.grid-t{display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(min(100%,260px),1fr))}.grid-t>.card{margin:0}
 .rs-label{font-size:.72rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--mu)}
@@ -274,11 +274,11 @@ async function addLog(){
   const r={plate:sel,type:tab,date:$("#n_d").value||today(),km:+nk.value||0,text:$("#n_t").value,op:nb.value.trim(),uid:ME_ID,photos:PH};if(PF.length)r.files=PF.slice();
   if(tab==="km"){const h=+String($("#n_h").value).replace(",",".")||0;if(h)r.hrs=h;if(h&&!(r.km>0))r.unit="h";else if(h)r.unit="km"}
   if(tab==="comb"){r.liters=+$("#n_l").value||0;r.cost=+(($("#n_c")||{}).value)||0}
-  if(tab==="mant"){const h=+$("#n_h").value||0;if(h)r.hrs=h;const mo=Math.round(((+$("#n_mo").value||0)+(+(($("#n_mm")||{}).value)||0)/60)*1000)/1000;if(mo>0)r.mo=mo;r.tipos=[...MS];if(MS.has("Otro"))r.otro=OT.trim();if(MS.has("Mantención mayor"))r.mayor=[...MMS];if(PU.length){r.parts=PU.map(x=>({...x}));r.pstat="pending"}}
+  if(tab==="mant"){const h=+$("#n_h").value||0;if(h)r.hrs=h;const mo=Math.round(((+$("#n_mo").value||0)+(+(($("#n_mm")||{}).value)||0)/60)*1000)/1000;if(mo>0)r.mo=mo;r.tipos=[...MS];{const pp={};MS.forEach(t=>{if((POS[t]||[]).length)pp[t]=[...POS[t]]});if(Object.keys(pp).length)r.pos=pp}if(MS.has("Otro"))r.otro=OT.trim();if(MS.has("Mantención mayor"))r.mayor=[...MMS];if(PU.length){r.parts=PU.map(x=>({...x}));r.pstat="pending"}}
   {const v0=V.find(x=>x.id===sel);let g=r.km>0?await kmGuard(v0,r.km,"km"):null;if(g===false)return;if(!g&&r.hrs>0){g=await kmGuard(v0,r.hrs,"h");if(g===false)return}if(g)r.rev=g}
   if(JSON.stringify(r).length>240000)return showErr("n_err",["Las fotos pesan demasiado: usa menos fotos"]);
   showErr("n_err",[]);
-  try{await db.collection("logs").doc("l"+Date.now()).set(r);PH=[];PF=[];MS.clear();MMS.clear();OT="";PU=[];PUC="";
+  try{await db.collection("logs").doc("l"+Date.now()).set(r);PH=[];PF=[];MS.clear();MMS.clear();POS={};OT="";PU=[];PUC="";
   const v=V.find(x=>x.id===sel);if(v&&r.km>(v.km||0))await db.collection("vehicles").doc(sel).update({km:r.km});if(v&&r.hrs&&r.hrs>(+v.hrs||0))await db.collection("vehicles").doc(sel).update({hrs:r.hrs});al("Registro agregado ✔");render(true)}
   catch(e){showErr("n_err",["No se pudo guardar (revisa tu conexión)"])}}
 // --- Mantención en concesionario (solo Administrador)
@@ -298,11 +298,11 @@ const k=+g("dl_k");let c=Math.round(+g("dl_c").replace(",",".")),nt=Math.round(+
 if(!g("dl_b").trim())miss.push("Registrado por");if(!(k>0)&&!(+g("dl_h").replace(",",".")>0))miss.push("Kilometraje u horas del vehículo (basta uno de los dos)");if(!g("dl_n").trim())miss.push("Concesionario");if(!(c>0))miss.push("Costo (neto o total)");
 if(!MS.size)miss.push("Tipo de mantención (marca al menos uno)");if(MS.has("Otro")&&!OT.trim())miss.push("Detalle de «Otro»");
 if(miss.length)return showErr("n_err",miss);
-const r={plate:sel,type:"mant",dealer:true,dname:g("dl_n").trim(),dcost:c,dneto:nt,date:g("dl_d")||today(),km:k,text:g("dl_t"),op:g("dl_b").trim(),uid:ME_ID,photos:[],tipos:[...MS]};
+const r={plate:sel,type:"mant",dealer:true,dname:g("dl_n").trim(),dcost:c,dneto:nt,date:g("dl_d")||today(),km:k,text:g("dl_t"),op:g("dl_b").trim(),uid:ME_ID,photos:[],tipos:[...MS]};{const pp={};MS.forEach(t=>{if((POS[t]||[]).length)pp[t]=[...POS[t]]});if(Object.keys(pp).length)r.pos=pp}
 if(g("dl_f").trim())r.inv=g("dl_f").trim();const h=+g("dl_h").replace(",",".")||0;if(h)r.hrs=h;if(MS.has("Otro"))r.otro=OT.trim();if(MS.has("Mantención mayor"))r.mayor=[...MMS];if(PF.length)r.files=PF.slice();
 {const v0=V.find(x=>x.id===sel);let g=r.km>0?await kmGuard(v0,r.km,"km"):null;if(g===false)return;if(!g&&r.hrs>0){g=await kmGuard(v0,r.hrs,"h");if(g===false)return}if(g)r.rev=g}
 showErr("n_err",[]);
-try{await db.collection("logs").doc("l"+Date.now()).set(r);PF=[];MS.clear();MMS.clear();OT="";DLO=false;DLV={};DLM="";
+try{await db.collection("logs").doc("l"+Date.now()).set(r);PF=[];MS.clear();MMS.clear();POS={};OT="";DLO=false;DLV={};DLM="";
 const v=V.find(x=>x.id===sel);if(v&&r.km>(v.km||0))await db.collection("vehicles").doc(sel).update({km:r.km});if(v&&r.hrs&&r.hrs>(+v.hrs||0))await db.collection("vehicles").doc(sel).update({hrs:r.hrs});al("Mantención en concesionario guardada ✔");render(true)}
 catch(e){showErr("n_err",["No se pudo guardar (revisa tu conexión)"])}}
 const setIa=h=>{DLM=h;const e=$("#dl_ia");if(e)e.innerHTML=h};
@@ -319,7 +319,7 @@ dlFill(data.factura)}
 function dlFill(f){const set=(id,v)=>{if(v==null||v==="")return;DLV[id]=String(v);const e=$("#"+id);if(e)e.value=v},got=[];
 const ok=(c,n,id,v)=>{if(c){set(id,v);got.push(n)}};
 ok(!!f.concesionario,"concesionario","dl_n",f.concesionario);ok(!!f.numero,"N° de factura","dl_f",f.numero);ok(/^\d{4}-\d{2}-\d{2}$/.test(f.fecha||""),"fecha","dl_d",f.fecha);ok(+f.total>0,"costo total","dl_c",Math.round(+f.total));if(+f.neto>0){set("dl_nt",Math.round(+f.neto));got.push("costo neto")}else if(+f.total>0){set("dl_nt",Math.round(+f.total/1.19));got.push("costo neto (calculado)")}ok(+f.km>0,"kilometraje","dl_k",Math.round(+f.km));ok(+f.horas>0,"horas","dl_h",f.horas);ok(!!f.trabajo,"trabajo","dl_t",f.trabajo);
-MS.clear();MMS.clear();(f.tipos||[]).filter(t=>MT.includes(t)).forEach(t=>MS.add(t));(f.mayor||[]).filter(t=>MM.includes(t)).forEach(t=>{MMS.add(t);MS.add("Mantención mayor")});if(f.otro){MS.add("Otro");OT=f.otro}
+MS.clear();MMS.clear();POS={};(f.tipos||[]).filter(t=>MT.includes(t)).forEach(t=>MS.add(t));(f.mayor||[]).filter(t=>MM.includes(t)).forEach(t=>{MMS.add(t);MS.add("Mantención mayor")});if(f.otro){MS.add("Otro");OT=f.otro}
 if(MS.size)got.push("tipo de mantención");
 document.querySelectorAll('input[name=mt],input[name=mm]').forEach(c=>c.checked=(c.name==="mm"?MMS:MS).has(c.value));
 const mm=$("#mm"),ot=$("#ot");if(mm)mm.style.display=MS.has("Mantención mayor")?"block":"none";if(ot){ot.style.display=MS.has("Otro")?"block":"none";const i=ot.querySelector("input");if(i)i.value=OT}
@@ -363,7 +363,7 @@ try{history.replaceState({mode,sel,adding,tab,ftype},"")}catch(e){}
 function hist(){const g=sig();if(g!==last){try{history.pushState({mode,sel,adding,tab,ftype},"")}catch(e){}last=g}}
 addEventListener("popstate",e=>{const t=e.state;if(t){mode=t.mode;sel=t.sel;adding=t.adding;tab=t.tab;ftype=t.ftype??null}else{sel=null;adding=false;tab="res";ftype=null}last=sig();render(true)});
 const HID=["Carro de arrastre"];
-const _r=render;render=function(f){if(sel!==_ls){MS.clear();MMS.clear();OT="";PU=[];PUC="";DLO=false;DLV={};DLM="";DIM="";_ls=sel}V=VALL.filter(v=>!(HID.includes(v.tipo)&&!showAdm()));
+const _r=render;render=function(f){if(sel!==_ls){MS.clear();MMS.clear();POS={};OT="";PU=[];PUC="";DLO=false;DLV={};DLM="";DIM="";_ls=sel}V=VALL.filter(v=>!(HID.includes(v.tipo)&&!showAdm()));
 if(sel&&!V.some(x=>x.id===sel)&&VALL.some(x=>x.id===sel))sel=null;if(HID.includes(ftype)&&!showAdm())ftype=null;if((ftype==="__rep"||ftype==="__comb"||ftype==="__rev")&&!showAdm())ftype=null;
 _r(f);hist();if(!canW()){$("#st").textContent="Solo lectura: pide acceso de Colaborador";document.querySelectorAll("#app input,#app select,#app textarea,#app button.p").forEach(e=>{if(e.id!=="q")e.disabled=true})}};
 const isAdm=()=>!!U&&(U.isOwner()||U.canEdit());
@@ -378,7 +378,7 @@ h+=F("Fecha","date",l.date,"date");
 if(l.type==="km"){if(l.kmIni!=null)h+=F("Inicial ("+u+")","kmIni",l.kmIni,"number");h+=F((l.kmIni!=null?"Final":"Valor")+" ("+u+")",l.kmIni!=null?"kmFin":"km",l.kmIni!=null?l.kmFin:l.km,"number")}
 else if(l.type==="comb"){h+=F(u==="h"?"Horas del vehículo":"Kilometraje",u==="h"?"hrs":"km",u==="h"?l.hrs:l.km,"number")+F("Litros","liters",l.liters,"number")+F("Costo total de la carga ($)","cost",l.cost,"number")+`<label style="margin-top:6px">Combustible</label><select data-k="ft"><option value="gasolina"${l.ft==="gasolina"?" selected":""}>Gasolina</option><option value="diesel"${l.ft==="diesel"?" selected":""}>Diésel</option></select>`+F("Quién cargó","cargo",l.cargo)+F("Faena","faena",l.faena)}
 else if(l.type==="mant"){h+=F("Kilometraje","km",l.km,"number")+F("Horas vehículo","hrs",l.hrs,"number")+`<label style="margin-top:6px">Mano de obra</label><div style="display:flex;gap:6px"><input data-k="mo_h" type="number" min="0" step="1" inputmode="numeric" placeholder="Horas" value="${Math.floor(Math.round((+l.mo||0)*60)/60)||""}"><input data-k="mo_m" type="number" min="0" max="59" step="1" inputmode="numeric" placeholder="Minutos" value="${Math.round((+l.mo||0)*60)%60||""}"></div>`;
-h+=`<label style="margin-top:6px">Tipo de mantención</label>`+catHtml("e_t","e_m",t=>(l.tipos||[]).includes(t),t=>(l.mayor||[]).includes(t),' onchange="catUpd()"',F("Si es «Otro», detalle","otro",l.otro),(l.mayor||[]).filter(t=>!MM.includes(t)));
+h+=`<label style="margin-top:6px">Tipo de mantención</label>`+catHtml("e_t","e_m",t=>(l.tipos||[]).includes(t),t=>(l.mayor||[]).includes(t),' onchange="tsel(this);catUpd()"',F("Si es «Otro», detalle","otro",l.otro),(l.mayor||[]).filter(t=>!MM.includes(t)),(t,k)=>((l.pos||{})[t]||[]).includes(k),"e");
 if(l.dealer)h+=F("Concesionario","dname",l.dname)+F("N° factura / OT","inv",l.inv)+F("Costo neto SIN IVA ($)","dneto",l.dneto!=null?l.dneto:dealNet(l),"number")+F("Costo total CON IVA ($)","dcost",l.dcost,"number")}
 else if(l.type==="dano"){h+=F("Kilometraje","km",l.km,"number")+F("Tipo (daño / entrega)","kind",l.kind)+F("Chofer","driver",l.driver)}
 else if(l.type==="asig"){h+=F("Kilometraje","km",l.km,"number")}
@@ -403,14 +403,14 @@ const x=PAR.find(y=>y.id===sv);EP.push(sv==="__req"?{name:rn,qty:q,unit:"un",req
 }
 o.querySelector("#dn").onclick=()=>d(null);
 o.querySelector("#dy").onclick=()=>{const out={};o.querySelectorAll("[data-k]").forEach(e=>{out[e.dataset.k]=e.value});if(l.type==="mant"){const t=Math.round(((+out.mo_h||0)*60+(+out.mo_m||0))*1)/60;out.mo=t>0?String(Math.round(t*1000)/1000).replace(".",","):"";delete out.mo_h;delete out.mo_m}
-if(l.type==="mant"){out.__t=[...o.querySelectorAll('[name=e_t]:checked')].map(e=>e.value);out.__m=[...o.querySelectorAll('[name=e_m]:checked')].map(e=>e.value);out.__t=out.__t.filter(t=>t!=="Mantención mayor");if(out.__m.length)out.__t.push("Mantención mayor");const ep=EP;if(ep.some(x=>!(num(x.qty)>0))){o.querySelector("#ep_e").textContent="Hay repuestos con cantidad vacía o 0: corrígelos o quítalos.";return}out.__p=ep.map(x=>({...x,qty:num(x.qty)}))}d(out)}});
+if(l.type==="mant"){out.__t=[...o.querySelectorAll('[name=e_t]:checked')].map(e=>e.value);out.__m=[...o.querySelectorAll('[name=e_m]:checked')].map(e=>e.value);out.__t=out.__t.filter(t=>t!=="Mantención mayor");out.__pos={};o.querySelectorAll('input[name=e_p]:checked').forEach(e=>{if(out.__t.includes(e.dataset.t))(out.__pos[e.dataset.t]=out.__pos[e.dataset.t]||[]).push(e.value)});if(out.__m.length)out.__t.push("Mantención mayor");const ep=EP;if(ep.some(x=>!(num(x.qty)>0))){o.querySelector("#ep_e").textContent="Hay repuestos con cantidad vacía o 0: corrígelos o quítalos.";return}out.__p=ep.map(x=>({...x,qty:num(x.qty)}))}d(out)}});
 if(!r)return;
 const upd={},numK=["km","hrs","kmIni","kmFin","mo","liters","cost","dneto","dcost"];
 for(const [k,v] of Object.entries(r)){if(k.startsWith("__"))continue;
 if(numK.includes(k)){const old=+l[k]||0;if(String(v).trim()===""){if(old)upd[k]=0;continue}let n=nv(v);if(["cost","dneto","dcost"].includes(k))n=Math.round(n);if(n!==old)upd[k]=n}
 else if(String(v)!==String(l[k]??""))upd[k]=v}
 if(l.type==="km"&&upd.kmFin!=null)upd.km=upd.kmFin;
-if(l.type==="mant"){upd.tipos=r.__t;upd.mayor=r.__m;if(!r.__t.length)return al("Marca al menos un tipo de mantención.");if(r.__t.includes("Otro")&&!String(r.otro||"").trim())return al("Escribe el detalle de «Otro».");if(!r.__t.includes("Otro"))upd.otro=""}
+if(l.type==="mant"){upd.tipos=r.__t;upd.mayor=r.__m;upd.pos=r.__pos||{};if(!r.__t.length)return al("Marca al menos un tipo de mantención.");if(r.__t.includes("Otro")&&!String(r.otro||"").trim())return al("Escribe el detalle de «Otro».");if(!r.__t.includes("Otro"))upd.otro=""}
 if(l.type==="comb"&&u==="h"&&upd.hrs!=null)upd.km=0;
 if(l.dealer&&upd.dcost!=null&&upd.dcost<=0)return al("El costo total no puede ser 0.");
 let sAdj={};
@@ -1178,31 +1178,40 @@ const MT=[...CATS.flatMap(c=>c[1]),"Mantención mayor","Otro"];
 const MM=MMG.flatMap(g=>g[1]);
 let CATOPEN=new Set();
 const mmLbl=t=>t==="Transmisión"?"Transmisión (general)":t;
+let POS={};
+const POSN={"Frenos":null,"Neumáticos y ruedas":["Rotación","Alineación y balanceo"]};
+const posSpec=t=>{const f=CATS.find(c=>c[1].includes(t));if(!f)return null;if(f[0]==="Frenos")return[["Delanteras",[]],["Traseras",[]]];if(f[0]==="Neumáticos y ruedas"&&!POSN[f[0]].includes(t))return[["Delanteras",["Piloto","Copiloto"]],["Traseras",["Piloto","Copiloto"]]];return null};
+const posKey=(g,c)=>c?g+" · "+c:g;
+const posTxt=(l,t)=>{const a=((l.pos||{})[t])||[];return a.length?" ("+a.join(", ")+")":""};
+function tsel(el){const row=el.closest(".prow");if(!row)return;const p=row.querySelector(".pos");if(!p)return;p.style.display=el.checked?"inline-flex":"none";if(!el.checked){p.querySelectorAll("input").forEach(i=>i.checked=false);if(el.name==="mt")delete POS[el.value]}}
+function psel(el){const p=el.closest(".pos");if(el.classList.contains("pg")){const k=el.closest(".pgrp").querySelectorAll("input.pc");k.forEach(i=>i.checked=el.checked)}else if(el.classList.contains("pc")){const g=el.closest(".pgrp").querySelector("input.pg");if(g){const k=[...el.closest(".pgrp").querySelectorAll("input.pc")];g.checked=k.every(i=>i.checked)}}
+if(el.dataset.f==="c"){const t=el.closest(".prow").dataset.t;const v=[...p.querySelectorAll("input.pc:checked")].map(i=>i.value);v.length?POS[t]=v:delete POS[t]}catUpd()}
 function catTog(d){const c=d.dataset.c;d.open?CATOPEN.add(c):CATOPEN.delete(c)}
-function catUpd(){document.querySelectorAll("details.mcat").forEach(d=>{const n=d.querySelectorAll("input[type=checkbox]:checked").length;const sp=d.querySelector(".mn");if(sp)sp.textContent=n?" ("+n+")":""})}
-function catHtml(tn,mn,hasT,hasM,oc,otroExtra,legacy){
-const box=(nm,t,on,lb)=>`<label class="chk blk"><input type="checkbox" name="${nm}" value="${H(t)}"${on?" checked":""}${oc}> ${H(lb||t)}</label>`;
+function catUpd(){document.querySelectorAll("details.mcat").forEach(d=>{const n=d.querySelectorAll("input[name=mt]:checked,input[name=mm]:checked,input[name=e_t]:checked,input[name=e_m]:checked").length;const sp=d.querySelector(".mn");if(sp)sp.textContent=n?" ("+n+")":""})}
+function catHtml(tn,mn,hasT,hasM,oc,otroExtra,legacy,hasP,pf){
+const posH=t=>{const sp=posSpec(t);if(!sp)return"";const pn=pf==="c"?"pp":"e_p";return`<span class="pos" style="display:${hasT(t)?"inline-flex":"none"}">${sp.map(([g,ch])=>{const gk=ch.length?"":posKey(g);return`<span class="pgrp"><label class="chk sm"><input type="checkbox" ${ch.length?'class="pg"':`class="pc" name="${pn}" data-t="${H(t)}" value="${H(gk)}"`}${ch.length?(ch.every(c=>hasP(t,posKey(g,c)))?" checked":""):(hasP(t,gk)?" checked":"")} data-f="${pf}" onchange="psel(this)"> ${g}</label>${ch.map(c=>`<label class="chk sm"><input type="checkbox" class="pc" name="${pn}" data-t="${H(t)}" data-f="${pf}" value="${H(posKey(g,c))}"${hasP(t,posKey(g,c))?" checked":""} onchange="psel(this)"> ${c}</label>`).join("")}</span>`}).join("")}</span>`};
+const box=(nm,t,on,lb)=>`<div class="prow" data-t="${H(t)}"><label class="chk blk"><input type="checkbox" name="${nm}" value="${H(t)}"${on?" checked":""}${oc}> ${H(lb||t)}</label>${nm===tn?posH(t):""}</div>`;
 const det=(c,body,n)=>`<details class="mcat" data-c="${H(c)}"${(n||CATOPEN.has(c))?" open":""} ontoggle="catTog(this)"><summary>${H(c)}<span class="mn">${n?" ("+n+")":""}</span></summary><div class="mb">${body}</div></details>`;
 let h=CATS.map(([c,its])=>det(c,its.map(t=>box(tn,t,hasT(t))).join(""),its.filter(hasT).length)).join("");
 const nm=MM.filter(hasM).length+legacy.length;
 h+=det("Mantención mayor",MMG.map(([g,its])=>`<div class="mg">${H(g)}</div>`+its.map(t=>box(mn,t,hasM(t),mmLbl(t))).join("")).join("")+(legacy.length?`<div class="mg">Anteriores</div>`+legacy.map(t=>box(mn,t,true)).join(""):""),nm);
 h+=det("Otro",box(tn,"Otro",hasT("Otro"))+otroExtra,hasT("Otro")?1:0);
 return h}
-function msel(el){const S=el.name==="mm"?MMS:MS;el.checked?S.add(el.value):S.delete(el.value);if(el.name==="mm"){MMS.size?MS.add("Mantención mayor"):MS.delete("Mantención mayor")}if(el.checked&&el.name!=="mm")puCatAuto(el.value);if(el.value==="Otro"){const o=$("#ot");if(o)o.style.display=el.checked?"block":"none"}catUpd()}
+function msel(el){const S=el.name==="mm"?MMS:MS;el.checked?S.add(el.value):S.delete(el.value);if(el.name==="mm"){MMS.size?MS.add("Mantención mayor"):MS.delete("Mantención mayor")}if(el.checked&&el.name!=="mm")puCatAuto(el.value);if(el.value==="Otro"){const o=$("#ot");if(o)o.style.display=el.checked?"block":"none"}tsel(el);catUpd()}
 function mantSel(){const otro=`<div id="ot" style="display:${MS.has("Otro")?"block":"none"};margin:2px 0 6px 14px"><label>Otro: ingresa el detalle</label><input value="${H(OT)}" oninput="OT=this.value" placeholder="Describe el trabajo"></div>`;
-return `<div style="margin-top:8px"><label>Tipo de mantención (marca uno o varios)</label>${catHtml("mt","mm",t=>MS.has(t),t=>MMS.has(t),' onchange="msel(this)"',otro,[])}</div>`}
+return `<div style="margin-top:8px"><label>Tipo de mantención (marca uno o varios)</label>${catHtml("mt","mm",t=>MS.has(t),t=>MMS.has(t),' onchange="msel(this)"',otro,[],(t,k)=>(POS[t]||[]).includes(k),"c")}</div>`}
 function mantCtl(){const o=(v,t)=>`<option value="${v}"${msort===v?" selected":""}>${t}</option>`;return `<div class="g" style="margin-bottom:8px"><div><label>Filtrar por tipo</label><select onchange="mf=this.value;render(true)"><option value="">Todos</option>${CATS.map(([c,its])=>`<optgroup label="${H(c)}">${its.map(t=>`<option${mf===t?" selected":""}>${H(t)}</option>`).join("")}</optgroup>`).join("")}<option${mf==="Otro"?" selected":""}>Otro</option><optgroup label="Mantención mayor">${MM.map(t=>`<option value="${H(t)}"${mf===t?" selected":""}>${H(mmLbl(t))}</option>`).join("")}</optgroup></select></div>
 <div><label>Ordenar por</label><select onchange="msort=this.value;render(true)">${o("fd","Fecha (más reciente)")}${o("fa","Fecha (más antigua)")}${o("km","Kilometraje (mayor)")}${o("tp","Tipo de mantención")}</select></div></div>`}
 function mantList(t){let r=mf?t.filter(l=>(l.tipos||[]).includes(mf)||(l.mayor||[]).includes(mf)):[...t];
 const d=(a,b)=>(b.date||"").localeCompare(a.date||"");
 if(msort==="fa")r.sort((a,b)=>-d(a,b));else if(msort==="km")r.sort((a,b)=>(b.km||0)-(a.km||0));else if(msort==="tp")r.sort((a,b)=>((a.tipos||[])[0]||"~").localeCompare((b.tipos||[])[0]||"~")||d(a,b));else r.sort(d);return r}
 const tagsHtml=l=>revTag(l)+tagsOnly(l)+dealerLine(l)+partsLine(l);
-const tagsOnly=l=>(l.tipos&&l.tipos.length)?`<div>${l.tipos.map(t=>`<span class="b" style="color:var(--ac)">${H(t==="Otro"&&l.otro?"Otro: "+l.otro:t)}</span>`).join("")}${(l.mayor||[]).map(t=>`<span class="b" style="color:var(--ac);opacity:.8">› ${H(t)}</span>`).join("")}</div>`:"";
+const tagsOnly=l=>(l.tipos&&l.tipos.length)?`<div>${l.tipos.map(t=>`<span class="b" style="color:var(--ac)">${H((t==="Otro"&&l.otro?"Otro: "+l.otro:t)+posTxt(l,t))}</span>`).join("")}${(l.mayor||[]).map(t=>`<span class="b" style="color:var(--ac);opacity:.8">› ${H(t)}</span>`).join("")}</div>`:"";
 const infCard=()=>`<div class="card" style="margin-top:12px"><h2>📊 Informes de mantención (Excel)</h2>
 <button class="p" style="width:100%" onclick="repMant('all')">Crear informe de historial completo</button>
 <div class="g" style="margin:12px 0 6px"><div><label>Mes</label><input id="ri_m" type="month" value="${today().slice(0,7)}"></div></div><button class="p" style="width:100%" onclick="repMant('mes')">Crear informe mensual</button>
 <div class="g" style="margin:12px 0 6px"><div><label>Año</label><input id="ri_a" type="number" inputmode="numeric" value="${today().slice(0,4)}"></div></div><button class="p" style="width:100%" onclick="repMant('anio')">Crear informe anual</button></div>`;
-const tpTxt=l=>(l.tipos||[]).map(t=>t==="Otro"&&l.otro?"Otro: "+l.otro:t==="Mantención mayor"&&(l.mayor||[]).length?`Mantención mayor (${l.mayor.join(", ")})`:t).join(", ");
+const tpTxt=l=>(l.tipos||[]).map(t=>t==="Otro"&&l.otro?"Otro: "+l.otro:posTxt(l,t)?t+posTxt(l,t):t==="Mantención mayor"&&(l.mayor||[]).length?`Mantención mayor (${l.mayor.join(", ")})`:t).join(", ");
 function xs(ws,n,nums,total){const thin={style:"thin",color:{argb:"FF000000"}},bd={top:thin,left:thin,bottom:thin,right:thin};
 const hr=ws.getRow(1);hr.height=26;hr.eachCell(c=>{c.font={bold:true,color:{argb:"FFFFFFFF"},size:11};c.fill={type:"pattern",pattern:"solid",fgColor:{argb:"FF1F4E9E"}};c.alignment={horizontal:"center",vertical:"middle",wrapText:true};c.border=bd});
 for(let r=2;r<=n+1;r++)ws.getRow(r).eachCell({includeEmpty:true},(c,i)=>{c.border=bd;c.alignment={vertical:"top",wrapText:true,horizontal:nums.includes(i)?"right":"left"};if(nums.includes(i))c.numFmt="#,##0.##"});
