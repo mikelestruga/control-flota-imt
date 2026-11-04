@@ -1644,7 +1644,9 @@ if(KMD.has(dk)){const lb=el.previousElementSibling,t=lb?lb.textContent:"";return
 const st=el.getAttribute("step"),im=el.getAttribute("inputmode");
 if(st==="any"||st==="0.1"||st==="0.01"||im==="decimal")return"d";
 return"i"}
-function enh(el){if(el.dataset.nm||el.type!=="number")return;const k=kind(el);el.dataset.nm=k;el.type="text";el.setAttribute("inputmode",k==="i"?"numeric":"decimal");el.removeAttribute("step");el.autocomplete="off"}
+function enh(el){if(el.dataset.nm||el.type!=="number")return;const k=kind(el);el.dataset.nm=k;el.type="text";el.setAttribute("inputmode",k==="i"?"numeric":"decimal");el.removeAttribute("step");el.autocomplete="off";if(k==="d")commaView(el)}
+const VD=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,"value");
+function commaView(el){const raw=VD.get.call(el);Object.defineProperty(el,"value",{get(){return VD.get.call(this).replace(/,/g,".")},set(v){VD.set.call(this,String(v==null?"":v).replace(/\./g,","))},configurable:true});VD.set.call(el,raw.replace(/\./g,","))}
 function scan(r){if(!r||!r.querySelectorAll)return;if(r.matches&&r.matches('input[type="number"]'))enh(r);r.querySelectorAll('input[type="number"]').forEach(enh)}
 function isInt(el){const k=el.dataset.nm;if(k==="i")return true;if(k&&k.startsWith("u:")){const u=document.getElementById(k.slice(2));return !(u&&u.value==="h")}return false}
 function dec(n){const i=n.indexOf(".");return i>=0?n.slice(0,i+1)+n.slice(i+1).replace(/\./g,""):n}
@@ -1653,7 +1655,7 @@ if(isInt(el))n=v.replace(/\D/g,"");
 else if(el.dataset.nm==="m"){if(e.inputType==="insertText"&&(e.data==="."||e.data===",")){const p=el.selectionStart-1;const hasDot=v.slice(0,p).includes(".")||v.slice(p+1).includes(".");n=v.slice(0,p)+(e.data==="."||hasDot?"":".")+v.slice(p+1);n=n.replace(/[^\d.]/g,"");el.value=n;try{el.setSelectionRange(p+(n.length>v.length-1?1:0),p+(n.length>v.length-1?1:0))}catch(_){}return}
 if(/^(insertFromPaste|insertFromDrop|insertReplacementText)$/.test(e.inputType||"")||!e.inputType||(e.data&&e.data.length>1))n=dec(v.replace(/[^\d.,]/g,"").replace(/\./g,"").replace(/,/g,"."));else n=dec(v.replace(/[^\d.]/g,""))}
 else n=dec(v.replace(/[^\d.,]/g,"").replace(/,/g,"."));
-if(n!==v)el.value=n},true);
+if(n!==v||(el.dataset.nm==="d"&&VD.get.call(el)!==n.replace(/\./g,",")))el.value=n},true);
 try{new MutationObserver(m=>m.forEach(x=>x.addedNodes.forEach(n=>{if(n.nodeType===1)scan(n)}))).observe(document.documentElement,{childList:true,subtree:true})}catch(e){}
 scan(document);
 window.flotaNums=scan;
