@@ -652,6 +652,7 @@ let fails=0,lockUntil=0;
 async function checkPin(){const m=mode,v=$("#pin").value;if(v.length<4)return;
 if(Date.now()<lockUntil){$("#pe").textContent="Demasiados intentos. Espera unos segundos.";$("#pin").value="";return}
 let r;try{r=await window.flotaClaim(m,v)}catch(e){$("#pin").value="";$("#pe").textContent="No se pudo verificar el PIN: "+((e&&e.message)||"error de conexión");return}
+if(r==="bad"&&m==="comb"){try{const r2=await window.flotaClaim("adm",v);if(r2==="ok"){fails=0;UN.adm=true;UN.comb=true;try{sessionStorage.setItem("unl",JSON.stringify(UN))}catch(e){}await window.flotaRefresh();render(true);return}}catch(e){}}
 if(r==="ok"){fails=0;UN[m]=true;try{sessionStorage.setItem("unl",JSON.stringify(UN))}catch(e){}await window.flotaRefresh();render(true);return}
 $("#pin").value="";
 if(r==="locked"){$("#pe").textContent="Demasiados intentos. Espera unos minutos."}
