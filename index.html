@@ -499,12 +499,12 @@ try{await db.collection("logs").doc("l"+Date.now()).set(r);sn(n);PH=[];PF=[];
 if(v&&top>cur)await db.collection("vehicles").doc(pl).update(u==="h"?{hrs:top}:{km:top});al("Operación guardada ✔");render(true)}catch(e){al("No se pudo guardar (revisa tu conexión)")}}
 async function closeOp(id){const l=L.find(x=>x.id===id);if(!l)return;const u=l.unit==="h"?"h":"km";let k=await pr(`Valor final en ${u==="h"?"horas":"km"} (inicio: ${l.kmIni})`,"");k=k===null?0:(u==="h"?(num(k)||0):(+String(k).replace(/\D/g,"")||0));if(!k)return;if(k<l.kmIni)return al("El valor final no puede ser menor al de inicio");
 try{await db.collection("logs").doc(id).update({kmFin:k,km:k});const v=V.find(x=>x.id===l.plate),cur=v?(u==="h"?+v.hrs||0:v.km||0):0;if(v&&k>cur)await db.collection("vehicles").doc(l.plate).update(u==="h"?{hrs:k}:{km:k})}catch(e){al("No se pudo guardar")}}
-const TIPOS=["Camionetas","Minibuses","Camiones","Grúas","Movimiento de tierra"];
+const TIPOS=["Camionetas","Minibuses","Camiones","Grúas","Movimiento de tierra","Generadores"];
 const tp=v=>v.tipo||"Sin tipo";
 const tipos=()=>{const t=[...new Set([...TIPOS,...V.map(v=>v.tipo).filter(Boolean)])];if(V.some(v=>!v.tipo))t.push("Sin tipo");return t};
 const match=(v,qq)=>[v.id,v.marca,v.model,v.chasis,v.assign,v.tipo].join(" ").toUpperCase().includes(qq);
 const vname=v=>[v.marca,v.model].filter(Boolean).join(" ");
-const TIPS={"Camionetas":"Camioneta","Minibuses":"Minibús","Camiones":"Camión","Grúas":"Grúa"};
+const TIPS={"Camionetas":"Camioneta","Minibuses":"Minibús","Camiones":"Camión","Grúas":"Grúa","Generadores":"Generador"};
 const vHead=pl=>{const v=VALL.find(x=>x.id===pl);if(!v)return `<b>${H(pl)}</b>`;return `<span class="mu">${H(TIPS[v.tipo]||v.tipo||"")}</span> · <b>${H(fmtPat(v))}</b>${vname(v)?` · ${H(vname(v))}`:""}`};
 function ofill(){const t=$("#o_t").value,qq=$("#o_q").value.trim().toUpperCase(),el=$("#o_p");
 const f=V.filter(v=>!v.sold&&(qq?match(v,qq):t&&tp(v)===t)).sort((a,b)=>a.id.localeCompare(b.id));
@@ -607,7 +607,7 @@ ${bars(lM,"var(--run)",v=>v>=1000?(v/1000).toLocaleString("es-CL",{maximumFracti
 <div class="card rs-c"><div class="rs-row rs-btw"><h2 style="margin:0">Últimos registros</h2>${sel_}</div><div class="rs-list">${recent||'<div class="rs-empty">Sin registros.</div>'}</div>
 ${RT.length>RSN?`<button onclick="RSN+=20;render(true)">Ver más (${RT.length-RSN} restantes)</button>`:""}</div>`}
 const actTile=(ic,bg,title,desc,oc,badges)=>`<div class="card v act-t" onclick="${oc}"><span class="rs-ic" style="width:44px;height:44px;font-size:22px;background:${bg};margin:0">${ic}</span><div style="min-width:0;flex:1"><b class="act-h">${title}</b><div class="mu">${desc}</div>${badges||""}</div><span class="mu" style="font-size:20px">›</span></div>`;
-const TIC={"Camionetas":"🛻","Minibuses":"🚐","Camiones":"🚚","Grúas":"🏗️","Movimiento de tierra":"🚜"};
+const TIC={"Camionetas":"🛻","Minibuses":"🚐","Camiones":"🚚","Grúas":"🏗️","Movimiento de tierra":"🚜","Generadores":"⚡"};
 const secT=t=>`<div class="rs-label" style="margin:18px 0 8px">${t}</div>`;
 const asSect=(k,html)=>{const m=html.match(/^<div class="card"[^>]*><h2>([\s\S]*?)<\/h2>([\s\S]*)<\/div>\s*$/);return m?sect(k,m[1],m[2],false):html};
 const resCard=()=>actTile("📊","var(--acc-soft)","Resumen global de la flota","Km, mantenciones, combustible, stock, alertas y últimos registros","ftype='__res';render();window.scrollTo(0,0)");
@@ -829,7 +829,7 @@ x.st="saved";x.buf=null;x.msg="";x.prog="";pkRender();al("Guardado en "+v.id+" �
 async function pkSaveAll(){PK.bulk=true;try{for(let i=0;i<PK.items.length;i++){const x=PK.items[i];if(x.st==="ready"&&x.plate)await pkSave(i)}}finally{PK.bulk=false}pkDone();const f=PK.items.filter(x=>x.st==="ready"&&!x.plate).length;if(f)al(f+" archivo(s) sin vehículo: elígelo y guarda")}
 /* ===== Módulo Combustible ===== */
 const SRC={op:"Operador",mec:"Mecánico",adm:"Administrador",lav:"Lavado",comb:"Combustible"},CAT={proy:"Proyectos",mant:"Mantención"},FT={gasolina:"Gasolina",diesel:"Diésel"};
-let CB={tab:"proy",f:{p:"",n:"",d1:"",d2:"",c:"",t:"",a:""},m:"",cm:"",ca:"",cs:"",cc:"",cv:""};
+let CB={tab:"proy",f:{p:"",n:"",d1:"",d2:"",c:"",t:"",a:"",v:""},m:"",cm:"",ca:"",cs:"",cc:"",cv:""};
 const fnum=(n,d=0)=>(+n||0).toLocaleString("es-CL",{minimumFractionDigits:d,maximumFractionDigits:d}),money=n=>"$"+fnum(n);
 const fuelLogs=()=>L.filter(l=>l.type==="comb"&&+l.liters>0);
 const unitOf=l=>l.unit==="h"?"h":"km",odo=l=>unitOf(l)==="h"?(+l.hrs||+l.km||0):(+l.km||0);
@@ -848,7 +848,7 @@ if(eff<.8)return{t:`⚠ Rendimiento bajó ${Math.round((1-eff)*100)}% (revisar c
 if(eff>1.25)return{t:"ℹ Mejoró mucho: revisa que km/horas y litros estén bien",c:"wa"};
 return{t:"✔ Normal",c:"ok"}}
 const rtxt=(r,u)=>{const x=r&&r[u];return x&&x.avg?(u==="km"?fnum(x.avg,1)+" km/L":fnum(x.avg,2)+" L/h"):"—"};
-function cbFilter(){const f=CB.f,p=np(f.p),n=f.n.trim().toLowerCase();return fuelLogs().filter(l=>(!p||np(l.plate).includes(p))&&(!n||((l.cargo||"")+" "+(l.op||"")).toLowerCase().includes(n))&&(!f.d1||(l.date||"")>=f.d1)&&(!f.d2||(l.date||"")<=f.d2)&&(!f.c||(l.cat||"")===f.c)&&(!f.t||(l.ft||"")===f.t)&&(!f.a||normN(l.faena)===normN(f.a))).sort((a,b)=>(b.date||"").localeCompare(a.date||"")||String(b.id).localeCompare(String(a.id)))}
+function cbFilter(){const f=CB.f,p=np(f.p),n=f.n.trim().toLowerCase();return fuelLogs().filter(l=>(!p||np(l.plate).includes(p))&&(!n||((l.cargo||"")+" "+(l.op||"")).toLowerCase().includes(n))&&(!f.d1||(l.date||"")>=f.d1)&&(!f.d2||(l.date||"")<=f.d2)&&(!f.c||(l.cat||"")===f.c)&&(!f.t||(l.ft||"")===f.t)&&(!f.a||normN(l.faena)===normN(f.a))&&(!f.v||vTk(l.plate)===f.v)).sort((a,b)=>(b.date||"").localeCompare(a.date||"")||String(b.id).localeCompare(String(a.id)))}
 const r3=x=>Math.round((+x||0)*1000)/1000,fL=n=>r3(n).toLocaleString("es-CL",{minimumFractionDigits:0,maximumFractionDigits:3});
 const sumL=r=>({n:r.length,l:r3(r.reduce((s,x)=>s+ +x.liters,0)),c:r.reduce((s,x)=>s+(+x.cost||0),0)});
 function combHtml(){const tabs=[["proy","⛽ Proyectos"],["mant","🛠 Mantención"],["hist","📋 Historial"],["cons","📈 Consumo"],...(canCost()?[["stat","📊 Estadísticas"]]:[])];
@@ -899,6 +899,7 @@ function cbHist(){const f=CB.f,rows=cbFilter(),s=sumL(rows),m=CB.m||today().slic
 const opt=(o,v)=>o.map(([k,n])=>`<option value="${k}"${k===v?" selected":""}>${n}</option>`).join("");
 return `<div class="card"><h2>Historial de combustible</h2><div class="g">
 <div><label>Patente</label><input value="${H(f.p)}" onchange="CB.f.p=this.value;render(true)"></div>
+<div><label>Tipo de vehículo</label><select onchange="CB.f.v=this.value;render(true)">${opt([["","Todos"],...[...new Set(fuelLogs().map(l=>vTk(l.plate)).filter(Boolean))].map(k=>[H(k),H(TIPS[k]||k)])],H(f.v))}</select></div>
 <div><label>Nombre (quien cargó o encargado)</label><input value="${H(f.n)}" onchange="CB.f.n=this.value;render(true)"></div>
 <div><label>Desde</label><input type="date" value="${f.d1}" onchange="CB.f.d1=this.value;render(true)"></div>
 <div><label>Hasta</label><input type="date" value="${f.d2}" onchange="CB.f.d2=this.value;render(true)"></div>
