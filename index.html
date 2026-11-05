@@ -79,7 +79,8 @@ function auth(){return authP||(authP=(async()=>{const c=getSb();const g=await c.
   if(!g.data||!g.data.session){const r=await c.auth.signInAnonymously();if(r.error)throw fail(r.error)}
   const e=await c.rpc("ensure_base");if(e.error)throw fail(e.error)})().catch(err=>{authP=null;throw err}))}
 const C=async()=>{await auth();return getSb()};
-const fail=(e,code)=>{const x=new Error((e&&e.message)||"error");x.code=code||(e&&e.code)||"error";return x};
+const fail=(e,code)=>{const x=new Error((e&&e.message)||"error");x.code=code||(e&&e.code)||"error";try{window.__LE={t:Date.now(),code:String(x.code),msg:String(x.message)}}catch(_){}return x};
+const whyFail=()=>{const le=window.__LE;if(!le||Date.now()-le.t>6000)return"";const m=le.msg.toLowerCase();if(le.code==="no_rows"||le.code==="42501"||/row-level|permission|policy|no permitido|not allowed/.test(m))return"tu sesión no tiene permiso para guardar este cambio en este momento. Sal de este perfil (Cambiar modo), vuelve a entrar con tu PIN y repite; si sigue igual, avisa al administrador del sistema.";if(/failed to fetch|network|load failed|timeout/.test(m))return"no hay conexión con el servidor. Revisa tu internet y repite.";return le.msg};
 function store(coll){
   if(stores[coll])return stores[coll];
   const s=stores[coll]={map:new Map(),subs:new Set(),ready:false,loading:null};
@@ -103,10 +104,10 @@ function docRef(coll,id){return {
   async create(d){if(coll==="logs"&&d&&!d.src){let m="";try{m=mode}catch(e){}if(m)d={...d,src:m}}
     const {error}=await (await C()).from("docs").insert({coll,id,data:d});if(error)throw fail(error,error.code==="23505"?"dup":error.code);
     const s=stores[coll];if(s&&s.ready){s.map.set(id,d);s.emit()}},
-  async update(p,strict){const cur=await this.get();if(!cur.exists)throw fail({message:"not found"},"not_found");const d={...cur.data(),...p};
+  async update(p,strict=true){const cur=await this.get();if(!cur.exists)throw fail({message:"not found"},"not_found");const d={...cur.data(),...p};
     let q=(await C()).from("docs").update({data:d,updated_at:new Date().toISOString()}).eq("coll",coll).eq("id",id);if(strict)q=q.select("id");const {data:ud,error}=await q;if(error)throw fail(error);if(strict&&(!ud||!ud.length))throw fail({message:"la base de datos no aceptó el cambio (tu perfil no tiene permiso de edición)"},"no_rows");
     const s=stores[coll];if(s&&s.ready){s.map.set(id,d);s.emit()}},
-  async delete(){const {error}=await (await C()).from("docs").delete().eq("coll",coll).eq("id",id);if(error)throw fail(error);
+  async delete(){const {data:dd,error}=await (await C()).from("docs").delete().eq("coll",coll).eq("id",id).select("id");if(error)throw fail(error);if(!dd||!dd.length){const ex=await this.get();if(ex.exists)throw fail({message:"la base de datos no aceptó el cambio (tu perfil no tiene permiso para eliminar)"},"no_rows")}
     const s=stores[coll];if(s&&s.ready){s.map.delete(id);s.emit()}},
   async acquire(){return {acquired:true}},
   onSnapshot(cb){const s=store(coll);listen();const f=()=>{const d=s.map.get(id);cb({id,exists:d!==undefined,data:()=>d})};
@@ -189,7 +190,7 @@ async function addDano(){bl();const xb=$("#x_b"),miss=[];if(!xb||!xb.value.trim(
 const r={plate:sel,type:"dano",kind:$("#x_t").value,date:$("#x_d").value||today(),km:+$("#x_k").value||0,driver:$("#x_c").value,desc:$("#x_s").value,text:$("#x_m").value,op:xb.value.trim(),uid:ME_ID,photos:PH};if(PF.length)r.files=PF.slice();
 {const g=r.km>0?await kmGuard(V.find(x=>x.id===sel),r.km,"km"):null;if(g===false)return;if(g)r.rev=g}
 if(JSON.stringify(r).length>240000)return showErr("x_err",["Las fotos pesan demasiado: usa menos fotos"]);showErr("x_err",[]);
-try{await db.collection("logs").doc("l"+Date.now()).set(r);PH=[];PF=[];const v=V.find(x=>x.id===sel);if(v&&r.km>(v.km||0))await db.collection("vehicles").doc(sel).update({km:r.km});al("Registro agregado ✔");render(true)}catch(e){showErr("x_err",["No se pudo guardar (revisa tu conexión)"])}}
+try{await db.collection("logs").doc("l"+Date.now()).set(r);PH=[];PF=[];const v=V.find(x=>x.id===sel);if(v&&r.km>(v.km||0))await db.collection("vehicles").doc(sel).update({km:r.km},false);al("Registro agregado ✔");render(true)}catch(e){showErr("x_err",["No se pudo guardar (revisa tu conexión)"])}}
 async function init(){
   try{if(!localStorage.getItem("nm_reset1")){localStorage.removeItem("nm");localStorage.setItem("nm_reset1","1")}}catch(e){}
   try{db=await claude.use("db")}catch(e){}
@@ -265,7 +266,7 @@ async function upVeh(p){try{await db.collection("vehicles").doc(sel).update(p,tr
 async function upAseg(val){try{await db.collection("vehicles").doc(sel).update({asegurado:!!val},true)}catch(e){al(permMsg(e))}}
 async function upCuota(val){try{await db.collection("vehicles").doc(sel).update({pcuota:val},true)}catch(e){al(permMsg(e))}}
 async function upDoc(k,val){const v=V.find(x=>x.id===sel);try{await db.collection("vehicles").doc(sel).update({docs:{...(v.docs||{}),[k]:val}},true)}catch(e){al(permMsg(e))}}
-function showErr(id,l){const e=$("#"+id);if(!e)return;e.innerHTML=l.length?"Falta completar:<br>• "+l.map(H).join("<br>• "):"";if(l.length)e.scrollIntoView({block:"center",behavior:"smooth"})}
+function showErr(id,l){l=l.map(withWhy);const e=$("#"+id);if(!e)return;e.innerHTML=l.length?"Falta completar:<br>• "+l.map(H).join("<br>• "):"";if(l.length)e.scrollIntoView({block:"center",behavior:"smooth"})}
 async function addLog(){
   bl();const miss=[],nb=$("#n_b"),nk=$("#n_k");
   if(!nb||!nb.value.trim())miss.push("Tu nombre");
@@ -282,7 +283,7 @@ async function addLog(){
   if(JSON.stringify(r).length>240000)return showErr("n_err",["Las fotos pesan demasiado: usa menos fotos"]);
   showErr("n_err",[]);
   try{await db.collection("logs").doc("l"+Date.now()).set(r);PH=[];PF=[];MS.clear();MMS.clear();POS={};OT="";PU=[];PUC="";
-  const v=V.find(x=>x.id===sel);if(v&&r.km>(v.km||0))await db.collection("vehicles").doc(sel).update({km:r.km});if(v&&r.hrs&&r.hrs>(+v.hrs||0))await db.collection("vehicles").doc(sel).update({hrs:r.hrs});al("Registro agregado ✔");render(true)}
+  const v=V.find(x=>x.id===sel);if(v&&r.km>(v.km||0))await db.collection("vehicles").doc(sel).update({km:r.km},false);if(v&&r.hrs&&r.hrs>(+v.hrs||0))await db.collection("vehicles").doc(sel).update({hrs:r.hrs},false);al("Registro agregado ✔");render(true)}
   catch(e){showErr("n_err",["No se pudo guardar (revisa tu conexión)"])}}
 // --- Mantención en concesionario (solo Administrador)
 const dealCost=l=>l.dealer?(+l.dcost||0):0,dealNet=l=>l.dealer?(l.dneto!=null&&l.dneto!==""?+l.dneto:Math.round((+l.dcost||0)/1.19)):0;
@@ -306,7 +307,7 @@ if(g("dl_f").trim())r.inv=g("dl_f").trim();const h=+g("dl_h").replace(",",".")||
 {const v0=V.find(x=>x.id===sel);let g=r.km>0?await kmGuard(v0,r.km,"km"):null;if(g===false)return;if(!g&&r.hrs>0){g=await kmGuard(v0,r.hrs,"h");if(g===false)return}if(g)r.rev=g}
 showErr("n_err",[]);
 try{await db.collection("logs").doc("l"+Date.now()).set(r);PF=[];MS.clear();MMS.clear();POS={};OT="";DLO=false;DLV={};DLM="";
-const v=V.find(x=>x.id===sel);if(v&&r.km>(v.km||0))await db.collection("vehicles").doc(sel).update({km:r.km});if(v&&r.hrs&&r.hrs>(+v.hrs||0))await db.collection("vehicles").doc(sel).update({hrs:r.hrs});al("Mantención en concesionario guardada ✔");render(true)}
+const v=V.find(x=>x.id===sel);if(v&&r.km>(v.km||0))await db.collection("vehicles").doc(sel).update({km:r.km},false);if(v&&r.hrs&&r.hrs>(+v.hrs||0))await db.collection("vehicles").doc(sel).update({hrs:r.hrs},false);al("Mantención en concesionario guardada ✔");render(true)}
 catch(e){showErr("n_err",["No se pudo guardar (revisa tu conexión)"])}}
 const setIa=h=>{DLM=h;const e=$("#dl_ia");if(e)e.innerHTML=h};
 async function dlFactura(el){const f=el.files[0];if(!f)return;
@@ -435,7 +436,7 @@ if(l.type==="comb"){const pr2=L.find(x=>x.id===id+"k");if(pr2){const pu={};if(up
 const v=VALL.find(x=>x.id===l.plate);if(v){const nl={...l,...upd},vp={};
 for(const [f,fn,lab] of [["km",odoK,"kilometraje"],["hrs",odoH,"horómetro"]]){const nvv=fn(nl),ov=fn(l),cur=+v[f]||0;if(nvv===ov)continue;
 if(nvv>cur)vp[f]=nvv;else if(ov>=cur&&nvv<ov){const m=Math.max(0,nvv,...L.filter(x=>x.plate===v.id&&x.id!==l.id).map(fn));if(m<cur&&await cf(`El ${lab} de ${v.id} figura en ${cur.toLocaleString("es-CL")} por el dato que corregiste. ¿Bajarlo a ${m.toLocaleString("es-CL")} (el mayor de los registros)?`))vp[f]=m}}
-if(Object.keys(vp).length)await db.collection("vehicles").doc(v.id).update(vp)}
+if(Object.keys(vp).length)await db.collection("vehicles").doc(v.id).update(vp,false)}
 al("Cambios guardados ✔")}catch(e){al(permMsg(e))}}
 const odoK=l=>l.unit==="h"?0:(+l.km||0),odoH=l=>l.unit==="h"?(+l.hrs||+l.km||0):(+l.hrs||0);
 async function fixOdo(v,l){const rest=L.filter(x=>x.plate===v.id&&x.id!==l.id);
@@ -500,7 +501,7 @@ const top=kf,r={plate:pl,type:"km",unit:u,date:$("#o_d").value||today(),kmFin:kf
 if(ki)r.kmIni=ki;if(fv!=="")r.fuel=+fv;if(kg)r.rev=kg;
 if(JSON.stringify(r).length>240000)return al("Las fotos pesan demasiado; usa menos fotos");
 try{await db.collection("logs").doc("l"+Date.now()).set(r);sn(n);PH=[];PF=[];
-if(v&&top>cur)await db.collection("vehicles").doc(pl).update(u==="h"?{hrs:top}:{km:top});al("Operación guardada ✔");render(true)}catch(e){al("No se pudo guardar (revisa tu conexión)")}}
+if(v&&top>cur)await db.collection("vehicles").doc(pl).update(u==="h"?{hrs:top}:{km:top},false);al("Operación guardada ✔");render(true)}catch(e){al("No se pudo guardar (revisa tu conexión)")}}
 async function closeOp(id){const l=L.find(x=>x.id===id);if(!l)return;const u=l.unit==="h"?"h":"km";let k=await pr(`Valor final en ${u==="h"?"horas":"km"} (inicio: ${l.kmIni})`,"");k=k===null?0:(u==="h"?(num(k)||0):(+String(k).replace(/\D/g,"")||0));if(!k)return;if(k<l.kmIni)return al("El valor final no puede ser menor al de inicio");
 try{await db.collection("logs").doc(id).update({kmFin:k,km:k});const v=V.find(x=>x.id===l.plate),cur=v?(u==="h"?+v.hrs||0:v.km||0):0;if(v&&k>cur)await db.collection("vehicles").doc(l.plate).update(u==="h"?{hrs:k}:{km:k})}catch(e){al("No se pudo guardar")}}
 const TIPOS=["Camionetas","Minibuses","Camiones","Grúas","Movimiento de tierra","Generadores"];
@@ -904,7 +905,7 @@ if(u==="h"){r.hrs=k;r.km=0}else r.km=k;if(kg)r.rev=kg;
 sn(e);
 try{const t=Date.now();await db.collection("logs").doc("l"+t).set(r);
 const up={};if(u==="h"){if(k>(+v.hrs||0))up.hrs=k}else if(k>(+v.km||0))up.km=k;
-if(Object.keys(up).length)await db.collection("vehicles").doc(v.id).update(up);
+if(Object.keys(up).length)await db.collection("vehicles").doc(v.id).update(up,false);
 await db.collection("logs").doc("l"+t+"k").set({plate:v.id,type:"km",date:r.date,kmFin:k,km:k,unit:u,text:"Carga de combustible",op:e,uid:ME_ID});
 ["c_k","c_l","c_c","c_w","c_n"].forEach(id=>{const el=$("#"+id);if(el)el.value=""});al("Carga guardada ✔");render(true)}catch(err){al("No se pudo guardar: "+((err&&err.message)||"error"))}}
 function cbHist(){const f=CB.f,rows=cbFilter(),s=sumL(rows),m=CB.m||today().slice(0,7);
@@ -1121,7 +1122,7 @@ try{if(manual){if(manual<1)return al("El número de vale no es válido");if(VL.s
 let id=`${X.pre}-${num}-${yy}`,r={num,yy,code:`${X.pre} ${num}/${yy}`,plate:pt,vehicle:veh,km:km?`${(+km).toLocaleString("es-CL")} KMS`:"",fecha:fe,solicitante:sol,encargado:enc,faena:fa,vid:v?v.id:"",uid:ME_ID,created:new Date().toISOString()};if(K==="c")r.kind="chasis";
 try{for(let t=0;;t++){try{await db.collection("vales").doc(id).create(r);break}catch(e){if(e&&e.code==="dup"&&!manual&&t<8){num++;id=`${X.pre}-${num}-${yy}`;r.num=num;r.code=`${X.pre} ${num}/${yy}`;continue}throw e}}
 if(!manual)await setCounter(yy,num,K).catch(()=>{});
-if(nuevo&&v){if(kn>(v.km||0))await db.collection("vehicles").doc(v.id).update({km:kn});await db.collection("logs").doc("l"+Date.now()).set({plate:v.id,type:"km",date:fe,kmFin:kn,km:kn,unit:"km",text:"Vale "+r.code,op:sol,uid:ME_ID})}}
+if(nuevo&&v){if(kn>(v.km||0))await db.collection("vehicles").doc(v.id).update({km:kn},false);await db.collection("logs").doc("l"+Date.now()).set({plate:v.id,type:"km",date:fe,kmFin:kn,km:kn,unit:"km",text:"Vale "+r.code,op:sol,uid:ME_ID})}}
 catch(e){return al("No se pudo guardar el vale (revisa tu conexión)")}
 al(`Vale ${r.code} creado ✔`);valePdf(id,r)}
 async function valePdf(id,rr){const r=rr||VL.find(x=>x.id===id);if(!r)return;if(!window.jspdf)return al("No se pudo cargar el generador de PDF");
@@ -1157,7 +1158,9 @@ const revTag=l=>l.rev&&!l.revOk?`<div><span class="b er">⚠ ${l.rev.unit==="h"?
 async function revOk(id){try{await db.collection("logs").doc(id).update({revOk:true,revBy:meName()||"Administrador",revAt:today()},true);al("Marcado como revisado ✔")}catch(e){al(permMsg(e))}}
 function revHtml(){const a=revList().sort((x,y)=>(y.date||"").localeCompare(x.date||""));
 return `<button onclick="ftype=null;render()" style="margin-bottom:10px">← Inicio</button><div class="card" style="border-color:var(--er)"><h2>⚠ Datos a revisar (${a.length})</h2><p class="mu">Kilometrajes u horas ingresados con un valor <b>menor al último registrado</b>. Quien los ingresó confirmó que quería guardarlos así.</p>`+(a.map(l=>`<div class="row" style="flex-direction:column;align-items:stretch"><div>${vHead(l.plate)} · ${H(fdate(l.date))} · <span class="mu">${H(RSTN[l.type]||l.type)}</span></div><div>Ingresado: <b>${fnum(l.rev.val,l.rev.unit==="h"?1:0)} ${l.rev.unit}</b> · Último antes: <b>${fnum(l.rev.prev,l.rev.unit==="h"?1:0)} ${l.rev.unit}</b></div><div class="mu">Registrado por ${H(whoN(l))}</div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px"><button class="p" onclick="revOk('${l.id}')">✔ Está correcto</button><button onclick="editLog('${l.id}')">✏️ Corregir</button><button onclick="${goVeh(l.plate,l.type==="km"||l.type==="mant"||l.type==="comb"?l.type:"res")}">Ver vehículo</button></div></div>`).join("")||'<div class="mu">No hay datos pendientes de revisión 👍</div>')+`</div>`}const pr=(m,v)=>dlg(`<p>${H(m)}</p><input id="di" value="${H(v??"")}"><div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px"><button id="dn">Cancelar</button><button class="p" id="dy">Aceptar</button></div>`,(o,d)=>{const i=o.querySelector("#di");i.focus();o.querySelector("#dn").onclick=()=>d(null);o.querySelector("#dy").onclick=()=>d(i.value)});
-const al=m=>{const t=document.createElement("div");t.textContent=m;t.style.cssText="position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--tx);color:var(--bg);padding:10px 14px;border-radius:8px;z-index:100;max-width:90%;text-align:center";document.body.appendChild(t);setTimeout(()=>t.remove(),3500)};
+const FAILRE=/^No se pudo (guardar|actualizar|eliminar|editar|crear|renombrar|rechazar|importar|cambiar|reservar|aprobar|agregar)/;
+const withWhy=m=>{if(typeof m==="string"&&FAILRE.test(m)&&!/\): |: [a-z]/.test(m.replace(/\(revisa tu conexión\)/,""))){const w=whyFail();if(w)return m.replace(/\s*\(revisa tu conexión\)/,"")+": "+w}return m};
+const al=m=>{m=withWhy(m);const t=document.createElement("div");t.textContent=m;t.style.cssText="position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--tx);color:var(--bg);padding:10px 14px;border-radius:8px;z-index:100;max-width:90%;text-align:center";document.body.appendChild(t);setTimeout(()=>t.remove(),m.length>90?7000:3500)};
 const f1=n=>(Math.round(n*10)/10).toLocaleString("es-CL");
 function maintInfoH(v){const m=v.maintH||{},own=+m.every||0,e=own||planDefH(v);if(!e)return null;const hs=L.filter(l=>l.plate===v.id&&l.type==="mant"&&l.hrs&&isAceite(l)).map(l=>+l.hrs),lh=+m.lastH||0;if(!own&&!hs.length&&!lh)return null;const last=hs.length?Math.max(...hs):lh,next=last+e;return{next,rem:next-(+v.hrs||0),every:e,warn:+m.warn||50,def:!own}}
 function hbadge(v){const i=maintInfoH(v);if(!i)return"";return `<span class="b ${i.rem<=0?"er":i.rem<=i.warn?"wa":"ok"}">⏱ Mantención: ${i.rem<0?"atrasada "+f1(-i.rem)+" h":i.rem===0?"toca ahora":"faltan "+f1(i.rem)+" h"}</span>`}
