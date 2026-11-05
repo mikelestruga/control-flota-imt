@@ -235,6 +235,7 @@ async function saveVeh(){
   bl();const id=norm($("#f_p").value);if(!id)return al("Ingresa la patente");
   const docs={};DOCS.forEach(([k])=>docs[k]=$("#d_"+k).value);
   try{await db.collection("vehicles").doc(id).set({tipo:$("#f_t").value,marca:$("#f_b").value,color:$("#f_c").value,chasis:$("#f_ch").value,motor:$("#f_mo").value,...($("#f_chip").value.trim()?{chip:$("#f_chip").value.trim()}:{}),model:$("#f_m").value,year:$("#f_y").value,km:+$("#f_k").value||0,...(+$("#f_h").value>0?{hrs:+$("#f_h").value}:{}),assign:$("#f_a").value,docs});
+  {const c=$("#f_chip").value.trim(),o=chipOthers({id},c);if(o.length)al("⚠ El N° de chip "+c+" ya está asignado a: "+o.map(x=>fmtPat(x)).join(", ")+". Revisa que no esté repetido.")}
   adding=false;sel=id;}catch(e){al("No se pudo guardar (revisa tu conexión)")}render()}
 function detail(){
   const v=V.find(x=>x.id===sel)||{id:sel,docs:{}};
@@ -259,6 +260,7 @@ function detail(){
   <div>${exDoc(v)?'<span class="b mu">Sin documentación requerida</span>':DOCS.map(([k,n])=>badge(docName(v,k,n),docDate(v,k),noAtt(v,k))).join("")}${segBadge(v)}${mbadge(v)}${hbadge(v)}</div></div>
   <div class="tabs">${Object.entries(T).map(([k,n])=>`<button class="${tab===k?"on":""}" onclick="tab='${k}';PH=[];PF=[];DLO=false;DLV={};DLM='';render()">${n}</button>`).join("")}</div>${tab!=="res"?`<button onclick="tab='res';PH=[];PF=[];DLO=false;DLV={};DLM='';render()" style="margin-bottom:10px">← Resumen</button>`:""}${body}`}
 const permMsg=e=>"No se pudo guardar: "+((e&&e.code==="no_rows")?"tu sesión no tiene permiso de edición en este momento. Sal de este perfil (Cambiar modo) y vuelve a entrar con tu PIN; si sigue igual, avisa al administrador del sistema.":((e&&e.message)||"error")+". Revisa tu conexión o vuelve a entrar con tu PIN.");
+async function upChip(val){val=String(val||"").trim();const v=V.find(x=>x.id===sel)||VALL.find(x=>x.id===sel),o=v?chipOthers(v,val):[];await upVeh({chip:val});if(o.length)al("⚠ El N° de chip "+val+" ya está asignado a: "+o.map(x=>fmtPat(x)).join(", ")+". Revisa que no esté repetido.")}
 async function upVeh(p){try{await db.collection("vehicles").doc(sel).update(p,true)}catch(e){al(permMsg(e))}}
 async function upAseg(val){try{await db.collection("vehicles").doc(sel).update({asegurado:!!val},true)}catch(e){al(permMsg(e))}}
 async function upCuota(val){try{await db.collection("vehicles").doc(sel).update({pcuota:val},true)}catch(e){al(permMsg(e))}}
@@ -505,6 +507,7 @@ const TIPOS=["Camionetas","Minibuses","Camiones","Grúas","Movimiento de tierra"
 const tp=v=>v.tipo||"Sin tipo";
 const tipos=()=>{const t=[...new Set([...TIPOS,...V.map(v=>v.tipo).filter(Boolean)])];if(V.some(v=>!v.tipo))t.push("Sin tipo");return t};
 const match=(v,qq)=>[v.id,v.marca,v.model,v.chasis,v.assign,v.tipo].join(" ").toUpperCase().includes(qq);
+const chipN=c=>String(c||"").toUpperCase().replace(/[^A-Z0-9]/g,""),chipDups=()=>{const m={};VALL.filter(v=>!v.sold&&chipN(v.chip)).forEach(v=>(m[chipN(v.chip)]=m[chipN(v.chip)]||[]).push(v));return Object.values(m).filter(a=>a.length>1)},chipOthers=(v,c)=>VALL.filter(x=>x.id!==v.id&&!x.sold&&chipN(c)&&chipN(x.chip)===chipN(c));
 const locTxt=v=>"📍 "+H(v.assign||"Sin asignar")+(String(v.contrato||"").trim()?" · 📄 "+H(v.contrato):"");
 const vname=v=>[v.marca,v.model].filter(Boolean).join(" ");
 const TIPS={"Camionetas":"Camioneta","Minibuses":"Minibús","Camiones":"Camión","Grúas":"Grúa","Generadores":"Generador"};
@@ -563,6 +566,7 @@ const compMes=COM.filter(c=>(c.fecha||"")>=mes0).reduce((a,c)=>a+(+c.neto||0),0)
 const dano30=L.filter(l=>l.type==="dano"&&inR(l,d30)).length,lav30=VL.filter(x=>(x.date||x.fecha||"")>=d30).length;
 // alertas list
 const AL=[];
+{const cd=chipDups();if(cd.length)AL.push(`<div class="rs-item"><div class="t">⛽ ${cd.length} N° de chip de combustible repetido(s)<div class="rs-small rs-muted">${cd.slice(0,4).map(a=>H(a[0].chip)+": "+a.map(v=>H(fmtPat(v))).join(", ")).join(" · ")}${cd.length>4?" …":""}</div></div><span class="rs-chip bad">Revisar</span></div>`)}
 if(venc.length)AL.push(`<div class="rs-item"><div class="t">📄 ${venc.length} documento(s) vencido(s)<div class="rs-small rs-muted">${venc.slice(0,5).map(x=>H(fmtPat(x.v))+" "+H(x.n)).join(" · ")}${venc.length>5?" …":""}</div></div><span class="rs-chip bad">Vencidos</span></div>`);
 if(porV.length)AL.push(`<div class="rs-item"><div class="t">📄 ${porV.length} documento(s) por vencer<div class="rs-small rs-muted">${porV.sort((a,b)=>a.x-b.x).slice(0,5).map(x=>H(fmtPat(x.v))+" "+H(x.n)+" ("+x.x+" d)").join(" · ")}${porV.length>5?" …":""}</div></div><span class="rs-chip warn">Por vencer</span></div>`);
 if(sinSeg.length)AL.push(`<div class="rs-item"><div class="t">🛡 ${sinSeg.length} vehículo(s) sin seguro<div class="rs-small rs-muted">${sinSeg.slice(0,6).map(v=>H(fmtPat(v))).join(", ")}</div></div><span class="rs-chip bad">Sin seguro</span></div>`);
@@ -648,7 +652,7 @@ return head+`<button onclick="ftype=null;render()" style="margin-bottom:10px">�
 const CTRS=()=>[...new Set([...VALL.map(v=>v.contrato),...L.map(l=>l.ctr)].map(x=>String(x||"").trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
 const ctrInput=(id,val)=>`<input id="${id}" list="ctr_dl" value="${H(val||"")}" placeholder="Contrato o lugar (opcional)" autocomplete="off"><datalist id="ctr_dl">${CTRS().map(x=>`<option value="${H(x)}">`).join("")}</datalist>`;
 function datosHtml(v){const F=[["tipo","Tipo"],["marca","Marca"],["model","Modelo"],["year","Año"],["color","Color"],["chasis","N° chasis"],["motor","N° motor"],["contrato","Contrato o ubicación"],["chip","N° chip de combustible"]];
-const ed=showAdm(),cell=([k,n])=>`<div><label>${n}</label>${ed?(k==="tipo"?`<select onchange="upVeh({tipo:this.value})">${tipos().map(t=>`<option${t===v.tipo?" selected":""}>${H(t)}</option>`).join("")}</select>`:`<input value="${H(v[k]||"")}" onchange="upVeh({${k}:this.value})">`):`<div style="word-break:break-all"><b>${H(v[k]||"—")}</b></div>`}</div>`;
+const ed=showAdm(),cell=([k,n])=>`<div><label>${n}</label>${ed?(k==="tipo"?`<select onchange="upVeh({tipo:this.value})">${tipos().map(t=>`<option${t===v.tipo?" selected":""}>${H(t)}</option>`).join("")}</select>`:`<input value="${H(v[k]||"")}" onchange="${k==='chip'?"upChip(this.value)":"upVeh({"+k+":this.value})"}">`):`<div style="word-break:break-all"><b>${H(v[k]||"—")}</b></div>`}${k==="chip"&&chipOthers(v,v.chip).length?`<div class="er" style="font-size:13px;margin-top:2px">⚠ Repetido en: ${chipOthers(v,v.chip).map(x=>H(fmtPat(x))).join(", ")}</div>`:""}</div>`;
 const ex=Object.entries(v.extras||{}).map(([k,x])=>`<div><label>${H(k)}</label><div><b>${H(x)}</b></div></div>`).join("");
 return `<div class="card"><h2>Datos del vehículo</h2><div class="g">${F.map(cell).join("")}${ex}</div></div>`}
 let UN={};try{UN=JSON.parse(sessionStorage.getItem("unl")||"{}")}catch(e){}
@@ -880,7 +884,7 @@ ${canCost()?`<div><label>Costo total de la carga ($)</label><input id="c_c" type
 const cbOpts=(vs,tv)=>vs.filter(v=>!tv||v.tipo===tv).map(v=>`<option value="${H(v.id)}">${H([TIPS[v.tipo]||v.tipo,v.marca,v.model].filter(Boolean).join(" · "))}</option>`).join("");
 function cbTipo(){const tv=($("#c_tv")||{}).value||"",dl=$("#c_pl");if(dl)dl.innerHTML=cbOpts(V.filter(v=>!v.sold).sort((a,b)=>a.id.localeCompare(b.id)),tv);const p=$("#c_p");if(p){const v=V.find(x=>np(x.id)===np(p.value));if(v&&tv&&v.tipo!==tv){p.value="";cbVeh()}}}
 function cbVeh(){const el=$("#c_p");if(!el)return;const v=V.find(x=>np(x.id)===np(el.value)&&np(el.value)),i=$("#c_vi");if(!v){if(i)i.textContent="";return}
-if(i)i.textContent=`${[v.marca,v.model].filter(Boolean).join(" ")} · último: ${fnum(v.km||0)} km${v.hrs?` · ${fnum(v.hrs,1)} h`:""}${v.chip?` · chip N° ${v.chip}`:""}`;
+if(i)i.textContent=`${[v.marca,v.model].filter(Boolean).join(" ")} · último: ${fnum(v.km||0)} km${v.hrs?` · ${fnum(v.hrs,1)} h`:""}${v.chip?` · chip N° ${v.chip}`:""}${chipOthers(v,v.chip).length?" · ⚠ chip repetido en "+chipOthers(v,v.chip).map(x=>fmtPat(x)).join(", "):""}`;
 const f=$("#c_f");if(f&&!f.value)f.value=v.assign||"";const ct=$("#c_ct");if(ct&&!ct.value)ct.value=v.contrato||"";const u=$("#c_u");if(u){const hh=["Grúas","Movimiento de tierra","Generadores"].includes(v.tipo)||(v.hrs&&!v.km);u.value=hh?"h":"km";cbUnit()}}
 function cbUnit(){const u=($("#c_u")||{}).value,l=$("#c_kl");if(l)l.textContent=u==="h"?"Horas del vehículo (horómetro)":"Kilometraje del vehículo"}
 async function cbSave(){bl();const g=id=>($("#"+id)||{}).value||"",miss=[];
