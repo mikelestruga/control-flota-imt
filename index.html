@@ -833,7 +833,7 @@ x.st="saved";x.buf=null;x.msg="";x.prog="";pkRender();al("Guardado en "+v.id+" �
 async function pkSaveAll(){PK.bulk=true;try{for(let i=0;i<PK.items.length;i++){const x=PK.items[i];if(x.st==="ready"&&x.plate)await pkSave(i)}}finally{PK.bulk=false}pkDone();const f=PK.items.filter(x=>x.st==="ready"&&!x.plate).length;if(f)al(f+" archivo(s) sin vehículo: elígelo y guarda")}
 /* ===== Módulo Combustible ===== */
 const SRC={op:"Operador",mec:"Mecánico",adm:"Administrador",lav:"Lavado",comb:"Combustible"},CAT={proy:"Proyectos",mant:"Mantención"},FT={gasolina:"Gasolina",diesel:"Diésel"};
-let CB={tab:"proy",f:{p:"",n:"",d1:"",d2:"",c:"",t:"",a:"",v:"",k:""},m:"",cm:"",ca:"",cs:"",cc:"",cv:""};
+let CB={tab:"proy",f:{p:"",n:"",d1:"",d2:"",c:"",t:"",a:"",v:"",k:""},m:"",cm:"",ca:"",cs:"",cc:"",cv:"",cx:""};
 const fnum=(n,d=0)=>(+n||0).toLocaleString("es-CL",{minimumFractionDigits:d,maximumFractionDigits:d}),money=n=>"$"+fnum(n);
 const fuelLogs=()=>L.filter(l=>l.type==="comb"&&+l.liters>0);
 const unitOf=l=>l.unit==="h"?"h":"km",odo=l=>unitOf(l)==="h"?(+l.hrs||+l.km||0):(+l.km||0);
@@ -948,26 +948,28 @@ const pl=[...new Set(rows.map(l=>l.plate))],ra=fuelLogs();
 cbSheet(wb,"Por vehículo",[["Patente",11],["Tipo de vehículo",16],["Cargas",8],["Litros",10],["Costo total ($)",14],["$ por litro",11],["Rendimiento km/L",16],["Rendimiento L/h",15],["Último km/L",12],["Último L/h",12],["Observación",44]],
 pl.map(p=>{const a=rows.filter(l=>l.plate===p),x=sumL(a),r=rendOf(p,ra),u=r.h.avg&&!r.km.avg?"h":"km";return[p,vTl(p),x.n,x.l,x.c,x.l?Math.round(x.c/x.l):null,r.km.avg,r.h.avg,r.km.last?r.km.last.val:null,r.h.last?r.h.last.val:null,rendFb(r,u).t]}),[null,null,null,D,P,P,"0.0","0.00","0.0","0.00",null]);
 const grp=(fn,name,lab)=>{const o={};rows.forEach(l=>{const k=fn(l);(o[k]=o[k]||[]).push(l)});cbSheet(wb,name,[[lab,30],["Cargas",8],["Litros",10],["Costo total ($)",14],["$ por litro",11]],Object.entries(o).sort((a,b)=>sumL(b[1]).c-sumL(a[1]).c).map(([k,a])=>{const x=sumL(a);return[k,x.n,x.l,x.c,x.l?Math.round(x.c/x.l):null]}),[null,null,D,P,P])};
-grp(l=>l.faena||"Sin faena","Por faena","Faena");grp(l=>CAT[l.cat]||"Sin sección","Por sección","Sección");
+grp(l=>l.faena||"Sin faena","Por faena","Faena");grp(l=>(l.ctr||"").trim()||"Sin contrato","Por contrato","Contrato o ubicación");grp(l=>CAT[l.cat]||"Sin sección","Por sección","Sección");
 if(kind!=="mes"){const o={};rows.forEach(l=>{const k=(l.date||"").slice(0,7);(o[k]=o[k]||[]).push(l)});cbSheet(wb,"Por mes",[["Mes",10],["Cargas",8],["Litros",10],["Costo total ($)",14],["Proyectos ($)",14],["Mantención ($)",14]],Object.entries(o).sort((a,b)=>a[0].localeCompare(b[0])).map(([k,a])=>[k,a.length,sumL(a).l,sumL(a).c,sumL(a.filter(l=>l.cat==="proy")).c,sumL(a.filter(l=>l.cat==="mant")).c]),[null,null,D,P,P,P])}
 const dl=await claude.use("downloads");if(!dl)return al("La descarga no está disponible en este momento.");
 try{const buf=await wb.xlsx.writeBuffer();await dl.save({filename:`Combustible_${tag}.xlsx`,data:new Blob([buf],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"})})}catch(e){if(!e||e.code!=="declined")al("No se pudo descargar el informe")}}
 /* ===== Consumo de litros: mensual y anual por patente y por asignación ===== */
 const cbFaenas=()=>{const m=new Map();fuelLogs().forEach(l=>{const f=(l.faena||"").trim();if(f&&!m.has(normN(f)))m.set(normN(f),f)});return[...m.values()].sort((a,b)=>a.localeCompare(b))};
 const vTk=pl=>{const v=VALL.find(x=>x.id===pl);return v&&v.tipo||""},vTl=pl=>{const k=vTk(pl);return TIPS[k]||k||"Sin tipo"};
-function consCalc(cat){const m=CB.cm||today().slice(0,7),y=m.slice(0,4),fa=normN(CB.ca||""),tv=CB.cv||"";
-const rows=fuelLogs().filter(l=>(!cat||l.cat===cat)&&(!tv||vTk(l.plate)===tv)&&(!fa||normN(l.faena)===fa)&&(l.date||"").slice(0,4)===y),mr=rows.filter(l=>(l.date||"").slice(0,7)===m),by={};
+function consCalc(cat){const m=CB.cm||today().slice(0,7),y=m.slice(0,4),fa=normN(CB.ca||""),tv=CB.cv||"",cx=normN(CB.cx||"");
+const rows=fuelLogs().filter(l=>(!cat||l.cat===cat)&&(!tv||vTk(l.plate)===tv)&&(!cx||normN(l.ctr)===cx)&&(!fa||normN(l.faena)===fa)&&(l.date||"").slice(0,4)===y),mr=rows.filter(l=>(l.date||"").slice(0,7)===m),by={};
 rows.forEach(l=>{const o=by[l.plate]=by[l.plate]||{p:l.plate,t:vTl(l.plate),ly:0,ny:0,lm:0,nm:0,fs:new Map()};o.ly+=+l.liters;o.ny++;if((l.date||"").slice(0,7)===m){o.lm+=+l.liters;o.nm++}const f=(l.faena||"").trim();if(f&&!o.fs.has(normN(f)))o.fs.set(normN(f),f)});
 const list=Object.values(by).sort(CB.cs==="pat"?(a,b)=>np(a.p).localeCompare(np(b.p)):CB.cs==="mes"?(a,b)=>b.lm-a.lm||b.ly-a.ly||np(a.p).localeCompare(np(b.p)):(a,b)=>b.ly-a.ly||np(a.p).localeCompare(np(b.p)));
 const fo={};rows.forEach(l=>{const f=(l.faena||"").trim()||"Sin asignación",k=normN(f);const o=fo[k]=fo[k]||{f,lm:0,ly:0};o.ly+=+l.liters;if((l.date||"").slice(0,7)===m)o.lm+=+l.liters});
+const co={};rows.forEach(l=>{const f=(l.ctr||"").trim()||"Sin contrato",k=normN(f);const o=co[k]=co[k]||{f,lm:0,ly:0};o.ly+=+l.liters;if((l.date||"").slice(0,7)===m)o.lm+=+l.liters});Object.values(co).forEach(z=>{z.lm=r3(z.lm);z.ly=r3(z.ly)});
 list.forEach(z=>{z.lm=r3(z.lm);z.ly=r3(z.ly)});Object.values(fo).forEach(z=>{z.lm=r3(z.lm);z.ly=r3(z.ly)});
-return{m,y,rows,mr,list,fa:Object.values(fo).sort((a,b)=>b.ly-a.ly),lm:sumL(mr).l,ly:sumL(rows).l,nm:mr.length,ny:rows.length}}
+return{m,y,rows,mr,list,ct:Object.values(co).sort((a,b)=>b.ly-a.ly),fa:Object.values(fo).sort((a,b)=>b.ly-a.ly),lm:sumL(mr).l,ly:sumL(rows).l,nm:mr.length,ny:rows.length}}
 const MESN=["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
 function consHtml(cat,title,big){const c=consCalc(cat),fo=cbFaenas(),mn=MESN[+c.m.slice(5,7)-1]+" "+c.y;
 const o=(a,v)=>a.map(([k,n])=>`<option value="${k}"${k===v?" selected":""}>${n}</option>`).join("");
 return `<div class="card"><h2>${title}</h2><div class="g">
 <div><label>Mes</label><input type="month" value="${c.m}" onchange="CB.cm=this.value;render(true)"></div>
 <div><label>Asignación</label><select onchange="CB.ca=this.value;render(true)">${o([["","Todas"],...fo.map(x=>[H(x),H(x)])],H(CB.ca))}</select></div>
+<div><label>Contrato o ubicación</label><select onchange="CB.cx=this.value;render(true)">${o([["","Todos"],...CTRS().map(x=>[H(x),H(x)])],H(CB.cx))}</select></div>
 <div><label>Tipo de vehículo</label><select onchange="CB.cv=this.value;render(true)">${o([["","Todos"],...tipos().filter(k=>k!=="Sin tipo").map(k=>[H(k),H(TIPS[k]||k)])],H(CB.cv))}</select></div>
 ${big?`<div><label>Sección</label><select onchange="CB.cc=this.value;render(true)">${o([["","Proyectos + Mantención"],["proy","Proyectos"],["mant","Mantención"]],CB.cc)}</select></div>`:""}
 <div><label>Ordenar por</label><select onchange="CB.cs=this.value;render(true)">${o([["","Total utilizado del año"],["mes","Total utilizado del mes"],["pat","Patente"]],CB.cs)}</select></div></div>
@@ -976,6 +978,7 @@ ${CB.ca?`<p class="mu" style="margin:8px 0 0">Solo asignación: <b>${H(CB.ca)}</
 <div style="overflow-x:auto;margin-top:10px"><table style="width:100%;border-collapse:collapse;font-size:13px"><tr style="text-align:left"><th>Patente</th><th>Tipo</th><th>Asignación</th><th style="text-align:right">Mes (L)</th><th style="text-align:right">Año (L)</th></tr>
 ${c.list.map(z=>`<tr style="border-top:1px solid var(--bd)"><td><b>${H(z.p)}</b></td><td>${H(z.t)}</td><td>${H([...z.fs.values()].join(" / ")||"—")}</td><td style="text-align:right">${fL(z.lm)}</td><td style="text-align:right"><b>${fL(z.ly)}</b></td></tr>`).join("")||'<tr><td colspan="5" class="mu">Sin cargas en este año.</td></tr>'}
 ${c.list.length?`<tr style="border-top:2px solid var(--bd);font-weight:700"><td>Total</td><td></td><td></td><td style="text-align:right">${fL(c.lm)}</td><td style="text-align:right">${fL(c.ly)}</td></tr>`:""}</table></div>
+${c.ct.some(z=>z.f!=="Sin contrato")?`<h3 style="margin:14px 0 4px">Por contrato o ubicación</h3><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px"><tr style="text-align:left"><th>Contrato o ubicación</th><th style="text-align:right">Mes (L)</th><th style="text-align:right">Año (L)</th></tr>${c.ct.map(z=>`<tr style="border-top:1px solid var(--bd)"><td>${H(z.f)}</td><td style="text-align:right">${fL(z.lm)}</td><td style="text-align:right"><b>${fL(z.ly)}</b></td></tr>`).join("")}</table></div>`:""}
 ${big&&c.fa.length>1?`<h3 style="margin:14px 0 4px">Por asignación</h3><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px"><tr style="text-align:left"><th>Asignación</th><th style="text-align:right">Mes (L)</th><th style="text-align:right">Año (L)</th></tr>${c.fa.map(z=>`<tr style="border-top:1px solid var(--bd)"><td>${H(z.f)}</td><td style="text-align:right">${fL(z.lm)}</td><td style="text-align:right"><b>${fL(z.ly)}</b></td></tr>`).join("")}</table></div>`:""}
 <p style="margin-top:10px"><button class="p" onclick="consXlsx('${cat||""}')">📥 Descargar informe de consumo (Excel)</button></p></div>`}
 function cbCons(){return consHtml(CB.cc,"📈 Informe de consumo de combustible (litros)",true)}
@@ -984,6 +987,7 @@ const wb=new ExcelJS.Workbook(),D="#,##0.000",F="dd/mm/yyyy",dt=d=>{const[a,b,e]
 const tt={};c.list.forEach(z=>{const o=tt[z.t]=tt[z.t]||{t:z.t,nm:0,lm:0,ny:0,ly:0};o.nm+=z.nm;o.lm+=z.lm;o.ny+=z.ny;o.ly+=z.ly});
 cbSheet(wb,"Por patente",[["Patente",12],["Tipo de vehículo",16],["Asignación",34],["Cargas "+mn,14],["Litros "+mn,14],["Cargas año "+c.y,14],["Litros año "+c.y,14]],c.list.map(z=>[z.p,z.t,[...z.fs.values()].join(" / "),z.nm,z.lm,z.ny,z.ly]),[null,null,null,"0",D,"0",D],["Total",null,null,c.nm,c.lm,c.ny,c.ly]);
 cbSheet(wb,"Por tipo de vehículo",[["Tipo de vehículo",20],["Cargas "+mn,14],["Litros "+mn,14],["Cargas año "+c.y,14],["Litros año "+c.y,14]],Object.values(tt).sort((a,b)=>b.ly-a.ly).map(o=>[o.t,o.nm,r3(o.lm),o.ny,r3(o.ly)]),[null,"0",D,"0",D],["Total",c.nm,c.lm,c.ny,c.ly]);
+cbSheet(wb,"Por contrato",[["Contrato o ubicación",34],["Litros "+mn,14],["Litros año "+c.y,14]],c.ct.map(z=>[z.f,z.lm,z.ly]),[null,D,D],["Total",c.lm,c.ly]);
 cbSheet(wb,"Por asignación",[["Asignación",34],["Litros "+mn,14],["Litros año "+c.y,14]],c.fa.map(z=>[z.f,z.lm,z.ly]),[null,D,D],["Total",c.lm,c.ly]);
 const mm=[];for(let i=1;i<=12;i++){const k=c.y+"-"+String(i).padStart(2,"0"),a=c.rows.filter(l=>(l.date||"").slice(0,7)===k);mm.push([MESN[i-1][0].toUpperCase()+MESN[i-1].slice(1),sumL(a.filter(l=>l.cat==="proy")).l,sumL(a.filter(l=>l.cat==="mant")).l,sumL(a).l])}
 cbSheet(wb,"Por mes",[["Mes",14],["Proyectos (L)",15],["Mantención (L)",15],["Total (L)",13]],mm,[null,D,D,D],["Total año",r3(c.rows.filter(l=>l.cat==="proy").reduce((s,l)=>s+ +l.liters,0)),r3(c.rows.filter(l=>l.cat==="mant").reduce((s,l)=>s+ +l.liters,0)),c.ly]);
