@@ -877,7 +877,7 @@ const cbOpts=(vs,tv)=>vs.filter(v=>!tv||v.tipo===tv).map(v=>`<option value="${H(
 function cbTipo(){const tv=($("#c_tv")||{}).value||"",dl=$("#c_pl");if(dl)dl.innerHTML=cbOpts(V.filter(v=>!v.sold).sort((a,b)=>a.id.localeCompare(b.id)),tv);const p=$("#c_p");if(p){const v=V.find(x=>np(x.id)===np(p.value));if(v&&tv&&v.tipo!==tv){p.value="";cbVeh()}}}
 function cbVeh(){const el=$("#c_p");if(!el)return;const v=V.find(x=>np(x.id)===np(el.value)&&np(el.value)),i=$("#c_vi");if(!v){if(i)i.textContent="";return}
 if(i)i.textContent=`${[v.marca,v.model].filter(Boolean).join(" ")} · último: ${fnum(v.km||0)} km${v.hrs?` · ${fnum(v.hrs,1)} h`:""}`;
-const f=$("#c_f");if(f&&!f.value)f.value=v.assign||"";const u=$("#c_u");if(u){const hh=["Grúas","Movimiento de tierra"].includes(v.tipo)||(v.hrs&&!v.km);u.value=hh?"h":"km";cbUnit()}}
+const f=$("#c_f");if(f&&!f.value)f.value=v.assign||"";const u=$("#c_u");if(u){const hh=["Grúas","Movimiento de tierra","Generadores"].includes(v.tipo)||(v.hrs&&!v.km);u.value=hh?"h":"km";cbUnit()}}
 function cbUnit(){const u=($("#c_u")||{}).value,l=$("#c_kl");if(l)l.textContent=u==="h"?"Horas del vehículo (horómetro)":"Kilometraje del vehículo"}
 async function cbSave(){bl();const g=id=>($("#"+id)||{}).value||"",miss=[];
 const pl=np(g("c_p")),v=pl&&V.find(x=>np(x.id)===pl);if(!v)miss.push("Patente (elige una de la lista)");
