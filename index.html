@@ -858,7 +858,8 @@ return `<div class="tabs">${tabs.map(([k,n])=>`<button class="${CB.tab===k?"on":
 const cbRow=l=>`<div class="row"><div>${vHead(l.plate)} · ${H(fdate(l.date))} · ${H(CAT[l.cat]||"Sin sección")}<div>${fL(l.liters)} L${canCost()?` · ${money(l.cost)}${+l.liters&&+l.cost?` (${money(l.cost/l.liters)}/L)`:""}`:""} · ${H(FT[l.ft]||"")} · ${odo(l)?fnum(odo(l),unitOf(l)==="h"?1:0)+" "+unitOf(l):"sin km"}</div><div class="mu">Cargó: ${H(l.cargo||"—")} · Faena: ${H(l.faena||"—")}</div></div><span class="mu">${H(l.op||"")}<br>${adm(l)}</span></div>`;
 function cbForm(){const cat=CB.tab,vs=[...V].filter(v=>!v.sold).sort((a,b)=>a.id.localeCompare(b.id)),rec=fuelLogs().filter(l=>l.cat===cat).sort((a,b)=>(b.date||"").localeCompare(a.date||"")||String(b.id).localeCompare(String(a.id))).slice(0,10);
 return `<div class="card"><h2>Combustible · ${cat==="proy"?"Proyectos":"Mantención"}</h2><div class="g">
-<div><label>Patente</label><input id="c_p" list="c_pl" autocomplete="off" autocapitalize="characters" placeholder="Escribe o elige" oninput="cbVeh()"><datalist id="c_pl">${vs.map(v=>`<option value="${H(v.id)}">${H([v.marca,v.model].filter(Boolean).join(" "))}</option>`).join("")}</datalist><div id="c_vi" class="mu"></div></div>
+<div><label>Tipo de vehículo</label><select id="c_tv" onchange="cbTipo()"><option value="">Todos</option>${[...new Set(vs.map(v=>v.tipo).filter(Boolean))].map(k=>`<option value="${H(k)}">${H(TIPS[k]||k)}</option>`).join("")}</select></div>
+<div><label>Patente</label><input id="c_p" list="c_pl" autocomplete="off" autocapitalize="characters" placeholder="Escribe o elige" oninput="cbVeh()"><datalist id="c_pl">${cbOpts(vs,"")}</datalist><div id="c_vi" class="mu"></div></div>
 <div><label>Fecha</label><input id="c_d" type="date" value="${today()}"></div>
 <div><label>Quién cargó combustible</label><input id="c_w" placeholder="Nombre y apellido" autocomplete="off"></div>
 <div><label>Encargado que ingresa los datos</label><input id="c_e" value="${H(nm())}" placeholder="Nombre y apellido" autocomplete="off"></div>
@@ -871,6 +872,8 @@ ${canCost()?`<div><label>Costo total de la carga ($)</label><input id="c_c" type
 <label style="margin-top:8px">Notas (opcional)</label><textarea id="c_n" rows="2"></textarea>
 <p><button class="p" style="width:100%" onclick="cbSave()">Guardar carga</button></p><div id="c_err" class="er" style="font-size:14px"></div></div>
 <div class="card"><h2>Últimas cargas de ${cat==="proy"?"proyectos":"mantención"}</h2>${rec.map(cbRow).join("")||'<div class="mu">Aún no hay cargas.</div>'}</div>`+consHtml(cat,"📈 Litros utilizados · "+(cat==="proy"?"Proyectos":"Mantención"),false)}
+const cbOpts=(vs,tv)=>vs.filter(v=>!tv||v.tipo===tv).map(v=>`<option value="${H(v.id)}">${H([TIPS[v.tipo]||v.tipo,v.marca,v.model].filter(Boolean).join(" · "))}</option>`).join("");
+function cbTipo(){const tv=($("#c_tv")||{}).value||"",dl=$("#c_pl");if(dl)dl.innerHTML=cbOpts(V.filter(v=>!v.sold).sort((a,b)=>a.id.localeCompare(b.id)),tv);const p=$("#c_p");if(p){const v=V.find(x=>np(x.id)===np(p.value));if(v&&tv&&v.tipo!==tv){p.value="";cbVeh()}}}
 function cbVeh(){const el=$("#c_p");if(!el)return;const v=V.find(x=>np(x.id)===np(el.value)&&np(el.value)),i=$("#c_vi");if(!v){if(i)i.textContent="";return}
 if(i)i.textContent=`${[v.marca,v.model].filter(Boolean).join(" ")} · último: ${fnum(v.km||0)} km${v.hrs?` · ${fnum(v.hrs,1)} h`:""}`;
 const f=$("#c_f");if(f&&!f.value)f.value=v.assign||"";const u=$("#c_u");if(u&&v.hrs&&!v.km){u.value="h";cbUnit()}}
