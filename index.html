@@ -430,13 +430,13 @@ lines.forEach(([k,q])=>sAdj[k]=q);upd.parts=np2}
 else{upd.parts=newP.map(x=>{const o=oldP.find(y=>(y.pid||"")===(x.pid||"")&&y.name===x.name&&!!y.req===!!x.req);return o?{...o,qty:x.qty}:x});if(!newP.length)upd.pstat="";else if(l.pstat!=="pending")upd.pstat="pending"}}}
 if(!Object.keys(upd).length)return;
 try{for(const [k,q] of Object.entries(sAdj)){const x=PAR.find(y=>y.id===k);if(x)await db.collection("parts").doc(k).update({stock:(+x.stock||0)-q,mod:new Date().toISOString()})}
-await db.collection("logs").doc(id).update(upd);
+await db.collection("logs").doc(id).update(upd,true);
 if(l.type==="comb"){const pr2=L.find(x=>x.id===id+"k");if(pr2){const pu={};if(upd.date)pu.date=upd.date;const nk=upd.km??upd.hrs;if(nk!=null){pu.km=nk;pu.kmFin=nk}if(Object.keys(pu).length)await db.collection("logs").doc(id+"k").update(pu)}}
 const v=VALL.find(x=>x.id===l.plate);if(v){const nl={...l,...upd},vp={};
 for(const [f,fn,lab] of [["km",odoK,"kilometraje"],["hrs",odoH,"horómetro"]]){const nvv=fn(nl),ov=fn(l),cur=+v[f]||0;if(nvv===ov)continue;
 if(nvv>cur)vp[f]=nvv;else if(ov>=cur&&nvv<ov){const m=Math.max(0,nvv,...L.filter(x=>x.plate===v.id&&x.id!==l.id).map(fn));if(m<cur&&await cf(`El ${lab} de ${v.id} figura en ${cur.toLocaleString("es-CL")} por el dato que corregiste. ¿Bajarlo a ${m.toLocaleString("es-CL")} (el mayor de los registros)?`))vp[f]=m}}
 if(Object.keys(vp).length)await db.collection("vehicles").doc(v.id).update(vp)}
-al("Cambios guardados ✔")}catch(e){al("No se pudo guardar los cambios")}}
+al("Cambios guardados ✔")}catch(e){al(permMsg(e))}}
 const odoK=l=>l.unit==="h"?0:(+l.km||0),odoH=l=>l.unit==="h"?(+l.hrs||+l.km||0):(+l.hrs||0);
 async function fixOdo(v,l){const rest=L.filter(x=>x.plate===v.id&&x.id!==l.id);
 for(const [f,fn,lab,dg] of [["km",odoK,"kilometraje",0],["hrs",odoH,"horómetro",1]]){const dv=fn(l),cur=+v[f]||0;if(!dv||dv<cur)continue;const m=Math.max(0,...rest.map(fn));
