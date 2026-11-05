@@ -859,7 +859,7 @@ return `<div class="tabs">${tabs.map(([k,n])=>`<button class="${CB.tab===k?"on":
 const cbRow=l=>`<div class="row"><div>${vHead(l.plate)} · ${H(fdate(l.date))} · ${H(CAT[l.cat]||"Sin sección")}<div>${fL(l.liters)} L${canCost()?` · ${money(l.cost)}${+l.liters&&+l.cost?` (${money(l.cost/l.liters)}/L)`:""}`:""} · ${H(FT[l.ft]||"")} · ${odo(l)?fnum(odo(l),unitOf(l)==="h"?1:0)+" "+unitOf(l):"sin km"}</div><div class="mu">Cargó: ${H(l.cargo||"—")} · Faena: ${H(l.faena||"—")}</div>${l.text?`<div style="margin-top:2px">📝 ${H(l.text)}</div>`:""}</div><span class="mu">${H(l.op||"")}<br>${adm(l)}</span></div>`;
 function cbForm(){const cat=CB.tab,vs=[...V].filter(v=>!v.sold).sort((a,b)=>a.id.localeCompare(b.id)),rec=fuelLogs().filter(l=>l.cat===cat).sort((a,b)=>(b.date||"").localeCompare(a.date||"")||String(b.id).localeCompare(String(a.id))).slice(0,10);
 return `<div class="card"><h2>Combustible · ${cat==="proy"?"Proyectos":"Mantención"}</h2><div class="g">
-<div><label>Tipo de vehículo</label><select id="c_tv" onchange="cbTipo()"><option value="">Todos</option>${[...new Set(vs.map(v=>v.tipo).filter(Boolean))].map(k=>`<option value="${H(k)}">${H(TIPS[k]||k)}</option>`).join("")}</select></div>
+<div><label>Tipo de vehículo</label><select id="c_tv" onchange="cbTipo()"><option value="">Todos</option>${tipos().filter(k=>k!=="Sin tipo").map(k=>`<option value="${H(k)}">${H(TIPS[k]||k)}</option>`).join("")}</select></div>
 <div><label>Patente</label><input id="c_p" list="c_pl" autocomplete="off" autocapitalize="characters" placeholder="Escribe o elige" oninput="cbVeh()"><datalist id="c_pl">${cbOpts(vs,"")}</datalist><div id="c_vi" class="mu"></div></div>
 <div><label>Fecha</label><input id="c_d" type="date" value="${today()}"></div>
 <div><label>Quién cargó combustible</label><input id="c_w" placeholder="Nombre y apellido" autocomplete="off"></div>
@@ -903,7 +903,7 @@ function cbHist(){const f=CB.f,rows=cbFilter(),s=sumL(rows),m=CB.m||today().slic
 const opt=(o,v)=>o.map(([k,n])=>`<option value="${k}"${k===v?" selected":""}>${n}</option>`).join("");
 return `<div class="card"><h2>Historial de combustible</h2><div class="g">
 <div><label>Patente</label><input value="${H(f.p)}" onchange="CB.f.p=this.value;render(true)"></div>
-<div><label>Tipo de vehículo</label><select onchange="CB.f.v=this.value;render(true)">${opt([["","Todos"],...[...new Set(fuelLogs().map(l=>vTk(l.plate)).filter(Boolean))].map(k=>[H(k),H(TIPS[k]||k)])],H(f.v))}</select></div>
+<div><label>Tipo de vehículo</label><select onchange="CB.f.v=this.value;render(true)">${opt([["","Todos"],...tipos().filter(k=>k!=="Sin tipo").map(k=>[H(k),H(TIPS[k]||k)])],H(f.v))}</select></div>
 <div><label>Nombre (quien cargó o encargado)</label><input value="${H(f.n)}" onchange="CB.f.n=this.value;render(true)"></div>
 <div><label>Desde</label><input type="date" value="${f.d1}" onchange="CB.f.d1=this.value;render(true)"></div>
 <div><label>Hasta</label><input type="date" value="${f.d2}" onchange="CB.f.d2=this.value;render(true)"></div>
@@ -964,7 +964,7 @@ const o=(a,v)=>a.map(([k,n])=>`<option value="${k}"${k===v?" selected":""}>${n}<
 return `<div class="card"><h2>${title}</h2><div class="g">
 <div><label>Mes</label><input type="month" value="${c.m}" onchange="CB.cm=this.value;render(true)"></div>
 <div><label>Asignación</label><select onchange="CB.ca=this.value;render(true)">${o([["","Todas"],...fo.map(x=>[H(x),H(x)])],H(CB.ca))}</select></div>
-<div><label>Tipo de vehículo</label><select onchange="CB.cv=this.value;render(true)">${o([["","Todos"],...[...new Set(fuelLogs().map(l=>vTk(l.plate)).filter(Boolean))].map(k=>[H(k),H(TIPS[k]||k)])],H(CB.cv))}</select></div>
+<div><label>Tipo de vehículo</label><select onchange="CB.cv=this.value;render(true)">${o([["","Todos"],...tipos().filter(k=>k!=="Sin tipo").map(k=>[H(k),H(TIPS[k]||k)])],H(CB.cv))}</select></div>
 ${big?`<div><label>Sección</label><select onchange="CB.cc=this.value;render(true)">${o([["","Proyectos + Mantención"],["proy","Proyectos"],["mant","Mantención"]],CB.cc)}</select></div>`:""}
 <div><label>Ordenar por</label><select onchange="CB.cs=this.value;render(true)">${o([["","Total utilizado del año"],["mes","Total utilizado del mes"],["pat","Patente"]],CB.cs)}</select></div></div>
 <div class="g" style="margin-top:10px"><div class="card" style="margin:0"><div class="mu">Litros en ${H(mn)}</div><div style="font-size:24px;font-weight:700">${fL(c.lm)} L</div><div class="mu">${c.nm} cargas</div></div><div class="card" style="margin:0"><div class="mu">Litros en el año ${c.y}</div><div style="font-size:24px;font-weight:700">${fL(c.ly)} L</div><div class="mu">${c.ny} cargas</div></div></div>
