@@ -227,14 +227,14 @@ function render(force){
 }
 function formVeh(){return `<div class="card"><h2>Nuevo vehículo</h2><div class="g">
 <div><label>Patente</label><input id="f_p" placeholder="ABCD12" autocapitalize="characters" autocomplete="off"></div><div><label>Tipo de vehículo</label><select id="f_t">${tipos().map(t=>`<option>${H(t)}</option>`).join("")}</select></div><div><label>Marca</label><input id="f_b"></div><div><label>Color</label><input id="f_c"></div><div><label>N° chasis</label><input id="f_ch"></div><div><label>N° motor</label><input id="f_mo"></div><div><label>Modelo</label><input id="f_m" placeholder="Toyota Hilux 2.4"></div>
-<div><label>Año</label><input id="f_y" type="number"></div><div><label>Kilometraje actual</label><input id="f_k" type="number"></div>
+<div><label>Año</label><input id="f_y" type="number"></div><div><label>Kilometraje actual</label><input id="f_k" type="number" inputmode="numeric" placeholder="Si solo mide horas, déjalo vacío"></div><div><label>Horas actuales (horómetro)</label><input id="f_h" type="number" step="any" inputmode="decimal" placeholder="Si solo mide km, déjalo vacío"></div>
 <div><label>Asignado a (faena/lugar)</label><input id="f_a"></div>
 ${DOCS.map(([k,n])=>`<div><label>${n} (vence)</label><input type="date" id="d_${k}"></div>`).join("")}</div>
 <p><button class="p" onclick="saveVeh()">Guardar</button> <button onclick="adding=false;render()">Cancelar</button></p></div>`}
 async function saveVeh(){
   bl();const id=norm($("#f_p").value);if(!id)return al("Ingresa la patente");
   const docs={};DOCS.forEach(([k])=>docs[k]=$("#d_"+k).value);
-  try{await db.collection("vehicles").doc(id).set({tipo:$("#f_t").value,marca:$("#f_b").value,color:$("#f_c").value,chasis:$("#f_ch").value,motor:$("#f_mo").value,model:$("#f_m").value,year:$("#f_y").value,km:+$("#f_k").value||0,assign:$("#f_a").value,docs});
+  try{await db.collection("vehicles").doc(id).set({tipo:$("#f_t").value,marca:$("#f_b").value,color:$("#f_c").value,chasis:$("#f_ch").value,motor:$("#f_mo").value,model:$("#f_m").value,year:$("#f_y").value,km:+$("#f_k").value||0,...(+$("#f_h").value>0?{hrs:+$("#f_h").value}:{}),assign:$("#f_a").value,docs});
   adding=false;sel=id;}catch(e){al("No se pudo guardar (revisa tu conexión)")}render()}
 function detail(){
   const v=V.find(x=>x.id===sel)||{id:sel,docs:{}};
