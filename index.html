@@ -246,7 +246,7 @@ function detail(){
     let t=ls.filter(l=>l.type===tab);if(tab==="mant")t=mantList(t);
     const km=tab==="comb"?`<div><label>Litros</label><input id="n_l" type="number" step="0.1"></div>${showAdm()?`<div><label>Costo ($)</label><input id="n_c" type="number"></div>`:""}`:tab==="km"?`<div><label>Horas del vehículo (horómetro)</label><input id="n_h" type="number" step="any" inputmode="decimal" value="${v.hrs||""}"></div>`:tab==="mant"?`<div><label>Horas vehículo (en vez del km si solo mide horas)</label><input id="n_h" type="number" step="any" inputmode="decimal" value="${v.hrs||""}"></div><div><label>Mano de obra</label><div style="display:flex;gap:6px"><input id="n_mo" type="number" min="0" step="1" inputmode="numeric" placeholder="Horas" style="min-width:0"><input id="n_mm" type="number" min="0" max="59" step="1" inputmode="numeric" placeholder="Minutos" style="min-width:0"></div></div>`:"";
     const dlr=tab==="mant"&&showAdm()?dealerBtn(v):"";
-    body=(DLO&&tab==="mant"&&showAdm()?dealerForm(v):dlr+`<div class="card"><h2>Agregar registro</h2><div class="g"><div><label>Fecha</label><input id="n_d" type="date" value="${today()}"></div><div><label>Kilometraje${tab==="mant"?" (obligatorio si no ingresas horas)":tab==="km"?" (déjalo vacío si solo mide horas)":""}</label><input id="n_k" type="number" inputmode="numeric" value="${tab==="mant"?"":tab==="km"&&hOnly(v)?"":v.km||""}"></div>${km}<div><label>Tu nombre</label><input id="n_b" placeholder="Nombre y apellido" autocomplete="off"></div></div>
+    body=(DLO&&tab==="mant"&&showAdm()?dealerForm(v):dlr+`<div class="card"><h2>Agregar registro</h2><div class="g"><div><label>Fecha</label><input id="n_d" type="date" value="${today()}"></div><div><label>Kilometraje${tab==="mant"?" (obligatorio si no ingresas horas)":tab==="km"?" (déjalo vacío si solo mide horas)":""}</label><input id="n_k" type="number" inputmode="numeric" value="${tab==="mant"?"":tab==="km"&&hOnly(v)?"":v.km||""}"></div>${km}<div><label>Tu nombre</label><input id="n_b" placeholder="Nombre y apellido" autocomplete="off"></div><div><label>Contrato o ubicación (opcional)</label>${ctrInput("n_ct",v.contrato)}</div></div>
     ${tab==="mant"?mantSel()+puSel():""}<label style="margin-top:8px">${tab==="mant"?"Trabajo realizado / repuestos":tab==="asig"?"Lugar o trabajo asignado":"Notas"}</label><textarea id="n_t" rows="2"></textarea><label>Fotos (máx. 10)</label>${photoBtns()}<div id="ph" style="margin-top:6px">${phHtml()}</div>${pdfInput()}
     <p><button class="p" onclick="addLog()">Agregar</button></p><div id="n_err" class="er" style="font-size:14px"></div></div>`)+(tab==="mant"&&showAdm()?mantDocs(ls):"")+`
     <div class="card"><h2>${T[tab]} (${t.length})</h2>${tab==="mant"?mantCtl():""}${t.length?t.map(l=>`<div class="row"><div><b>${kmTxt(l)}</b><div class="mu">${H(fdate(l.date))}</div>${tagsHtml(l)}<div>${H(l.text||"")}${l.liters?` · ${l.liters} L`:""}${l.cost&&showAdm()?` · $${(+l.cost).toLocaleString("es-CL")}`:""}</div><div>${(l.photos||[]).map(p=>`<img src="${p}" onclick="big(this.src)" style="height:60px;border-radius:4px;margin:3px 3px 0 0;cursor:pointer">`).join("")}</div>${fileLinks(l)}</div><span class="mu">${H(who(l))}<br>${adm(l)}</span></div>`).join(""):'<div class="mu">Sin registros.</div>'}</div>`;
@@ -273,6 +273,7 @@ async function addLog(){
   if(miss.length)return showErr("n_err",miss);
   const r={plate:sel,type:tab,date:$("#n_d").value||today(),km:+nk.value||0,text:$("#n_t").value,op:nb.value.trim(),uid:ME_ID,photos:PH};if(PF.length)r.files=PF.slice();
   if(tab==="km"){const h=+String($("#n_h").value).replace(",",".")||0;if(h)r.hrs=h;if(h&&!(r.km>0))r.unit="h";else if(h)r.unit="km"}
+  {const c=(($("#n_ct")||{}).value||"").trim();if(c)r.ctr=c}
   if(tab==="comb"){r.liters=Math.round((+$("#n_l").value||0)*1000)/1000;r.cost=+(($("#n_c")||{}).value)||0}
   if(tab==="mant"){const h=+$("#n_h").value||0;if(h)r.hrs=h;const mo=Math.round(((+$("#n_mo").value||0)+(+(($("#n_mm")||{}).value)||0)/60)*1000)/1000;if(mo>0)r.mo=mo;r.tipos=[...MS];{const pp={};MS.forEach(t=>{if((POS[t]||[]).length)pp[t]=[...POS[t]]});if(Object.keys(pp).length)r.pos=pp}if(MS.has("Otro"))r.otro=OT.trim();if(MS.has("Mantención mayor"))r.mayor=[...MMS];if(PU.length){r.parts=PU.map(x=>({...x}));r.pstat="pending"}}
   {const v0=V.find(x=>x.id===sel);let g=r.km>0?await kmGuard(v0,r.km,"km"):null;if(g===false)return;if(!g&&r.hrs>0){g=await kmGuard(v0,r.hrs,"h");if(g===false)return}if(g)r.rev=g}
@@ -375,7 +376,7 @@ const nv=v=>{const t=String(v).trim(),n=t.includes(",")?+t.replace(/\./g,"").rep
 const F=(lab,key,val,type)=>`<label style="margin-top:6px">${lab}</label><input data-k="${key}" type="${type||"text"}"${type==="number"?' step="any" inputmode="decimal"':""} value="${H(val??"")}">`;
 const tf=l.type==="dano"?"desc":"text",u=l.unit==="h"?"h":"km";
 let h=`<h3 style="margin:0 0 6px">Editar · ${H(({mant:"Mantención",comb:"Combustible",asig:"Asignación",km:"Kilometraje",dano:"Daño / entrega"})[l.type]||l.type)} · ${H(l.plate)}</h3><p class="mu" style="margin:0 0 6px">Corrige lo que se ingresó mal. Registrado por: ${H(whoN(l))}.</p><div style="max-height:62vh;overflow:auto;padding-right:4px">`;
-h+=F("Fecha","date",l.date,"date");
+h+=F("Fecha","date",l.date,"date")+F("Contrato o ubicación","ctr",l.ctr);
 if(l.type==="km"){if(l.kmIni!=null)h+=F("Inicial ("+u+")","kmIni",l.kmIni,"number");h+=F((l.kmIni!=null?"Final":"Valor")+" ("+u+")",l.kmIni!=null?"kmFin":"km",l.kmIni!=null?l.kmFin:l.km,"number")}
 else if(l.type==="comb"){h+=`<label style="margin-top:6px">Vehículo (patente)</label><select data-k="plate">${VALL.filter(v=>v.id===l.plate||!v.sold).map(v=>`<option value="${H(v.id)}"${v.id===l.plate?" selected":""}>${H(fmtPat(v))}${vname(v)?" · "+H(vname(v)):""}</option>`).join("")}</select><label style="margin-top:6px">Sección</label><select data-k="cat"><option value="proy"${l.cat==="proy"?" selected":""}>Proyectos</option><option value="mant"${l.cat==="mant"?" selected":""}>Mantención</option></select><label style="margin-top:6px">Medido en</label><select data-k="unit"><option value="km"${u==="h"?"":" selected"}>Kilometraje</option><option value="h"${u==="h"?" selected":""}>Horas (horómetro)</option></select>`+F(u==="h"?"Horas del vehículo":"Kilometraje",u==="h"?"hrs":"km",u==="h"?l.hrs:l.km,"number")+F("Litros","liters",l.liters,"number")+F("Costo total de la carga ($)","cost",l.cost,"number")+`<label style="margin-top:6px">Combustible</label><select data-k="ft"><option value="gasolina"${l.ft==="gasolina"?" selected":""}>Gasolina</option><option value="diesel"${l.ft==="diesel"?" selected":""}>Diésel</option></select>`+F("Quién cargó","cargo",l.cargo)+F("Faena","faena",l.faena)}
 else if(l.type==="mant"){h+=F("Kilometraje","km",l.km,"number")+F("Horas vehículo","hrs",l.hrs,"number")+`<label style="margin-top:6px">Mano de obra</label><div style="display:flex;gap:6px"><input data-k="mo_h" type="number" min="0" step="1" inputmode="numeric" placeholder="Horas" value="${Math.floor(Math.round((+l.mo||0)*60)/60)||""}"><input data-k="mo_m" type="number" min="0" max="59" step="1" inputmode="numeric" placeholder="Minutos" value="${Math.round((+l.mo||0)*60)%60||""}"></div>`;
@@ -643,7 +644,9 @@ if(ftype==="__sd"&&canSeeAtt()){const f=sinDoc().sort((a,b)=>a.id.localeCompare(
 if(ftype===null)return head+ban+(showAdm()?secT("Gestión")+`<div class="grid-t">${resCard()}${partsCard()}${actTile("📎","var(--ok-soft)","Subir documentos de vehículos","Un archivo con todos los documentos: la IA los separa y asigna a cada vehículo","pkgOpen('')")}${sdCard()}</div>`:sdCard())+secT("Vehículos por tipo")+`<div class="grid-t">${tipos().map(t=>{const f=V.filter(v=>tp(v)===t),act=f.filter(v=>!v.sold),al=f.filter(v=>alertsOf(v)>0).length,so=f.length-act.length;return `<div class="card v tt" onclick="ftype='${H(t)}';render()"><span class="rs-ic" style="width:44px;height:44px;font-size:22px;margin:0">${TIC[t]||"🚗"}</span><div style="flex:1;min-width:0"><b class="act-h">${H(t)}</b><div class="mu">${act.length} activos${so?` · ${so} vendidos`:""}</div>${al?`<span class="b er">⚠ ${al} con alertas</span>`:""}</div><span class="n">${act.length}</span></div>`}).join("")}</div>`+secT("Herramientas")+asSect("inf",infCard())+(canSeeAtt()?asSect("falta",`<div class="card"><h2>📋 Pedir documentos faltantes</h2><p class="mu">Arma una lista de patentes con los documentos que les faltan (P.C., R.T., SOAP) para copiar y enviar.</p><button class="p" style="width:100%" onclick="faltaList()">Generar lista para copiar</button></div>`):"")+(showAdm()?asSect("pin",pinCard())+asSect("bk",bkCard()):"");
 const f=V.filter(v=>tp(v)===ftype).sort(vSortFn());
 return head+`<button onclick="ftype=null;render()" style="margin-bottom:10px">← Tipos</button><h2>${H(ftype)} (${f.length})</h2>`+vSortSel()+(f.map(vcard).join("")||empty)}
-function datosHtml(v){const F=[["tipo","Tipo"],["marca","Marca"],["model","Modelo"],["year","Año"],["color","Color"],["chasis","N° chasis"],["motor","N° motor"]];
+const CTRS=()=>[...new Set([...VALL.map(v=>v.contrato),...L.map(l=>l.ctr)].map(x=>String(x||"").trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
+const ctrInput=(id,val)=>`<input id="${id}" list="ctr_dl" value="${H(val||"")}" placeholder="Contrato o lugar (opcional)" autocomplete="off"><datalist id="ctr_dl">${CTRS().map(x=>`<option value="${H(x)}">`).join("")}</datalist>`;
+function datosHtml(v){const F=[["tipo","Tipo"],["marca","Marca"],["model","Modelo"],["year","Año"],["color","Color"],["chasis","N° chasis"],["motor","N° motor"],["contrato","Contrato o ubicación"]];
 const ed=showAdm(),cell=([k,n])=>`<div><label>${n}</label>${ed?(k==="tipo"?`<select onchange="upVeh({tipo:this.value})">${tipos().map(t=>`<option${t===v.tipo?" selected":""}>${H(t)}</option>`).join("")}</select>`:`<input value="${H(v[k]||"")}" onchange="upVeh({${k}:this.value})">`):`<div style="word-break:break-all"><b>${H(v[k]||"—")}</b></div>`}</div>`;
 const ex=Object.entries(v.extras||{}).map(([k,x])=>`<div><label>${H(k)}</label><div><b>${H(x)}</b></div></div>`).join("");
 return `<div class="card"><h2>Datos del vehículo</h2><div class="g">${F.map(cell).join("")}${ex}</div></div>`}
@@ -830,7 +833,7 @@ x.st="saved";x.buf=null;x.msg="";x.prog="";pkRender();al("Guardado en "+v.id+" �
 async function pkSaveAll(){PK.bulk=true;try{for(let i=0;i<PK.items.length;i++){const x=PK.items[i];if(x.st==="ready"&&x.plate)await pkSave(i)}}finally{PK.bulk=false}pkDone();const f=PK.items.filter(x=>x.st==="ready"&&!x.plate).length;if(f)al(f+" archivo(s) sin vehículo: elígelo y guarda")}
 /* ===== Módulo Combustible ===== */
 const SRC={op:"Operador",mec:"Mecánico",adm:"Administrador",lav:"Lavado",comb:"Combustible"},CAT={proy:"Proyectos",mant:"Mantención"},FT={gasolina:"Gasolina",diesel:"Diésel"};
-let CB={tab:"proy",f:{p:"",n:"",d1:"",d2:"",c:"",t:"",a:"",v:""},m:"",cm:"",ca:"",cs:"",cc:"",cv:""};
+let CB={tab:"proy",f:{p:"",n:"",d1:"",d2:"",c:"",t:"",a:"",v:"",k:""},m:"",cm:"",ca:"",cs:"",cc:"",cv:""};
 const fnum=(n,d=0)=>(+n||0).toLocaleString("es-CL",{minimumFractionDigits:d,maximumFractionDigits:d}),money=n=>"$"+fnum(n);
 const fuelLogs=()=>L.filter(l=>l.type==="comb"&&+l.liters>0);
 const unitOf=l=>l.unit==="h"?"h":"km",odo=l=>unitOf(l)==="h"?(+l.hrs||+l.km||0):(+l.km||0);
@@ -849,14 +852,14 @@ if(eff<.8)return{t:`⚠ Rendimiento bajó ${Math.round((1-eff)*100)}% (revisar c
 if(eff>1.25)return{t:"ℹ Mejoró mucho: revisa que km/horas y litros estén bien",c:"wa"};
 return{t:"✔ Normal",c:"ok"}}
 const rtxt=(r,u)=>{const x=r&&r[u];return x&&x.avg?(u==="km"?fnum(x.avg,1)+" km/L":fnum(x.avg,2)+" L/h"):"—"};
-function cbFilter(){const f=CB.f,p=np(f.p),n=f.n.trim().toLowerCase();return fuelLogs().filter(l=>(!p||np(l.plate).includes(p))&&(!n||((l.cargo||"")+" "+(l.op||"")).toLowerCase().includes(n))&&(!f.d1||(l.date||"")>=f.d1)&&(!f.d2||(l.date||"")<=f.d2)&&(!f.c||(l.cat||"")===f.c)&&(!f.t||(l.ft||"")===f.t)&&(!f.a||normN(l.faena)===normN(f.a))&&(!f.v||vTk(l.plate)===f.v)).sort((a,b)=>(b.date||"").localeCompare(a.date||"")||String(b.id).localeCompare(String(a.id)))}
+function cbFilter(){const f=CB.f,p=np(f.p),n=f.n.trim().toLowerCase();return fuelLogs().filter(l=>(!p||np(l.plate).includes(p))&&(!n||((l.cargo||"")+" "+(l.op||"")).toLowerCase().includes(n))&&(!f.d1||(l.date||"")>=f.d1)&&(!f.d2||(l.date||"")<=f.d2)&&(!f.c||(l.cat||"")===f.c)&&(!f.t||(l.ft||"")===f.t)&&(!f.a||normN(l.faena)===normN(f.a))&&(!f.v||vTk(l.plate)===f.v)&&(!f.k||normN(l.ctr)===normN(f.k))).sort((a,b)=>(b.date||"").localeCompare(a.date||"")||String(b.id).localeCompare(String(a.id)))}
 const r3=x=>Math.round((+x||0)*1000)/1000,fL=n=>r3(n).toLocaleString("es-CL",{minimumFractionDigits:0,maximumFractionDigits:3});
 const sumL=r=>({n:r.length,l:r3(r.reduce((s,x)=>s+ +x.liters,0)),c:r.reduce((s,x)=>s+(+x.cost||0),0)});
 function combHtml(){const tabs=[["proy","⛽ Proyectos"],["mant","🛠 Mantención"],["hist","📋 Historial"],["cons","📈 Consumo"],...(canCost()?[["stat","📊 Estadísticas"]]:[])];
 if(CB.tab==="stat"&&!canCost())CB.tab="proy";
 const body=CB.tab==="proy"||CB.tab==="mant"?cbForm():CB.tab==="hist"?cbHist():CB.tab==="cons"?cbCons():cbStat();
 return `<div class="tabs">${tabs.map(([k,n])=>`<button class="${CB.tab===k?"on":""}" onclick="CB.tab='${k}';render(true)">${n}</button>`).join("")}</div>${body}`}
-const cbRow=l=>`<div class="row"><div>${vHead(l.plate)} · ${H(fdate(l.date))} · ${H(CAT[l.cat]||"Sin sección")}<div>${fL(l.liters)} L${canCost()?` · ${money(l.cost)}${+l.liters&&+l.cost?` (${money(l.cost/l.liters)}/L)`:""}`:""} · ${H(FT[l.ft]||"")} · ${odo(l)?fnum(odo(l),unitOf(l)==="h"?1:0)+" "+unitOf(l):"sin km"}</div><div class="mu">Cargó: ${H(l.cargo||"—")} · Faena: ${H(l.faena||"—")}</div>${l.text?`<div style="margin-top:2px">📝 ${H(l.text)}</div>`:""}</div><span class="mu">${H(l.op||"")}<br>${adm(l)}</span></div>`;
+const cbRow=l=>`<div class="row"><div>${vHead(l.plate)} · ${H(fdate(l.date))} · ${H(CAT[l.cat]||"Sin sección")}<div>${fL(l.liters)} L${canCost()?` · ${money(l.cost)}${+l.liters&&+l.cost?` (${money(l.cost/l.liters)}/L)`:""}`:""} · ${H(FT[l.ft]||"")} · ${odo(l)?fnum(odo(l),unitOf(l)==="h"?1:0)+" "+unitOf(l):"sin km"}</div><div class="mu">Cargó: ${H(l.cargo||"—")} · Faena: ${H(l.faena||"—")}${l.ctr?" · 📍 "+H(l.ctr):""}</div>${l.text?`<div style="margin-top:2px">📝 ${H(l.text)}</div>`:""}</div><span class="mu">${H(l.op||"")}<br>${adm(l)}</span></div>`;
 function cbForm(){const cat=CB.tab,vs=[...V].filter(v=>!v.sold).sort((a,b)=>a.id.localeCompare(b.id)),rec=fuelLogs().filter(l=>l.cat===cat).sort((a,b)=>(b.date||"").localeCompare(a.date||"")||String(b.id).localeCompare(String(a.id))).slice(0,10);
 return `<div class="card"><h2>Combustible · ${cat==="proy"?"Proyectos":"Mantención"}</h2><div class="g">
 <div><label>Tipo de vehículo</label><select id="c_tv" onchange="cbTipo()"><option value="">Todos</option>${tipos().filter(k=>k!=="Sin tipo").map(k=>`<option value="${H(k)}">${H(TIPS[k]||k)}</option>`).join("")}</select></div>
@@ -869,7 +872,7 @@ return `<div class="card"><h2>Combustible · ${cat==="proy"?"Proyectos":"Mantenc
 <div><label id="c_kl">Kilometraje del vehículo</label><input id="c_k" type="number" step="any" inputmode="decimal"></div>
 <div><label>Litros</label><input id="c_l" type="number" step="0.01" inputmode="decimal"></div>
 ${canCost()?`<div><label>Costo total de la carga ($)</label><input id="c_c" type="number" inputmode="numeric"></div>`:""}
-<div><label>Faena de asignación</label><input id="c_f" autocomplete="off"></div></div>
+<div><label>Faena de asignación</label><input id="c_f" autocomplete="off"></div><div><label>Contrato o ubicación (opcional)</label>${ctrInput("c_ct","")}</div></div>
 <label style="margin-top:8px">Notas (opcional)</label><textarea id="c_n" rows="2"></textarea>
 <p><button class="p" style="width:100%" onclick="cbSave()">Guardar carga</button></p><div id="c_err" class="er" style="font-size:14px"></div></div>
 <div class="card"><h2>Últimas cargas de ${cat==="proy"?"proyectos":"mantención"}</h2>${rec.map(cbRow).join("")||'<div class="mu">Aún no hay cargas.</div>'}</div>`+consHtml(cat,"📈 Litros utilizados · "+(cat==="proy"?"Proyectos":"Mantención"),false)}
@@ -877,7 +880,7 @@ const cbOpts=(vs,tv)=>vs.filter(v=>!tv||v.tipo===tv).map(v=>`<option value="${H(
 function cbTipo(){const tv=($("#c_tv")||{}).value||"",dl=$("#c_pl");if(dl)dl.innerHTML=cbOpts(V.filter(v=>!v.sold).sort((a,b)=>a.id.localeCompare(b.id)),tv);const p=$("#c_p");if(p){const v=V.find(x=>np(x.id)===np(p.value));if(v&&tv&&v.tipo!==tv){p.value="";cbVeh()}}}
 function cbVeh(){const el=$("#c_p");if(!el)return;const v=V.find(x=>np(x.id)===np(el.value)&&np(el.value)),i=$("#c_vi");if(!v){if(i)i.textContent="";return}
 if(i)i.textContent=`${[v.marca,v.model].filter(Boolean).join(" ")} · último: ${fnum(v.km||0)} km${v.hrs?` · ${fnum(v.hrs,1)} h`:""}`;
-const f=$("#c_f");if(f&&!f.value)f.value=v.assign||"";const u=$("#c_u");if(u){const hh=["Grúas","Movimiento de tierra","Generadores"].includes(v.tipo)||(v.hrs&&!v.km);u.value=hh?"h":"km";cbUnit()}}
+const f=$("#c_f");if(f&&!f.value)f.value=v.assign||"";const ct=$("#c_ct");if(ct&&!ct.value)ct.value=v.contrato||"";const u=$("#c_u");if(u){const hh=["Grúas","Movimiento de tierra","Generadores"].includes(v.tipo)||(v.hrs&&!v.km);u.value=hh?"h":"km";cbUnit()}}
 function cbUnit(){const u=($("#c_u")||{}).value,l=$("#c_kl");if(l)l.textContent=u==="h"?"Horas del vehículo (horómetro)":"Kilometraje del vehículo"}
 async function cbSave(){bl();const g=id=>($("#"+id)||{}).value||"",miss=[];
 const pl=np(g("c_p")),v=pl&&V.find(x=>np(x.id)===pl);if(!v)miss.push("Patente (elige una de la lista)");
@@ -891,7 +894,7 @@ const kg=await kmGuard(v,k,u);if(kg===false)return;
 if(cur&&k-cur>(u==="h"?500:3000)&&!await cf(`El ${uu} subió ${fnum(k-cur,dg)} desde el último registro (${fnum(cur,dg)}). ¿Es correcto?`))return;
 if(li>400&&!await cf(`${fnum(li,1)} litros es una carga muy grande. ¿Es correcto?`))return;
 const pp=co/li;if(co>0&&(pp<300||pp>3000)&&!await cf(`Con ese costo total y esos litros, el precio sale ${money(pp)} por litro, fuera de lo habitual. ¿Es correcto?`))return;
-const r={plate:v.id,type:"comb",cat:CB.tab,ft:g("c_t"),cargo:w,op:e,unit:u,liters:li,cost:co,date:g("c_d"),faena:fa,full:true,text:g("c_n").trim(),uid:ME_ID};
+const r={plate:v.id,type:"comb",cat:CB.tab,ft:g("c_t"),cargo:w,op:e,unit:u,liters:li,cost:co,date:g("c_d"),faena:fa,full:true,text:g("c_n").trim(),uid:ME_ID};{const c=g("c_ct").trim();if(c)r.ctr=c}
 if(u==="h"){r.hrs=k;r.km=0}else r.km=k;if(kg)r.rev=kg;
 sn(e);
 try{const t=Date.now();await db.collection("logs").doc("l"+t).set(r);
@@ -909,6 +912,7 @@ return `<div class="card"><h2>Historial de combustible</h2><div class="g">
 <div><label>Hasta</label><input type="date" value="${f.d2}" onchange="CB.f.d2=this.value;render(true)"></div>
 <div><label>Sección</label><select onchange="CB.f.c=this.value;render(true)">${opt([["","Todas"],["proy","Proyectos"],["mant","Mantención"]],f.c)}</select></div>
 <div><label>Combustible</label><select onchange="CB.f.t=this.value;render(true)">${opt([["","Todos"],["gasolina","Gasolina"],["diesel","Diésel"]],f.t)}</select></div>
+<div><label>Contrato o ubicación</label><select onchange="CB.f.k=this.value;render(true)">${opt([["","Todos"],...CTRS().map(x=>[H(x),H(x)])],H(f.k))}</select></div>
 <div><label>Asignación</label><select onchange="CB.f.a=this.value;render(true)">${opt([["","Todas"],...cbFaenas().map(x=>[H(x),H(x)])],H(f.a))}</select></div></div>
 <div style="margin:10px 0"><b>${s.n}</b> cargas · <b>${fL(s.l)} L</b> · ${canCost()?` · <b>${money(s.c)}</b>${s.l?` · ${money(s.c/s.l)}/L`:""}`:""}</div>
 ${canCost()?`<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:end"><button class="p" onclick="cbXlsx('hist')">📥 Excel del historial (con estos filtros)</button>
@@ -937,9 +941,9 @@ if(kind==="mes"){const m=CB.m||today().slice(0,7);rows=all.filter(l=>(l.date||""
 rows=[...rows].sort((a,b)=>np(a.plate).localeCompare(np(b.plate))||(a.date||"").localeCompare(b.date||"")||String(a.id).localeCompare(String(b.id)));
 const wb=new ExcelJS.Workbook(),s=sumL(rows),P="#,##0",D="#,##0.000",K="#,##0.0##",F="dd/mm/yyyy";
 const dt=d=>{const[a,b,c]=(d||"").split("-");return c?new Date(+a,+b-1,+c):null};
-cbSheet(wb,"Detalle",[["Fecha",12],["Patente",11],["Tipo de vehículo",16],["Sección",13],["Combustible",12],["Litros",9],["Costo total ($)",14],["$ por litro",11],["Medido en",10],["Kilometraje / horas",16],["Quién cargó",22],["Encargado que ingresó",22],["Faena",24],["Notas",26]],
-rows.map(l=>[dt(l.date),l.plate,vTl(l.plate),CAT[l.cat]||"Sin sección",FT[l.ft]||"",+l.liters,+l.cost||0,+l.liters&&+l.cost?Math.round(l.cost/l.liters):null,unitOf(l)==="h"?"Horas":"Kilometraje",odo(l)||null,l.cargo||"",l.op||"",l.faena||"",l.text||""]),
-[F,null,null,null,null,D,P,P,null,K,null,null,null,null],["Total",null,null,null,null,s.l,s.c,s.l?Math.round(s.c/s.l):null]);
+cbSheet(wb,"Detalle",[["Fecha",12],["Patente",11],["Tipo de vehículo",16],["Sección",13],["Combustible",12],["Litros",9],["Costo total ($)",14],["$ por litro",11],["Medido en",10],["Kilometraje / horas",16],["Quién cargó",22],["Encargado que ingresó",22],["Faena",24],["Notas",26],["Contrato / ubicación",24]],
+rows.map(l=>[dt(l.date),l.plate,vTl(l.plate),CAT[l.cat]||"Sin sección",FT[l.ft]||"",+l.liters,+l.cost||0,+l.liters&&+l.cost?Math.round(l.cost/l.liters):null,unitOf(l)==="h"?"Horas":"Kilometraje",odo(l)||null,l.cargo||"",l.op||"",l.faena||"",l.text||"",l.ctr||""]),
+[F,null,null,null,null,D,P,P,null,K,null,null,null,null,null],["Total",null,null,null,null,s.l,s.c,s.l?Math.round(s.c/s.l):null]);
 const pl=[...new Set(rows.map(l=>l.plate))],ra=fuelLogs();
 cbSheet(wb,"Por vehículo",[["Patente",11],["Tipo de vehículo",16],["Cargas",8],["Litros",10],["Costo total ($)",14],["$ por litro",11],["Rendimiento km/L",16],["Rendimiento L/h",15],["Último km/L",12],["Último L/h",12],["Observación",44]],
 pl.map(p=>{const a=rows.filter(l=>l.plate===p),x=sumL(a),r=rendOf(p,ra),u=r.h.avg&&!r.km.avg?"h":"km";return[p,vTl(p),x.n,x.l,x.c,x.l?Math.round(x.c/x.l):null,r.km.avg,r.h.avg,r.km.last?r.km.last.val:null,r.h.last?r.h.last.val:null,rendFb(r,u).t]}),[null,null,null,D,P,P,"0.0","0.00","0.0","0.00",null]);
@@ -984,7 +988,7 @@ cbSheet(wb,"Por asignación",[["Asignación",34],["Litros "+mn,14],["Litros año
 const mm=[];for(let i=1;i<=12;i++){const k=c.y+"-"+String(i).padStart(2,"0"),a=c.rows.filter(l=>(l.date||"").slice(0,7)===k);mm.push([MESN[i-1][0].toUpperCase()+MESN[i-1].slice(1),sumL(a.filter(l=>l.cat==="proy")).l,sumL(a.filter(l=>l.cat==="mant")).l,sumL(a).l])}
 cbSheet(wb,"Por mes",[["Mes",14],["Proyectos (L)",15],["Mantención (L)",15],["Total (L)",13]],mm,[null,D,D,D],["Total año",r3(c.rows.filter(l=>l.cat==="proy").reduce((s,l)=>s+ +l.liters,0)),r3(c.rows.filter(l=>l.cat==="mant").reduce((s,l)=>s+ +l.liters,0)),c.ly]);
 const det=[...c.rows].sort((a,b)=>np(a.plate).localeCompare(np(b.plate))||(a.date||"").localeCompare(b.date||""));
-cbSheet(wb,"Detalle",[["Fecha",12],["Patente",11],["Tipo de vehículo",16],["Asignación",26],["Sección",13],["Combustible",12],["Litros",10],["Quién cargó",22],["Nota",34]],det.map(l=>[dt(l.date),l.plate,vTl(l.plate),l.faena||"",CAT[l.cat]||"Sin sección",FT[l.ft]||"",+l.liters,l.cargo||"",l.text||""]),[F,null,null,null,null,null,D,null,null],["Total",null,null,null,null,null,c.ly,null,null]);
+cbSheet(wb,"Detalle",[["Fecha",12],["Patente",11],["Tipo de vehículo",16],["Asignación",26],["Sección",13],["Combustible",12],["Litros",10],["Quién cargó",22],["Nota",34],["Contrato / ubicación",24]],det.map(l=>[dt(l.date),l.plate,vTl(l.plate),l.faena||"",CAT[l.cat]||"Sin sección",FT[l.ft]||"",+l.liters,l.cargo||"",l.text||"",l.ctr||""]),[F,null,null,null,null,null,D,null,null,null],["Total",null,null,null,null,null,c.ly,null,null,null]);
 const dl=await claude.use("downloads");if(!dl)return al("La descarga no está disponible en este momento.");
 try{const buf=await wb.xlsx.writeBuffer();await dl.save({filename:`Consumo_combustible_${c.m}${CB.cv?"_"+CB.cv:""}${CB.ca?"_"+CB.ca.replace(/[^A-Za-z0-9]+/g,"-"):""}.xlsx`,data:new Blob([buf],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"})})}catch(e){if(!e||e.code!=="declined")al("No se pudo descargar el informe")}}
 /* ===== Documentos por vehículo: consulta y descarga (solo lectura) ===== */
@@ -1218,7 +1222,8 @@ function mantCtl(){const o=(v,t)=>`<option value="${v}"${msort===v?" selected":"
 function mantList(t){let r=mf?t.filter(l=>(l.tipos||[]).includes(mf)||(l.mayor||[]).includes(mf)):[...t];
 const d=(a,b)=>(b.date||"").localeCompare(a.date||"");
 if(msort==="fa")r.sort((a,b)=>-d(a,b));else if(msort==="km")r.sort((a,b)=>(b.km||0)-(a.km||0));else if(msort==="tp")r.sort((a,b)=>((a.tipos||[])[0]||"~").localeCompare((b.tipos||[])[0]||"~")||d(a,b));else r.sort(d);return r}
-const tagsHtml=l=>revTag(l)+tagsOnly(l)+dealerLine(l)+partsLine(l);
+const ctrTag=l=>l.ctr?`<div><span class="b">📍 ${H(l.ctr)}</span></div>`:"";
+const tagsHtml=l=>revTag(l)+ctrTag(l)+tagsOnly(l)+dealerLine(l)+partsLine(l);
 const tagsOnly=l=>(l.tipos&&l.tipos.length)?`<div>${l.tipos.map(t=>`<span class="b" style="color:var(--ac)">${H((t==="Otro"&&l.otro?"Otro: "+l.otro:t)+posTxt(l,t))}</span>`).join("")}${(l.mayor||[]).map(t=>`<span class="b" style="color:var(--ac);opacity:.8">› ${H(t)}</span>`).join("")}</div>`:"";
 const infCard=()=>`<div class="card" style="margin-top:12px"><h2>📊 Informes de mantención (Excel)</h2>
 <button class="p" style="width:100%" onclick="repMant('all')">Crear informe de historial completo</button>
