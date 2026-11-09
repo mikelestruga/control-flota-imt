@@ -197,7 +197,7 @@ function danoHtml(v,ls){const t=ls.filter(l=>l.type==="dano");return `<div class
 <div class="card"><h2>Historial (${t.length})</h2>${t.length?t.map(l=>`<div class="row" style="flex-direction:column"><div><b>${H(l.kind)}</b> · ${H(l.date)} · ${kmTxt(l)} · Chofer: <b>${H(l.driver||"—")}</b> <span class="mu">(reg. ${H(who(l))})</span> ${adm(l)}</div><div>${H(l.desc||"")}</div><div class="mu">${H(l.text||"")}</div><div>${(l.photos||[]).map(p=>`<img src="${p}" onclick="big(this.src)" style="height:80px;border-radius:4px;margin:4px 4px 0 0;cursor:pointer">`).join("")}</div>${fileLinks(l)}</div>`).join(""):'<div class="mu">Sin registros.</div>'}</div>`}
 async function addDano(){bl();const xb=$("#x_b"),miss=[];if(!xb||!xb.value.trim())miss.push("Tu nombre");if(miss.length)return showErr("x_err",miss);
 const r={plate:sel,type:"dano",kind:$("#x_t").value,date:$("#x_d").value||today(),km:+$("#x_k").value||0,driver:$("#x_c").value,desc:$("#x_s").value,text:$("#x_m").value,op:xb.value.trim(),uid:ME_ID,photos:PH};if(PF.length)r.files=PF.slice();
-{const g=r.km>0?await kmGuard(V.find(x=>x.id===sel),r.km,"km"):null;if(g===false)return;if(g)r.rev=g}
+{const g=r.km>0?await kmGuard(V.find(x=>x.id===sel),r.km,"km",r.date):null;if(g===false)return;if(g)r.rev=g}
 if(JSON.stringify(r).length>240000)return showErr("x_err",["Las fotos pesan demasiado: usa menos fotos"]);showErr("x_err",[]);
 try{await db.collection("logs").doc("l"+Date.now()).set(r);PH=[];PF=[];const v=V.find(x=>x.id===sel);if(v&&r.km>(v.km||0))await db.collection("vehicles").doc(sel).update({km:r.km},false);al("Registro agregado ✔");render(true)}catch(e){showErr("x_err",["No se pudo guardar (revisa tu conexión)"])}}
 async function init(){
@@ -288,7 +288,7 @@ async function addLog(){
   {const c=(($("#n_ct")||{}).value||"").trim();if(c)r.ctr=c}
   if(tab==="comb"){r.liters=Math.round((+$("#n_l").value||0)*1000)/1000;r.cost=+(($("#n_c")||{}).value)||0}
   if(tab==="mant"){const h=+$("#n_h").value||0;if(h)r.hrs=h;const mo=Math.round(((+$("#n_mo").value||0)+(+(($("#n_mm")||{}).value)||0)/60)*1000)/1000;if(mo>0)r.mo=mo;r.tipos=[...MS];{const pp={};MS.forEach(t=>{if((POS[t]||[]).length)pp[t]=[...POS[t]]});if(Object.keys(pp).length)r.pos=pp}if(MS.has("Otro"))r.otro=OT.trim();if(MS.has("Mantención mayor"))r.mayor=[...MMS];if(PU.length){r.parts=PU.map(x=>({...x}));r.pstat="pending"}}
-  {const v0=V.find(x=>x.id===sel);let g=r.km>0?await kmGuard(v0,r.km,"km"):null;if(g===false)return;if(!g&&r.hrs>0){g=await kmGuard(v0,r.hrs,"h");if(g===false)return}if(g)r.rev=g}
+  {const v0=V.find(x=>x.id===sel);let g=r.km>0?await kmGuard(v0,r.km,"km",r.date):null;if(g===false)return;if(!g&&r.hrs>0){g=await kmGuard(v0,r.hrs,"h",r.date);if(g===false)return}if(g)r.rev=g}
   if(JSON.stringify(r).length>240000)return showErr("n_err",["Las fotos pesan demasiado: usa menos fotos"]);
   showErr("n_err",[]);
   try{await db.collection("logs").doc("l"+Date.now()).set(r);PH=[];PF=[];MS.clear();MMS.clear();POS={};OT="";PU=[];PUC="";
@@ -313,7 +313,7 @@ if(!MS.size)miss.push("Tipo de mantención (marca al menos uno)");if(MS.has("Otr
 if(miss.length)return showErr("n_err",miss);
 const r={plate:sel,type:"mant",dealer:true,dname:g("dl_n").trim(),dcost:c,dneto:nt,date:g("dl_d")||today(),km:k,text:g("dl_t"),op:g("dl_b").trim(),uid:ME_ID,photos:[],tipos:[...MS]};{const pp={};MS.forEach(t=>{if((POS[t]||[]).length)pp[t]=[...POS[t]]});if(Object.keys(pp).length)r.pos=pp}
 if(g("dl_f").trim())r.inv=g("dl_f").trim();const h=+g("dl_h").replace(",",".")||0;if(h)r.hrs=h;if(MS.has("Otro"))r.otro=OT.trim();if(MS.has("Mantención mayor"))r.mayor=[...MMS];if(PF.length)r.files=PF.slice();
-{const v0=V.find(x=>x.id===sel);let g=r.km>0?await kmGuard(v0,r.km,"km"):null;if(g===false)return;if(!g&&r.hrs>0){g=await kmGuard(v0,r.hrs,"h");if(g===false)return}if(g)r.rev=g}
+{const v0=V.find(x=>x.id===sel);let g=r.km>0?await kmGuard(v0,r.km,"km",r.date):null;if(g===false)return;if(!g&&r.hrs>0){g=await kmGuard(v0,r.hrs,"h",r.date);if(g===false)return}if(g)r.rev=g}
 showErr("n_err",[]);
 try{await db.collection("logs").doc("l"+Date.now()).set(r);PF=[];MS.clear();MMS.clear();POS={};OT="";DLO=false;DLV={};DLM="";
 const v=V.find(x=>x.id===sel);if(v&&r.km>(v.km||0))await db.collection("vehicles").doc(sel).update({km:r.km},false);if(v&&r.hrs&&r.hrs>(+v.hrs||0))await db.collection("vehicles").doc(sel).update({hrs:r.hrs},false);al("Mantención en concesionario guardada ✔");render(true)}
@@ -505,7 +505,7 @@ return `<div class="card"><h2>🚗 Registrar operación</h2>${V.length?`<div cla
 async function saveKm(){bl();const pl=$("#o_p").value,u=$("#o_u").value,ki=+$("#o_i").value,kf=+$("#o_k").value||0,n=$("#o_n").value.trim(),fv=$("#o_f").value;
 if(!pl)return al("Elige el vehículo");if(!kf)return al("Ingresa el valor final de la operación");if(!n)return al("Ingresa tu nombre");
 if(ki&&kf<ki)return al("El valor final no puede ser menor al de inicio");
-const v=V.find(x=>x.id===pl),cur=v?(u==="h"?+v.hrs||0:v.km||0):0;const kg=await kmGuard(v,kf,u);if(kg===false)return;
+const v=V.find(x=>x.id===pl),cur=v?(u==="h"?+v.hrs||0:v.km||0):0;const kg=await kmGuard(v,kf,u,$("#o_d").value);if(kg===false)return;
 const top=kf,r={plate:pl,type:"km",unit:u,date:$("#o_d").value||today(),kmFin:kf,km:top,text:$("#o_c").value,op:n,uid:ME_ID,photos:PH};
 if(ki)r.kmIni=ki;if(fv!=="")r.fuel=+fv;if(kg)r.rev=kg;
 if(JSON.stringify(r).length>240000)return al("Las fotos pesan demasiado; usa menos fotos");
@@ -905,7 +905,7 @@ if(!(k>0))miss.push(u==="h"?"Horas del vehículo":"Kilometraje del vehículo");i
 if(!g("c_d"))miss.push("Fecha");if(!fa)miss.push("Faena de asignación");
 if(miss.length)return showErr("c_err",miss);showErr("c_err",[]);
 const cur=u==="h"?+v.hrs||0:+v.km||0,uu=u==="h"?"horómetro":"kilometraje",dg=u==="h"?1:0;
-const kg=await kmGuard(v,k,u);if(kg===false)return;
+const kg=await kmGuard(v,k,u,g("c_d"));if(kg===false)return;
 if(cur&&k-cur>(u==="h"?500:3000)&&!await cf(`El ${uu} subió ${fnum(k-cur,dg)} desde el último registro (${fnum(cur,dg)}). ¿Es correcto?`))return;
 if(li>400&&!await cf(`${fnum(li,1)} litros es una carga muy grande. ¿Es correcto?`))return;
 const pp=co/li;if(co>0&&(pp<300||pp>3000)&&!await cf(`Con ese costo total y esos litros, el precio sale ${money(pp)} por litro, fuera de lo habitual. ¿Es correcto?`))return;
@@ -1159,8 +1159,15 @@ if(r.num>Math.max(0,...rest))await setCounter(r.yy,Math.max(VK[k].base(r.yy),...
 function dlg(html,init){return new Promise(res=>{const o=document.createElement("div");o.style.cssText="position:fixed;inset:0;background:#0009;display:flex;align-items:center;justify-content:center;z-index:99;padding:16px";o.innerHTML=`<div class="card" style="max-width:380px;width:100%;margin:0;max-height:92vh;overflow:auto">${html}</div>`;document.body.appendChild(o);init(o,v=>{o.remove();res(v)})})}
 const cf=m=>dlg(`<p style="white-space:pre-line">${H(m)}</p><div style="display:flex;gap:8px;justify-content:flex-end"><button id="dn">Cancelar</button><button class="p" id="dy">Aceptar</button></div>`,(o,d)=>{o.querySelector("#dn").onclick=()=>d(false);o.querySelector("#dy").onclick=()=>d(true)});
 
-async function kmGuard(v,val,unit){const u=unit==="h"?"h":"km",cur=v?(u==="h"?+v.hrs||0:+v.km||0):0;if(!v||!(val>0)||!cur||val>=cur)return null;const dg=u==="h"?1:0,nm=u==="h"?"horómetro":"kilometraje";
-if(!await cf(`⚠ El ${nm} ingresado (${fnum(val,dg)} ${u}) es MENOR al último registrado (${fnum(cur,dg)} ${u}).\n\nRevísalo de nuevo. Si lo guardas así, quedará marcado para que el administrador lo revise.\n\n¿Guardar igual?`))return false;
+async function kmGuard(v,val,unit,date){const u=unit==="h"?"h":"km";if(!v||!(val>0))return null;
+const fn=u==="h"?odoH:odoK,d=(date&&/^\d{4}-\d{2}-\d{2}/.test(date)?date.slice(0,10):today());
+/* Se compara con el último valor registrado HASTA la fecha del registro: una mantención de fecha antigua puede tener menos km que lo más reciente, y eso es válido. */
+let cur=Math.max(0,...L.filter(l=>l.plate===v.id&&(l.date||"")<=d).map(fn));
+const reciente=!L.some(l=>l.plate===v.id&&(l.date||"")>d);
+if(reciente)cur=Math.max(cur,u==="h"?+v.hrs||0:+v.km||0);
+if(!cur||val>=cur)return null;
+const dg=u==="h"?1:0,nm=u==="h"?"horómetro":"kilometraje";
+if(!await cf(`⚠ El ${nm} ingresado (${fnum(val,dg)} ${u}) es MENOR al último registrado${reciente?"":" hasta el "+fdate(d)} (${fnum(cur,dg)} ${u}).\n\nRevísalo de nuevo. Si lo guardas así, quedará marcado para que el administrador lo revise.\n\n¿Guardar igual?`))return false;
 return{prev:cur,val,unit:u}}
 const revList=()=>L.filter(l=>l.rev&&!l.revOk);
 const revAll=()=>L.filter(l=>l.rev);
@@ -1328,7 +1335,7 @@ return `<div class="card"><h2>⚠ Reportar daño</h2><div class="g">
 async function saveDanoOp(){bl();const pl=$("#d_p").value,n=$("#d_n").value.trim(),ds=$("#d_s").value.trim();
 if(!pl)return al("Elige el vehículo");if(!n)return al("Ingresa tu nombre");if(!ds)return al("Describe el daño");
 const r={plate:pl,type:"dano",kind:"Daño",date:$("#d_d").value||today(),km:+$("#d_k").value||0,driver:$("#d_c").value.trim(),desc:ds,text:$("#d_m").value,op:n,uid:ME_ID,photos:PH};
-{const g=r.km>0?await kmGuard(V.find(x=>x.id===pl),r.km,"km"):null;if(g===false)return;if(g)r.rev=g}
+{const g=r.km>0?await kmGuard(V.find(x=>x.id===pl),r.km,"km",r.date):null;if(g===false)return;if(g)r.rev=g}
 if(JSON.stringify(r).length>240000)return al("Las fotos pesan demasiado; usa menos fotos");
 try{await db.collection("logs").doc("l"+Date.now()).set(r);sn(n);PH=[];PF=[];al("Daño registrado ✔");render(true)}catch(e){al("No se pudo guardar (revisa tu conexión)")}}
 const pinCard=()=>`<div class="card"><h2>🔑 Cambiar PIN</h2><p class="mu">Cambia el PIN de un perfil. Las sesiones abiertas de ese perfil se cierran y deben ingresar el PIN nuevo.</p>
