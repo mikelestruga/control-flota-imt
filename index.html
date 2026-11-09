@@ -70,7 +70,9 @@ details.dsec{padding:0}details.dsec>summary{cursor:pointer;list-style:none;displ
 <script>
 /* ===== Capa de datos Supabase (reemplaza la base de datos de Claude) ===== */
 const SB_URL="https://diogbjjhkxtlbpvvvzla.supabase.co",SB_KEY="sb_publishable_dkzUwnQtX_w-L3itBJawzA_3TZGqQ_M",SB_BUCKET="archivos";
-const blobUrl=id=>SB_URL+"/storage/v1/object/public/"+SB_BUCKET+"/"+String(id).split("/").map(encodeURIComponent).join("/");
+/* Cloudflare R2: URL pública del bucket (sin / al final). Vacío = se sigue usando el almacenamiento de Supabase. */
+const R2_URL="";
+const blobUrl=id=>String(id).startsWith("r2/")?R2_URL+"/"+String(id).split("/").map(encodeURIComponent).join("/"):SB_URL+"/storage/v1/object/public/"+SB_BUCKET+"/"+String(id).split("/").map(encodeURIComponent).join("/");
 window.claude=(function(){
 let sb=null;const stores={};let chan=null;
 const getSb=()=>sb||(sb=window.supabase.createClient(SB_URL,SB_KEY,{auth:{persistSession:true,autoRefreshToken:true,storageKey:"flota-auth"},realtime:{params:{eventsPerSecond:10}}}));
@@ -115,11 +117,18 @@ function docRef(coll,id){return {
 const dbApi={collection:coll=>({doc:id=>docRef(coll,id),onSnapshot(cb){const s=store(coll);listen();s.subs.add(cb);if(s.ready)s.emit();else s.start();return ()=>s.subs.delete(cb)}})};
 let uid="";try{uid=localStorage.getItem("flota_uid")||"";if(!uid){uid="u"+Math.random().toString(36).slice(2)+Date.now().toString(36);localStorage.setItem("flota_uid",uid)}}catch(e){uid="u"+Math.random().toString(36).slice(2)}
 const userApi={isOwner:()=>true,canEdit:()=>true,can:()=>true,id:async()=>uid,me:async()=>({name:""}),profiles:async()=>({})};
-const assetsApi={async upload(f){const safe=(f.name||"archivo").normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^A-Za-z0-9._-]+/g,"_").replace(/\.{2,}/g,".").slice(-80);
+const assetsApi={async upload(f){
+    if(R2_URL){const c=await C();const r=await c.functions.invoke("r2",{body:{op:"put",name:f.name||"archivo",type:f.type||""}});
+      if(r.error||!r.data||!r.data.url)throw fail({message:"no se pudo preparar la subida del archivo ("+((r.error&&r.error.message)||(r.data&&r.data.error)||"sin respuesta")+")"});
+      let p;try{p=await fetch(r.data.url,{method:"PUT",body:f,headers:{"Content-Type":f.type||"application/octet-stream"}})}catch(e){throw fail({message:"no se pudo subir el archivo (¿CORS del bucket R2 o sin conexión?)"})}
+      if(!p.ok)throw fail({message:"el almacenamiento rechazó el archivo ("+p.status+")"});
+      return {id:r.data.key,url:blobUrl(r.data.key)}}
+    const safe=(f.name||"archivo").normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^A-Za-z0-9._-]+/g,"_").replace(/\.{2,}/g,".").slice(-80);
     const path=Date.now()+"_"+Math.random().toString(36).slice(2,8)+"_"+safe;
     const {error}=await (await C()).storage.from(SB_BUCKET).upload(path,f,{contentType:f.type||"application/octet-stream",upsert:false});if(error)throw fail(error);
     return {id:path,url:blobUrl(path)}},
-  async delete(path){await (await C()).storage.from(SB_BUCKET).remove([path])}};
+  async delete(path){if(String(path).startsWith("r2/")){const c=await C();await c.functions.invoke("r2",{body:{op:"del",key:path}});return}
+    await (await C()).storage.from(SB_BUCKET).remove([path])}};
 const dlApi={async save({filename,data}){const b=data instanceof Blob?data:new Blob([data]);const u=URL.createObjectURL(b),a=document.createElement("a");
     a.href=u;a.download=filename;document.body.appendChild(a);a.click();setTimeout(()=>{a.remove();URL.revokeObjectURL(u)},4000)}};
 window.flotaReload=()=>Object.values(stores).forEach(s=>{if(s.ready)s.load().catch(console.error)});

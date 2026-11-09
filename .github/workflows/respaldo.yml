@@ -23,6 +23,7 @@ jobs:
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
           ONEDRIVE_CLIENT_ID: ${{ secrets.ONEDRIVE_CLIENT_ID }}
           ONEDRIVE_TENANT_ID: ${{ secrets.ONEDRIVE_TENANT_ID }}
+          R2_PUBLIC_URL: ${{ secrets.R2_PUBLIC_URL }}
         run: node scripts/respaldo.mjs
       - name: Respaldar Control de Taller Maestranza a OneDrive
         if: ${{ !cancelled() }}

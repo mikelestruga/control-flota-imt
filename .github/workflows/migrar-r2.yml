@@ -1,0 +1,36 @@
+name: Migrar archivos a Cloudflare R2
+
+on:
+  workflow_dispatch:
+    inputs:
+      solo_contar:
+        description: "Solo contar (no copia nada)"
+        type: boolean
+        default: true
+      borrar_origen:
+        description: "Borrar de Supabase lo ya copiado (hazlo solo después de revisar)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  migrar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install --no-save aws4fetch@1.0.20
+      - name: Migrar
+        env:
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          DRY_RUN: ${{ inputs.solo_contar && '1' || '0' }}
+          BORRAR_ORIGEN: ${{ inputs.borrar_origen && '1' || '0' }}
+        run: node scripts/migrar-r2.mjs

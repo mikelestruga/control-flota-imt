@@ -76,7 +76,8 @@ async function main() {
   for (const x of nuevos) {
     if (bytes >= MAX_BYTES_ARCHIVOS) { console.log("Tope por ejecución alcanzado; el resto se sube la próxima semana."); break; }
     try {
-      const r = await fetch(`${SB_URL}/storage/v1/object/archivos/${x.aid.split("/").map(encodeURIComponent).join("/")}`, { headers: sbHeaders() });
+      const enc = x.aid.split("/").map(encodeURIComponent).join("/");
+      const r = x.aid.startsWith("r2/") ? await fetch(`${(process.env.R2_PUBLIC_URL || "").replace(/\/$/, "")}/${enc}`) : await fetch(`${SB_URL}/storage/v1/object/archivos/${enc}`, { headers: sbHeaders() });
       if (!r.ok) { console.log(`  · omitido ${x.aid} (${r.status})`); fallos++; continue; }
       const buf = Buffer.from(await r.arrayBuffer());
       await subir(token, `${RAIZ}/Archivos/${limpia(x.plate)}/${limpia(x.key)}/${limpia(x.name || x.aid)}`, buf);

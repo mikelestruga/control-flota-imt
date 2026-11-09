@@ -169,8 +169,18 @@ Deno.serve(async (req) => {
     const { path, modo, categorias } = await req.json();
     const fact = modo === "factura", comp = modo === "compra";
     if (!path || typeof path !== "string" || path.includes("..")) return out({ error: "ruta" }, 400);
-    const { data: blob, error: ed } = await svc.storage.from("archivos").download(path);
-    if (ed || !blob) return out({ error: "no_archivo" }, 404);
+    let blob: Blob | null = null;
+    if (path.startsWith("r2/")) {   // archivos en Cloudflare R2 (bucket público)
+      const pub = (Deno.env.get("R2_PUBLIC_URL") || "").replace(/\/$/, "");
+      if (!pub) return out({ error: "r2_sin_url_publica" }, 500);
+      const rr = await fetch(`${pub}/${path.split("/").map(encodeURIComponent).join("/")}`);
+      if (!rr.ok) return out({ error: "no_archivo" }, 404);
+      blob = await rr.blob();
+    } else {
+      const { data: b0, error: ed } = await svc.storage.from("archivos").download(path);
+      if (ed || !b0) return out({ error: "no_archivo" }, 404);
+      blob = b0;
+    }
     const buf = await blob.arrayBuffer();
     if (buf.byteLength > MAX_BYTES) return out({ error: "muy_pesado" }, 413);
     const mt = (blob.type || "").toLowerCase();
