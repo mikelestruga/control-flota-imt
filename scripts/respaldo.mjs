@@ -70,7 +70,7 @@ async function main() {
   const deRegistros = d.logs.flatMap(l => (l.files || []).map(f => ({ aid: f.aid, plate: l.plate, key: "registros", name: f.name })));
   const deCompras = [...d.compras.map(c => ({ aid: c.aid, plate: "Compras de stock", key: "Facturas y OC", name: c.fname })), ...d.pins.map(g => ({ aid: g.aid, plate: "Compras de stock", key: "Facturas y OC", name: g.fname }))];
   const vistos = new Set();
-  const nuevos = [...d.vdocs, ...deRegistros, ...deCompras].filter(x => x.aid && !hechos.has(x.aid) && !vistos.has(x.aid) && vistos.add(x.aid));
+  const nuevos = [...d.vdocs, ...deRegistros, ...deCompras].filter(x => x.aid && !hechos.has(x.aid) && !(x.aid.startsWith("r2/") && hechos.has(x.aid.slice(3))) && !vistos.has(x.aid) && vistos.add(x.aid)); // un archivo migrado a R2 ("r2/<nombre>") cuenta como respaldado si su nombre antiguo ya lo estaba
   console.log(`Archivos adjuntos nuevos: ${nuevos.length}`);
   let bytes = 0, ok = 0, fallos = 0;
   for (const x of nuevos) {
