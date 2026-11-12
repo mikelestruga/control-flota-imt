@@ -1216,11 +1216,11 @@ const fn=u==="h"?odoH:odoK,d=(date&&/^\d{4}-\d{2}-\d{2}/.test(date)?date.slice(0
 let cur=Math.max(0,...L.filter(l=>l.plate===v.id&&(l.date||"")<=d).map(fn));
 const post=L.filter(l=>l.plate===v.id&&(l.date||"")>d&&fn(l)>0).sort((a,b)=>(a.date||"").localeCompare(b.date||""));
 if(!post.length)cur=Math.max(cur,u==="h"?+v.hrs||0:+v.km||0);
-if(cur&&val<cur){
-if(!await cf(`⚠ El ${nm} ingresado (${fnum(val,dg)} ${u}) es MENOR al último registrado${post.length?" hasta el "+fdate(d):""} (${fnum(cur,dg)} ${u}).\n\nRevísalo de nuevo. Si lo guardas así, quedará marcado para que el administrador lo revise.\n\n¿Guardar igual?`))return false;
+if(cur&&val<cur){const src=L.filter(l=>l.plate===v.id&&(l.date||"")<=d&&fn(l)===cur).sort((a,b)=>(a.date||"").localeCompare(b.date||"")).pop();
+if(!await cf(`⚠ El ${nm} ingresado (${fnum(val,dg)} ${u}) es MENOR al último registrado${post.length?" hasta el "+fdate(d):""} (${fnum(cur,dg)} ${u}${src&&src.date?", del "+fdate(src.date):""}).\n\n📅 Revisa también la FECHA: estás registrando con fecha ${fdate(d)}. Si este dato es de antes${src&&src.date?" del "+fdate(src.date):""}, corrige la fecha antes de guardar.\n\nRevisa el ${nm} y la fecha. Si lo guardas así, quedará marcado para que el administrador lo revise.\n\n¿Guardar igual?`))return false;
 return{prev:cur,val,unit:u}}
 if(post.length){const nx=post[0],nv=Math.max(...post.filter(l=>l.date===nx.date).map(fn));
-if(val>nv){if(!await cf(`⚠ El ${nm} ingresado (${fnum(val,dg)} ${u}) es MAYOR al que ya está registrado después, el ${fdate(nx.date)} (${fnum(nv,dg)} ${u}).\n\nUn registro anterior no puede tener más ${u==="h"?"horas":"kilómetros"} que uno posterior. Revísalo de nuevo. Si lo guardas así, quedará marcado para que el administrador lo revise.\n\n¿Guardar igual?`))return false;
+if(val>nv){if(!await cf(`⚠ El ${nm} ingresado (${fnum(val,dg)} ${u}) es MAYOR al que ya está registrado después, el ${fdate(nx.date)} (${fnum(nv,dg)} ${u}).\n\nUn registro anterior no puede tener más ${u==="h"?"horas":"kilómetros"} que uno posterior.\n\n📅 Revisa también la FECHA: estás registrando con fecha ${fdate(d)}. Si este dato es más reciente que el ${fdate(nx.date)}, corrige la fecha antes de guardar.\n\nRevisa el ${nm} y la fecha. Si lo guardas así, quedará marcado para que el administrador lo revise.\n\n¿Guardar igual?`))return false;
 return{prev:nv,val,unit:u,dir:"mayor",ref:nx.date}}}
 return null}
 const revList=()=>L.filter(l=>l.rev&&!l.revOk);
