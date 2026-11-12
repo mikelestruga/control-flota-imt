@@ -301,6 +301,7 @@ async function addLog(){
   {const c=(($("#n_ct")||{}).value||"").trim();if(c)r.ctr=c}
   if(tab==="comb"){r.liters=Math.round((+$("#n_l").value||0)*1000)/1000;r.cost=+(($("#n_c")||{}).value)||0}
   if(tab==="mant"){const h=+$("#n_h").value||0;if(h)r.hrs=h;const mo=Math.round(((+$("#n_mo").value||0)+(+(($("#n_mm")||{}).value)||0)/60)*1000)/1000;if(mo>0)r.mo=mo;r.tipos=[...MS];{const pp={};MS.forEach(t=>{if((POS[t]||[]).length)pp[t]=[...POS[t]]});if(Object.keys(pp).length)r.pos=pp}if(MS.has("Otro"))r.otro=OT.trim();if(MS.has("Mantención mayor"))r.mayor=[...MMS];if(PU.length){r.parts=PU.map(x=>({...x}));r.pstat="pending"}}
+  if(r.parts){let nf0=0;for(const x of r.parts)if(x.req&&!x.npid){const id=await reqToInv(x,r.plate||sel);if(id)x.npid=id;else nf0++}if(nf0)al("La mantención se guardará, pero no se pudo agregar al inventario "+nf0+" repuesto(s) a pedido (falta permiso). El administrador puede agregarlos en Repuestos.")}
   {const v0=V.find(x=>x.id===sel);let g=r.km>0?await kmGuard(v0,r.km,"km",r.date):null;if(g===false)return;if(!g&&r.hrs>0){g=await kmGuard(v0,r.hrs,"h",r.date);if(g===false)return}if(g)r.rev=g}
   if(JSON.stringify(r).length>240000)return showErr("n_err",["Las fotos pesan demasiado: usa menos fotos"]);
   showErr("n_err",[]);
@@ -622,7 +623,7 @@ const topC=act.map(v=>{const li=l30.filter(l=>l.plate===v.id).reduce((a,l)=>a+(+
 const venc=[],porV=[];act.forEach(v=>DOCS.forEach(([k,n])=>{const d=docDate(v,k);if(!d)return;const x=dd(d);if(x<0)venc.push({v,n,d});else if(soon(d))porV.push({v,n,d,x})}));
 const sinSeg=act.filter(v=>!aseg(v)),sd=canSeeAtt()&&typeof sinDoc==="function"?sinDoc().length:0;
 // stock
-const vStock=PAR.reduce((a,x)=>a+Math.max(+x.stock||0,0)*(+x.cost||0),0),bajo=PAR.filter(x=>(+x.stock||0)<=0||(x.min!=null&&x.min!==""&&(+x.stock||0)<=+x.min)),pend=pendList().length,porVal=toVal().length;
+const vStock=PAR.reduce((a,x)=>a+Math.max(+x.stock||0,0)*(+x.cost||0),0),bajo=PAR.filter(lowOf),pend=pendList().length,porVal=toVal().length;
 const compMes=COM.filter(c=>(c.fecha||"")>=mes0).reduce((a,c)=>a+(+c.neto||0),0),compN=COM.filter(c=>(c.fecha||"")>=mes0).length;
 const dano30=L.filter(l=>l.type==="dano"&&inR(l,d30)).length,lav30=VL.filter(x=>(x.date||x.fecha||"")>=d30).length;
 // alertas list
@@ -1317,7 +1318,7 @@ const h=maintInfoH(v);if(h&&h.rem<=h.warn)o.push({c:"Mantenciones",pr:h.rem<=0?2
 mpRows().filter(r=>r.st==="bad"||r.st==="warn").forEach(r=>o.push({c:"Mantenciones",pr:r.st==="bad"?2:1,ve:fmtPat(r.v),t:"Mantención mayor: "+r.it.name,d:"Plan «"+r.p.name+"» · toca a los "+mpF(r.next,r.u)+" "+r.u+" · "+(r.rem<0?"atrasada "+mpF(-r.rem,r.u):"faltan "+mpF(r.rem,r.u))+" "+r.u,go:goVeh(r.v.id,"plan")}));
 if(canSeeAtt()&&typeof sinDoc==="function")sinDoc().forEach(v=>o.push({c:"Documentos",pr:1,ve:fmtPat(v),t:"Sin documentos adjuntos",d:"No tiene archivos adjuntos",go:goVeh(v.id,"docs")}));
 pendList().forEach(l=>o.push({c:"Stock",pr:1,ve:vlab(l.plate),t:"Descuento por aprobar",d:(l.parts||[]).map(x=>nf(x.qty)+" × "+pu(x)).join(", "),date:l.date,go:GR}));
-PAR.filter(x=>(+x.stock||0)<=0||(x.min!=null&&x.min!==""&&(+x.stock||0)<=+x.min)).forEach(x=>o.push({c:"Stock",pr:(+x.stock||0)<=0?2:1,ve:x.name,t:stk(x),d:"Stock "+nf(x.stock)+" "+(x.unit||"un")+(x.min!=null&&x.min!==""?" · mínimo "+nf(x.min):""),go:GR}));
+PAR.filter(lowOf).forEach(x=>o.push({c:"Stock",pr:(+x.stock||0)<=0?2:1,ve:x.name,t:stk(x),d:"Stock "+nf(x.stock)+" "+(x.unit||"un")+(x.min!=null&&x.min!==""?" · mínimo "+nf(x.min):""),go:GR}));
 toVal().forEach(({l,x})=>o.push({c:"Stock",pr:1,ve:vlab(l.plate),t:"Repuesto sin valorizar",d:pu(x),date:l.date,go:GR}));
 revList().forEach(l=>{const u=l.rev.unit==="h"?"h":"km",g=u==="h"?1:0;o.push({c:"Kilometraje",pr:2,ve:vlab(l.plate),t:l.rev.dir==="mayor"?"Km mayor al registro posterior":"Km menor al anterior",d:fnum(l.rev.val,g)+" "+u+" ("+(l.rev.dir==="mayor"?"después ":"antes ")+fnum(l.rev.prev,g)+") · Resp.: "+revResp(l)+" · Ingresó: "+revIn(l),date:l.date,go:"ftype='__rev';render();window.scrollTo(0,0)"})});
 chipDups().forEach(a=>o.push({c:"Otros",pr:1,ve:a.map(v=>fmtPat(v)).join(", "),t:"N° de chip repetido",d:"Chip "+a[0].chip,go:"ftype=null;render()"}));
@@ -1714,7 +1715,7 @@ PU.push(sv==="__req"?{name:nm,qty:q,unit:"un",req:true}:{pid:sv,name:x?x.name:sv
 $("#pu_list").innerHTML=puListHtml();$("#pu_n").value="";puSet("");$("#pu_rn").value="";const qe=$("#pu_q");if(qe)qe.focus()}
 // --- administración de repuestos
 const pendList=()=>L.filter(l=>l.type==="mant"&&l.pstat==="pending"&&(l.parts||[]).length);
-const partsCard=()=>{const n=pendList().length,rq=reqPend(),sv=toVal().length,bj=PAR.filter(x=>(+x.stock||0)<=0||(x.min!=null&&x.min!==""&&(+x.stock||0)<=+x.min)).length;const bd=(n?`<span class="b er">⚠ ${n} por aprobar${rq?` · ${rq} a pedido`:""}</span>`:"")+(sv?`<span class="b er">💲 ${sv} sin valor</span>`:"")+(bj?`<span class="b wa">${bj} sin stock / bajo mínimo</span>`:"");return actTile("📦","var(--run-soft)","Repuestos y stock",`${PAR.length} repuestos · compras, categorías, proveedores y descuentos de mantención`,"ftype='__rep';render();window.scrollTo(0,0)",bd)};
+const partsCard=()=>{const n=pendList().length,rq=reqPend(),sv=toVal().length,bj=PAR.filter(lowOf).length;const bd=(n?`<span class="b er">⚠ ${n} por aprobar${rq?` · ${rq} a pedido`:""}</span>`:"")+(sv?`<span class="b er">💲 ${sv} sin valor</span>`:"")+(bj?`<span class="b wa">${bj} sin stock / bajo mínimo</span>`:"");return actTile("📦","var(--run-soft)","Repuestos y stock",`${PAR.length} repuestos · compras, categorías, proveedores y descuentos de mantención`,"ftype='__rep';render();window.scrollTo(0,0)",bd)};
 // --- Compras de stock con factura u orden de compra (lectura con IA)
 let COM=[],pcq="";
 const PC0=()=>({open:false,aid:"",fname:"",ia:true,msg:"",f:{tipo:"factura",numero:"",proveedor:"",fecha:today(),neto:"",total:""},items:[]});
@@ -1789,7 +1790,13 @@ return `<div class="card"><h2>📁 Compras de stock (${COM.length})</h2><p class
 const comList=()=>{const q=normN(pcq),f=[...COM].filter(c=>!q||normN((c.numero||"")+" "+(c.proveedor||"")+" "+(c.fname||"")).includes(q)).sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||"")||b.id.localeCompare(a.id));
 return f.length?f.map(c=>{const its=PIN.filter(p=>p.cid===c.id);return `<div class="row"><div><b>${H(PCT[c.tipo]||"Documento")}${c.numero?" N° "+H(c.numero):""}</b> · ${H(c.proveedor||"Sin proveedor")}<div class="mu">${H(fdate(c.fecha))}${c.total?" · "+money(c.total)+" con IVA":""}${c.neto?" ("+money(c.neto)+" neto)":""} · ${c.n||its.length} producto(s)</div>${its.length?`<div class="mu">${its.map(p=>(p.sku?H(p.sku)+" ":"")+H(pinName(p))+" ×"+nf(p.qty)).join(" · ")}</div>`:""}${c.aid?`<a href="${blobUrl(c.aid)}" target="_blank" rel="noopener">📄 ${H(c.fname||"Documento")}</a>`:'<span class="mu">sin documento adjunto</span>'}</div><button onclick="comDel('${c.id}')" title="Eliminar registro de la compra">🗑</button></div>`}).join(""):'<div class="mu">Sin compras registradas.</div>'};
 async function comDel(id){const c=COM.find(x=>x.id===id);if(!c||!await cf("¿Eliminar el registro de esta compra? El stock y los ingresos NO cambian; los ingresos conservan su documento adjunto."))return;try{await db.collection("compras").doc(id).delete();al("Registro eliminado")}catch(e){al("No se pudo eliminar")}}
-const lowParts=()=>PAR.filter(x=>(+x.stock||0)<=0||(x.min!=null&&x.min!==""&&(+x.stock||0)<=+x.min)).sort((a,b)=>((+a.stock||0)<=0?0:1)-((+b.stock||0)<=0?0:1)||a.name.localeCompare(b.name));
+/* Los repuestos creados «a pedido» quedan con stock 0: no se avisan como faltantes salvo que se les ponga un mínimo */
+async function reqToInv(x,pl){const n=String(x.name||"").trim();if(!n)return null;const ex=PAR.find(p=>normN(p.name)===normN(n));if(ex)return ex.id;
+const v=VALL.find(y=>y.id===pl),vn=v?[v.marca,v.model].filter(Boolean).join(" "):"",id="p"+Date.now()+"_"+Math.random().toString(36).slice(2,6);
+const d={name:n,code:"",unit:x.unit||"un",stock:0,created:today(),mod:new Date().toISOString(),req:true,reqBy:meName()||"",reqPlate:pl||"",veh:vn?[vn]:[]};
+try{await db.collection("parts").doc(id).set(d);PAR.push({id,...d});return id}catch(e){return null}}
+const lowOf=x=>{const st=+x.stock||0,hm=x.min!=null&&x.min!=="";if(x.req&&!hm)return false;return st<=0||(hm&&st<=+x.min)};
+const lowParts=()=>PAR.filter(lowOf).sort((a,b)=>((+a.stock||0)<=0?0:1)-((+b.stock||0)<=0?0:1)||a.name.localeCompare(b.name));
 let LOWALL=false;
 function lowHtml(){const l=lowParts();if(!l.length)return"";const sh=LOWALL?l:l.slice(0,10);return `<div class="card" style="border-color:var(--wa)"><h2>⚠ Repuestos sin stock o bajo el mínimo (${l.length})</h2>${sh.map(x=>{const z=(+x.stock||0)<=0,hm=x.min!=null&&x.min!=="";return `<div class="row"><div><b>${H(x.name)}</b> <span class="b ${z?"er":"wa"}">${z?"Sin stock":"Bajo mínimo"}</span><div class="mu">Stock: ${nf(Math.max(+x.stock||0,0))} ${H(x.unit||"un")}${hm?" · Mínimo: "+nf(x.min):""}</div></div><button onclick="pIn('${x.id}')">+ Ingreso</button></div>`}).join("")}${l.length>10?`<p style="margin:8px 0 0"><button onclick="LOWALL=!LOWALL;render(true)">${LOWALL?"Ver menos":"Ver los "+l.length+" repuestos"}</button></p>`:""}</div>`}
 function partsHtml(){const un=["un","lt","kg","m","juego"];
@@ -1836,7 +1843,7 @@ return `<div id="pl_info" class="mu" style="margin:4px 0 6px">${pInfo(f)}</div><
 function pfull(){const e=$("#pl_wrap");if(e)e.innerHTML=pTable()}
 let PXO=new Set();
 function pTog(id){PXO.has(id)?PXO.delete(id):PXO.add(id);pdraw()}
-function pRow(x){const st=+x.stock||0,hm=x.min!=null&&x.min!=="",low=st<=0?'<span class="b er">Sin stock</span>':(hm&&st<=+x.min)?'<span class="b er">Stock bajo</span>':"",op=PXO.has(x.id),vl=vehList(x.veh);
+function pRow(x){const st=+x.stock||0,hm=x.min!=null&&x.min!=="",low=x.req&&!hm&&st<=0?`<span class="b" title="Creado al pedirlo en una mantención${x.reqPlate?" de "+H(x.reqPlate):""}">A pedido</span>`:st<=0?'<span class="b er">Sin stock</span>':(hm&&st<=+x.min)?'<span class="b er">Stock bajo</span>':"",op=PXO.has(x.id),vl=vehList(x.veh);
 const comp=x.uni?"🌐 Universal":vl.length?"🚙 "+H(vl.slice(0,2).join(", "))+(vl.length>2?" +"+(vl.length-2):""):"🚙 Sin modelo",val=x.cost!=null&&x.cost!==""?money(x.cost)+' <span class="mu" style="font-weight:400">neto</span><div class="mu" style="font-weight:400;font-size:12px">'+money(Math.round(x.cost*1.19))+' con IVA</div>':'<span class="b wa">Sin valorizar</span>';
 let det="";if(op){const pv=provsOf(x),bi=buyInfo(x),cp=PIN.filter(p=>p.pid===x.id&&(p.kind==="compra"||p.kind==="ingreso"||p.kind==="inicial")).sort((a,b)=>(b.date||"").localeCompare(a.date||"")||String(b.id).localeCompare(String(a.id)));
 det=`<div style="margin-top:6px;padding-top:6px;border-top:1px solid var(--bd)">${x.code?`<div>SKU: <b>${H(x.code)}</b></div>`:""}${x.cat?`<div class="mu">🔩 ${H(x.cat)}</div>`:""}${x.uni?"":vl.length>2?`<div class="mu">🚙 Compatible con: ${H(vl.join(", "))}</div>`:""}
