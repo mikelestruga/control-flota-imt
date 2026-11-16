@@ -22,7 +22,7 @@ jobs:
           set -u
           ok=0
           ping () {
-            code=$(curl -s -o /dev/null -w "%{http_code}" -m 30 "$1" -H "apikey: $2" -H "Authorization: Bearer $2" || echo 000)
+            code=$(curl -s -o /dev/null -w "%{http_code}" -m 30 "$1" -H "apikey: $2" -H "Authorization: Bearer $2" || true)
             if [ "$code" = "200" ] || [ "$code" = "206" ]; then echo "✔ $3 activo ($code)"; else echo "✖ $3 no responde ($code). Si dice 000, el proyecto puede estar PAUSADO: entra a supabase.com/dashboard y toca «Restore project»."; ok=1; fi
           }
           ping "https://diogbjjhkxtlbpvvvzla.supabase.co/rest/v1/docs?select=id&limit=1" "$SUPABASE_SERVICE_KEY" "Flota"
