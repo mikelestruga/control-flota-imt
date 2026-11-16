@@ -142,4 +142,4 @@ async function main() {
   if (ok) await setState("taller_docs_subidos", JSON.stringify([...hechos]));
   console.log(`Documentos subidos: ${ok} (${(bytes / 1048576).toFixed(1)} MB)` + (fallos ? `, con problemas: ${fallos}` : ""));
 }
-if (import.meta.url === `file://${process.argv[1]}`) main().catch(e => { console.error("ERROR:", e.message); process.exit(1); });
+if (import.meta.url === `file://${process.argv[1]}`) main().catch(e => { const c = e.cause && (e.cause.code || e.cause.message); console.error("ERROR:", e.message + (c ? " (" + c + ")" : "")); if (/fetch failed/i.test(e.message)) console.error("→ No se pudo conectar con Supabase. Lo más probable es que el proyecto esté PAUSADO por inactividad: entra a supabase.com/dashboard, abre el proyecto y toca «Restore project»."); process.exit(1); });

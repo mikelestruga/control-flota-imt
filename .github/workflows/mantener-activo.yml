@@ -1,0 +1,30 @@
+name: Mantener activos los proyectos de Supabase
+
+# El plan gratis de Supabase pausa un proyecto tras 7 días sin actividad.
+# Esta tarea hace una consulta pequeña cada 2 días a Flota y a Taller para que no se pausen.
+on:
+  schedule:
+    - cron: "17 13 */2 * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Consultar Flota y Taller
+        env:
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          TALLER_SUPABASE_SERVICE_KEY: ${{ secrets.TALLER_SUPABASE_SERVICE_KEY }}
+        run: |
+          set -u
+          ok=0
+          ping () {
+            code=$(curl -s -o /dev/null -w "%{http_code}" -m 30 "$1" -H "apikey: $2" -H "Authorization: Bearer $2" || echo 000)
+            if [ "$code" = "200" ] || [ "$code" = "206" ]; then echo "✔ $3 activo ($code)"; else echo "✖ $3 no responde ($code). Si dice 000, el proyecto puede estar PAUSADO: entra a supabase.com/dashboard y toca «Restore project»."; ok=1; fi
+          }
+          ping "https://diogbjjhkxtlbpvvvzla.supabase.co/rest/v1/docs?select=id&limit=1" "$SUPABASE_SERVICE_KEY" "Flota"
+          ping "https://jzkwhsgquunwbtodgrxx.supabase.co/rest/v1/config?select=clave&limit=1" "$TALLER_SUPABASE_SERVICE_KEY" "Taller"
+          exit $ok
