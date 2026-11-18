@@ -60,6 +60,20 @@ export function calcSinMant(vehs, logs = [], hoy) {
   return out.sort((a, b) => a.ult.localeCompare(b.ult));
 }
 
+// Generadores: mantención cada 250 h, pero se recuerda cada 20 días hasta que se marque «hecha» (campo genRst) o se registre una mantención
+export const GEN_D = 20;
+export function calcGen(vehs, logs = [], hoy) {
+  const out = [];
+  for (const v of vehs) {
+    if (v.sold || v.tipo !== "Generadores") continue;
+    const ds = [v.genRst || "", ...logs.filter(l => l.plate === v.id && l.type === "mant").map(l => l.date || "")].filter(x => /^\d{4}-\d{2}-\d{2}$/.test(x)).sort();
+    const ref = ds.length ? ds[ds.length - 1] : "", days = ref ? -dias(hoy, ref) : null;
+    if (ref && days < GEN_D) continue;
+    out.push({ pat: fmtPat(v), veh: [v.marca, v.model].filter(Boolean).join(" "), tipo: v.tipo || "", ref, days, atraso: ref ? days - GEN_D : null });
+  }
+  return out.sort((a, b) => (b.days ?? 9999) - (a.days ?? 9999));
+}
+
 export function calcular(vehs, hoy, forzar = false, logs = []) {
   const items = [];
   for (const v of vehs) {
@@ -81,6 +95,8 @@ export function calcular(vehs, hoy, forzar = false, logs = []) {
   const lunes = new Date(hoy + "T12:00:00Z").getUTCDay() === 1;
   const mant = calcMant(vehs, logs);
   const sinMant = calcSinMant(vehs, logs, hoy);
+  const gen = calcGen(vehs, logs, hoy);
+  const genHoy = gen.filter(g => g.days === GEN_D); // cumplen 20 días justo hoy
   const pat = Object.fromEntries(vehs.map(v => [v.id, fmtPat(v)]));
   const porValorizar = logs.filter(l => l.type === "mant" && l.pstat === "pending").flatMap(l => (l.parts || []).filter(x => x.req).map(x => ({ pat: pat[l.plate] || l.plate, fecha: l.date || "", rep: x.name, qty: x.qty, unit: x.unit || "un", quien: l.op || l.by || "" }))).sort((a, b) => a.fecha.localeCompare(b.fecha));
   const sinSeg = vehs.filter(v => !v.sold && v.asegurado === false).map(v => ({ pat: fmtPat(v), veh: [v.marca, v.model].filter(Boolean).join(" "), tipo: v.tipo || "" }));
@@ -88,11 +104,13 @@ export function calcular(vehs, hoy, forzar = false, logs = []) {
   if (forzar) motivo = "Resumen de vencimientos y mantenciones (envío manual)";
   else if (dia1) motivo = "Resumen mensual de vencimientos y mantenciones";
   else if (nuevos.length) motivo = "Documentos que vencieron hoy";
+  else if (genHoy.length) motivo = "Mantención de generadores: se cumplieron 20 días";
   else if (lunes && (venc.length || por.length)) motivo = venc.length ? "Recordatorio semanal de documentos vencidos y por vencer" : "Recordatorio semanal de documentos por vencer";
   else if (lunes && (mant.length || sinMant.length)) motivo = "Recordatorio semanal de mantenciones";
+  else if (lunes && gen.length) motivo = "Recordatorio semanal de mantención de generadores";
   else if (lunes && sinSeg.length) motivo = "Recordatorio semanal de vehículos sin seguro";
   else if (lunes && porValorizar.length) motivo = "Recordatorio semanal de repuestos a pedido por valorizar";
-  return { motivo, venc, por, nuevos, mant, sinMant, sinSeg, porValorizar, mostrarPor: !!(forzar || dia1 || lunes) };
+  return { motivo, gen, venc, por, nuevos, mant, sinMant, sinSeg, porValorizar, mostrarPor: !!(forzar || dia1 || lunes) };
 }
 
 const tabla = (titulo, color, rows) => !rows.length ? "" : `
@@ -109,16 +127,24 @@ const tablaMant = rows => !rows.length ? "" : `
 ${rows.map(r => `<tr style="border-bottom:1px solid #ccc"><td><b>${esc(r.pat)}</b></td><td>${esc(r.veh)}<br><span style="color:#666">${esc(r.tipo)}</span></td><td>${n1(r.actual)} ${r.u}</td><td>${n1(r.next)} ${r.u}</td><td style="color:${r.rem <= 0 ? "#c62828" : "#e65100"}"><b>${r.rem < 0 ? `atrasada ${n1(-r.rem)} ${r.u}` : r.rem === 0 ? "toca ahora" : `faltan ${n1(r.rem)} ${r.u}`}</b></td></tr>`).join("")}
 </table>`;
 
+const tablaGen = rows => !rows.length ? "" : `
+<h3 style="margin:18px 0 6px;color:#c62828">⚡ Generadores con mantención pendiente (${rows.length})</h3>
+<div style="color:#666;font-size:12px;margin-bottom:4px">La mantención es cada 250 horas, pero se recuerda cada ${GEN_D} días hasta que se marque como hecha en la app.</div>
+<table cellpadding="6" cellspacing="0" style="border-collapse:collapse;width:100%;font:13px Arial,sans-serif">
+<tr style="background:#1f4e9e;color:#fff;text-align:left"><th>Patente</th><th>Generador</th><th>Última mantención/reset</th><th>Estado</th></tr>
+${rows.map(r => `<tr style="border-bottom:1px solid #ccc"><td><b>${esc(r.pat)}</b></td><td>${esc(r.veh)}</td><td>${r.ref ? fdate(r.ref) : "sin registro"}</td><td style="color:${r.atraso > 0 || !r.ref ? "#c62828" : "#e65100"}">${r.ref ? `${r.days} días${r.atraso > 0 ? ` (${r.atraso} d de atraso)` : " (se cumplen hoy)"}` : "nunca reiniciada"}</td></tr>`).join("")}
+</table>`;
+
 export function armarCorreo(res, hoy) {
-  const { motivo, venc, por, nuevos, mostrarPor, mant = [], sinMant = [], sinSeg = [], porValorizar = [] } = res;
+  const { gen = [], motivo, venc, por, nuevos, mostrarPor, mant = [], sinMant = [], sinSeg = [], porValorizar = [] } = res;
   const tablaSin = !sinMant.length ? "" : `<h3 style="margin:18px 0 6px;color:#e65100">Más de 6 meses sin mantención registrada (${sinMant.length})</h3><table cellpadding="6" cellspacing="0" style="border-collapse:collapse;width:100%;font:13px Arial,sans-serif"><tr style="background:#1f4e9e;color:#fff;text-align:left"><th>Patente</th><th>Vehículo</th><th>Última mantención</th><th>Hace</th></tr>${sinMant.map(x => `<tr style="border-bottom:1px solid #ddd"><td><b>${esc(x.pat)}</b></td><td>${esc(x.veh)}</td><td>${fdate(x.ult)}</td><td>${x.meses} meses</td></tr>`).join("")}</table>`;
   const tablaRep = !porValorizar.length ? "" : `<h3 style="margin:18px 0 6px;color:#e65100">Repuestos a pedido por valorizar (${porValorizar.length})</h3><table cellpadding="6" cellspacing="0" style="border-collapse:collapse;width:100%;font:13px Arial,sans-serif"><tr style="background:#1f4e9e;color:#fff;text-align:left"><th>Patente</th><th>Fecha</th><th>Repuesto</th><th>Cantidad</th><th>Pidió</th></tr>${porValorizar.map(r => `<tr style="border-bottom:1px solid #ccc"><td><b>${esc(r.pat)}</b></td><td>${r.fecha ? fdate(r.fecha) : ""}</td><td>${esc(r.rep)}</td><td>${esc(r.qty)} ${esc(r.unit)}</td><td>${esc(r.quien)}</td></tr>`).join("")}</table><p style="color:#666;font-size:12px">Entra a «Repuestos y stock» en la app, abre «Pendientes de aprobación» y escribe el valor unitario.</p>`;
   const tablaSeg = !sinSeg.length ? "" : `<h3 style="margin:18px 0 6px;color:#c62828">Vehículos marcados SIN seguro (${sinSeg.length})</h3><table cellpadding="6" cellspacing="0" style="border-collapse:collapse;width:100%;font:13px Arial,sans-serif"><tr style="background:#1f4e9e;color:#fff;text-align:left"><th>Patente</th><th>Vehículo</th></tr>${sinSeg.map(r => `<tr style="border-bottom:1px solid #ccc"><td><b>${esc(r.pat)}</b></td><td>${esc(r.veh)} <span style="color:#666">${esc(r.tipo)}</span></td></tr>`).join("")}</table>`;
-  const soloMant = motivo.includes("mantenciones") && motivo.startsWith("Recordatorio"), soloSeg = motivo.includes("sin seguro"), soloRep = motivo.includes("por valorizar");
+  const soloMant = motivo.includes("mantenciones") && motivo.startsWith("Recordatorio"), soloSeg = motivo.includes("sin seguro"), soloRep = motivo.includes("por valorizar"), soloGen = motivo.includes("generadores");
   const cuerpo = (nuevos.length && !mostrarPor && motivo.startsWith("Documentos")) ? tabla("Vencieron hoy", "#c62828", nuevos)
-    : soloRep ? tablaRep : soloSeg ? tablaSeg : soloMant ? tablaMant(mant) + tablaSin + tablaSeg
-    : tabla("Vencidos", "#c62828", venc) + (mostrarPor ? tabla("Por vencer", "#0969da", por) : "") + tablaMant(mant) + tablaSin + tablaSeg + tablaRep;
-  const asunto = `Flota IMT · ${motivo}` + (venc.length ? ` · ${venc.length} vencido(s)` : "") + (mostrarPor && por.length ? ` · ${por.length} por vencer` : "") + (mant.length ? ` · ${mant.length} mantención(es)` : "") + (sinMant.length ? ` · ${sinMant.length} sin mantención >6 meses` : "");
+    : soloGen ? tablaGen(gen) : soloRep ? tablaRep : soloSeg ? tablaSeg : soloMant ? tablaMant(mant) + tablaGen(gen) + tablaSin + tablaSeg
+    : tabla("Vencidos", "#c62828", venc) + (mostrarPor ? tabla("Por vencer", "#0969da", por) : "") + tablaMant(mant) + tablaGen(gen) + tablaSin + tablaSeg + tablaRep;
+  const asunto = `Flota IMT · ${motivo}` + (venc.length ? ` · ${venc.length} vencido(s)` : "") + (mostrarPor && por.length ? ` · ${por.length} por vencer` : "") + (mant.length ? ` · ${mant.length} mantención(es)` : "") + (gen.length ? ` · ${gen.length} generador(es)` : "") + (sinMant.length ? ` · ${sinMant.length} sin mantención >6 meses` : "");
   const html = `<div style="font:14px Arial,sans-serif;max-width:760px"><h2 style="margin:0 0 4px;color:#1f4e9e">Control de Flota IMT</h2>
 <div style="color:#666">${esc(motivo)} · ${fdate(hoy)}</div>${cuerpo || "<p>No hay documentos vencidos ni por vencer, ni mantenciones próximas.</p>"}
 <p style="color:#666;margin-top:20px;font-size:12px">Aviso automático. Revisa y actualiza las fechas en la app: https://flota.imtspa.cl/</p></div>`;
