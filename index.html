@@ -734,7 +734,8 @@ const ctrInput=(id,val)=>`<input id="${id}" list="ctr_dl" value="${H(val||"")}" 
 function datosHtml(v){const F=[["tipo","Tipo"],["marca","Marca"],["model","Modelo"],["year","Año"],["color","Color"],["chasis","N° chasis"],["motor","N° motor"],["contrato","Contrato o ubicación"],["chip","N° chip de combustible"]];
 const ed=showAdm(),cell=([k,n])=>`<div><label>${n}</label>${ed?(k==="tipo"?`<select onchange="upVeh({tipo:this.value})">${tipos().map(t=>`<option${t===v.tipo?" selected":""}>${H(t)}</option>`).join("")}</select>`:`<input value="${H(v[k]||"")}" onchange="${k==='chip'?"upChip(this.value)":"upVeh({"+k+":this.value})"}">`):`<div style="word-break:break-all"><b>${H(v[k]||"—")}</b></div>`}${k==="chip"&&chipOthers(v,v.chip).length?`<div class="er" style="font-size:13px;margin-top:2px">⚠ Repetido en: ${chipOthers(v,v.chip).map(x=>H(fmtPat(x))).join(", ")}</div>`:""}</div>`;
 const ex=Object.entries(v.extras||{}).map(([k,x])=>`<div><label>${H(k)}</label><div><b>${H(x)}</b></div></div>`).join("");
-return `<div class="card"><h2>Datos del vehículo</h2><div class="g">${F.map(cell).join("")}${ex}</div></div>`}
+return `<details class="card" ${DVO?"open":""} ontoggle="DVO=this.open"><summary style="cursor:pointer;font-weight:700;font-size:1.1em">Datos del vehículo <span class="mu" style="font-weight:400">· marca, modelo, chasis, motor…</span></summary><div class="g" style="margin-top:8px">${F.map(cell).join("")}${ex}</div></details>`}
+let DVO=false;
 let UN={};try{UN=JSON.parse(sessionStorage.getItem("unl")||"{}")}catch(e){}
 const canCost=()=>showAdm()||!!UN.adm;
 let fails=0,lockUntil=0;
