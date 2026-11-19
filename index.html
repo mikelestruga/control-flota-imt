@@ -748,7 +748,7 @@ let DVO=false;
 let UN={};try{UN=JSON.parse(sessionStorage.getItem("unl")||"{}")}catch(e){}
 const canCost=()=>showAdm()||!!UN.adm;
 let fails=0,lockUntil=0;
-async function checkPin(){const m=mode,v=$("#pin").value;if(v.length<4)return;
+async function checkPin(){const m=mode,v=$("#pin").value;if(v.length<4){$("#pe").textContent="El PIN tiene 4 dígitos";return}
 if(Date.now()<lockUntil){$("#pe").textContent="Demasiados intentos. Espera unos segundos.";$("#pin").value="";return}
 let r;try{r=await window.flotaClaim(m,v)}catch(e){$("#pin").value="";$("#pe").textContent="No se pudo verificar el PIN: "+((e&&e.message)||"error de conexión");return}
 if(r==="bad"&&m==="comb"){try{const r2=await window.flotaClaim("adm",v);if(r2==="ok"){fails=0;UN.adm=true;UN.comb=true;try{sessionStorage.setItem("unl",JSON.stringify(UN))}catch(e){}await window.flotaRefresh();render(true);return}}catch(e){}}
@@ -758,7 +758,7 @@ if(r==="locked"){$("#pe").textContent="Demasiados intentos. Espera unos minutos.
 else if(r==="nopin"){$("#pe").textContent="El PIN de este perfil aún no está configurado."}
 else if(r==="bad"){fails++;if(fails>=5){lockUntil=Date.now()+30000;fails=0;$("#pe").textContent="Demasiados intentos. Espera 30 segundos."}else $("#pe").textContent="PIN incorrecto"}
 else $("#pe").textContent="No autorizado ("+r+")"}
-const pinHtml=m=>`<div class="card" style="max-width:360px;margin:24px auto;text-align:center"><h2>${{adm:"🔐 Administrador",lav:"🧼 Lavado de vehículos",comb:"⛽ Combustible"}[m]||"🛠 Mecánico"}</h2><p class="mu">Ingresa el PIN de 4 dígitos</p><input id="pin" type="password" inputmode="numeric" maxlength="4" autocomplete="off" oninput="this.value=this.value.replace(/[^0-9]/g,'');if(this.value.length===4)checkPin()" style="text-align:center;font-size:28px;letter-spacing:12px"><div id="pe" class="er" style="min-height:22px;margin-top:6px"></div><button onclick="setMode('')" style="margin-top:6px">← Volver</button></div>`;
+const pinHtml=m=>`<div class="card" style="max-width:360px;margin:24px auto;text-align:center"><h2>${{adm:"🔐 Administrador",lav:"🧼 Lavado de vehículos",comb:"⛽ Combustible"}[m]||"🛠 Mecánico"}</h2><p class="mu">Ingresa el PIN de 4 dígitos</p><input id="pin" type="password" inputmode="numeric" maxlength="4" autocomplete="off" oninput="this.value=this.value.replace(/[^0-9]/g,'')" onkeydown="if(event.key==='Enter')checkPin()" style="text-align:center;font-size:28px;letter-spacing:12px"><div id="pe" class="er" style="min-height:22px;margin-top:6px"></div><button class="p" onclick="checkPin()" style="margin-top:6px;width:100%">Ingresar</button><button onclick="setMode('')" style="margin-top:6px">← Volver</button></div>`;
 async function upFile(k,el){const f=el.files[0];if(!f)return;let as=null;try{as=await claude.use("assets")}catch(e){}
 if(!as)return al("Subir archivos no está disponible en este momento.");
 const v0=sel,yr=(($("#yr_"+k)||{}).value||""),kn=(typeof TN!=="undefined"&&TN[k])||k;let hash="";try{hash=await fHash(await f.arrayBuffer())}catch(e){}
