@@ -80,6 +80,7 @@ input[type=file].dz.over{border-color:var(--ac);background:rgba(28,93,168,.12)}.
 </style><script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script></head><body><div class="w">
 <div class="top" id="hd"><div class="brand-wrap"><img class="logo" src="icons/logo-imt.png" alt="IMT Ingeniería"><h1 class="brand">Control de Flota<small>IMT Ingeniería</small></h1></div><span><span class="mu" id="st">Conectando…</span> <button onclick="setMode('')" style="min-height:0;padding:4px 8px;font-size:12px">Cambiar modo</button></span></div>
 <div id="app"></div>
+<div id="vf" class="mu" style="text-align:center;font-size:12px;padding:16px 10px 24px">Versión 24-nov 12:05 · <a href="#" onclick="forceUpd();return false" style="text-decoration:underline">Actualizar ahora</a></div>
 </div>
 <script>
 /* ===== Capa de datos Supabase (reemplaza la base de datos de Claude) ===== */
@@ -2026,6 +2027,7 @@ try{const buf=await wb.xlsx.writeBuffer();await dl.save({filename:`Stock_Repuest
 let instEv=null;window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();instEv=e;try{render()}catch(x){}});
 window.addEventListener("appinstalled",()=>{instEv=null;try{render()}catch(x){}});
 async function instalar(){if(!instEv)return;instEv.prompt();try{await instEv.userChoice}catch(e){}instEv=null;render(true)}
+async function forceUpd(){try{if(navigator.serviceWorker){const rs=await navigator.serviceWorker.getRegistrations();await Promise.all(rs.map(r=>r.unregister()))}if(window.caches){const ks=await caches.keys();await Promise.all(ks.map(k=>caches.delete(k)))}}catch(e){}location.replace(location.pathname+"?u="+Date.now())}
 if("serviceWorker"in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));
 /* Evita registros duplicados por doble clic: mientras una acción de guardado está en curso (y 600 ms después) se ignoran los clics repetidos */
 (function(){const A=["addDano","saveVeh","addLog","addDealer","saveKm","closeOp","cbSave","mkVale","saveDanoOp","pcSave","pAdd","pIn","pApprove","pReject","catAdd","catRen","catDel","pkSaveAll","editLog","editVeh","delLog","delVale","pInDel","pSet","pVal","pEdit","pDel","comDel","upFile","attach","pValSave","chPlate","toggleSold","delVeh","changePin","importBackup"],S=["puAdd","pcAddRow"];
