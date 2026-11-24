@@ -19,7 +19,7 @@ const hoy = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Santiago" }).f
 const TABLAS = {
   config: "clave", tarifas: "id", perfiles: "id", operaciones: "id", maquinas: "id", procesos: "id", materiales: "id",
   dias_especiales: "fecha", ots: "id", ot_ppto: "ot_id", hh_registros: "id", hh_costo: "registro_id", asistencia: "id",
-  consumos: "id", servicios: "id", stock_ingresos: "id", produccion: "id", compras: "id", ot_stock: "id", documentos: "id", oc_lineas: "id", tipos_item_hist: "id", ot_items: "id", tipos_item: "id", maquina_uso: "id", maquina_uso_costo: "uso_id", auditoria: "id",
+  consumos: "id", servicios: "id", stock_ingresos: "id", produccion: "id", compras: "id", ot_stock: "id", documentos: "id", oc_lineas: "id", destinos: "id", tipos_item_hist: "id", ot_items: "id", tipos_item: "id", maquina_uso: "id", maquina_uso_costo: "uso_id", auditoria: "id",
 };
 const hdr = (auth = KEY_T.startsWith("eyJ")) => ({ apikey: KEY_T, ...(auth ? { Authorization: "Bearer " + KEY_T } : {}) });
 
@@ -77,8 +77,8 @@ export async function armarExcel(d) {
     (d.materiales || []).map(m => [m.codigo || "", m.grupo || "", m.nombre, m.unidad, n(m.kg_unidad), n(m.stock), n(m.stock_min), n(m.costo_unit), m.costo_unit != null ? Math.round(Math.max(0, m.stock) * m.costo_unit) : null, m.activo ? "Sí" : "No"]));
   hoja("Ingresos bodega", [["Fecha", 12], ["Material", 34], ["Cantidad", 10], ["Kg", 10], ["Costo unitario", 14], ["Documento", 22], ["Registrado por", 22]],
     (d.stock_ingresos || []).map(i => [fch(i.fecha), MT[i.material_id]?.nombre || "", n(i.cantidad), n(i.kg), n(i.costo_unit), i.doc_ref || "", per(i.registrado_por)]));
-  hoja("Salidas a OT", [["Fecha", 12], ["OT", 11], ["Origen", 15], ["Grupo", 16], ["Descripción", 36], ["Cantidad", 10], ["Unidad", 8], ["Kg", 10], ["Costo unitario", 14], ["Total", 13], ["Estado costo", 12], ["Documento", 20], ["Registrado por", 22]],
-    (d.consumos || []).map(c => [fch(c.fecha), ot(c.ot_id), { bodega: "Bodega", compra_directa: "Compra directa", stock_ot: "Stock de la OT" }[c.origen] || c.origen, c.grupo || MT[c.material_id]?.grupo || "", c.descripcion, n(c.cantidad), c.unidad, n(c.kg), n(c.costo_unit), n(c.total), c.estado_costo, c.doc_ref || "", per(c.registrado_por)]));
+  hoja("Salidas de bodega", [["Fecha", 12], ["OT", 11], ["Faena / destino", 26], ["Contrato", 24], ["Origen", 15], ["Grupo", 16], ["Descripción", 36], ["Cantidad", 10], ["Unidad", 8], ["Kg", 10], ["Costo unitario", 14], ["Total", 13], ["Estado costo", 12], ["Documento", 20], ["Registrado por", 22]],
+    (d.consumos || []).map(c => { const dt = (d.destinos || []).find(x => x.id === c.destino_id); return [fch(c.fecha), ot(c.ot_id), dt?.nombre || "", dt?.contrato || "", { bodega: "Bodega", compra_directa: "Compra directa", stock_ot: "Stock de la OT" }[c.origen] || c.origen, c.grupo || MT[c.material_id]?.grupo || "", c.descripcion, n(c.cantidad), c.unidad, n(c.kg), n(c.costo_unit), n(c.total), c.estado_costo, c.doc_ref || "", per(c.registrado_por)]; }));
   hoja("Servicios", [["Fecha", 12], ["OT", 11], ["Tipo", 18], ["Descripción", 34], ["Proveedor", 22], ["Cantidad", 10], ["Unidad", 8], ["Costo unitario", 14], ["Total", 13], ["Estado costo", 12], ["Documento", 18]],
     (d.servicios || []).map(s => [fch(s.fecha), ot(s.ot_id), s.tipo, s.descripcion, s.proveedor || "propio", n(s.cantidad), s.unidad, n(s.costo_unit), n(s.total), s.estado_costo, s.doc_ref || ""]));
   hoja("Compras OC", [["Fecha", 12], ["OT", 11], ["N° documento", 16], ["Proveedor", 26], ["Estado", 10], ["Recepción", 12], ["Neto", 13], ["Total", 13], ["Leída con IA", 12]],
