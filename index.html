@@ -173,6 +173,11 @@ let started=false,VL=[],CT=0,CTC=0,VALL=[],VD=[],ftype=null,uReady=false,mode=((
 const $=s=>document.querySelector(s),H=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const norm=p=>p.toUpperCase().replace(/[^A-Z0-9]/g,"");
 const bl=()=>{const a=document.activeElement;a&&a.blur&&a.blur()};const nm=()=>{try{return localStorage.getItem("nm")||""}catch(e){return""}};const sn=v=>{try{localStorage.setItem("nm",v)}catch(e){}};
+const nmChk=id=>`<label style="display:flex;gap:8px;align-items:center;margin-top:6px;font-weight:400;font-size:14px"><input type="checkbox" id="${id}_r" style="width:auto;min-height:0;margin:0"> Recordar mi nombre en este dispositivo</label>`;
+const nmHtml=(id,lab,ac)=>`<div><label>${lab}</label><input id="${id}" value="${H(nm())}" placeholder="Nombre y apellido"${ac?' autocomplete="off"':""}><div id="${id}_s" class="mu" style="font-size:14px">${nm()?`Registrando como <b>${H(nm())}</b> <button type="button" onclick="nmNo('${id}')" style="min-height:0;padding:2px 10px;font-size:13px;margin-left:6px">No soy yo</button>`:nmChk(id)}</div></div>`;
+function nmNo(id){try{localStorage.removeItem("nm")}catch(e){}const i=document.getElementById(id),d=document.getElementById(id+"_s");if(i){i.value="";i.focus()}if(d)d.innerHTML=nmChk(id)}
+function snf(id,v){const c=document.getElementById(id+"_r");if(c){if(c.checked)sn(v)}else sn(v)}
+
 const today=()=>new Date().toISOString().slice(0,10);
 const items=s=>(Array.isArray(s)?s:(s&&s.docs)||[]).map(d=>({id:d.id,...(d.data?d.data():d)}));
 function soon(date){if(!date)return true;const e=new Date(date+"T00:00:00");return new Date()>=new Date(e.getFullYear(),e.getMonth()-1,1)}
@@ -570,7 +575,7 @@ return `<div class="card"><h2>🚗 Registrar operación</h2>${V.length?`<div cla
 <div><label>1. Tipo de vehículo</label><select id="o_t" onchange="ofill()"><option value="">Elegir tipo…</option>${tipos().map(t=>`<option>${H(t)}</option>`).join("")}</select></div>
 <div><label>2. Vehículo</label><select id="o_p" onchange="okm()"><option value="">Primero elige el tipo</option></select></div>
 <div><label>Medir en</label><select id="o_u" onchange="ounit()"><option value="km">Kilometraje</option><option value="h">Horas (horómetro)</option></select></div>
-<div><label>Fecha</label><input id="o_d" type="date" value="${today()}"></div><div><label>Tu nombre</label><input id="o_n" value="${H(nm())}" placeholder="Nombre y apellido"></div>
+<div><label>Fecha</label><input id="o_d" type="date" value="${today()}"></div>${nmHtml("o_n","Tu nombre",false)}
 <div><label id="o_il">Km inicio de operación (opcional)</label><input id="o_i" type="number" step="any" inputmode="decimal" placeholder="Opcional"></div><div><label id="o_kl">Km final de operación (obligatorio)</label><input id="o_k" type="number" step="any" inputmode="decimal" required></div>
 <div><label>Nivel de combustible (0 vacío – 1 lleno)</label><select id="o_f"><option value="">No registrar</option>${[0,1,2,3,4,5,6,7,8].map(k=>`<option value="${k}">${fl(k)}</option>`).join("")}</select></div></div>
 <div id="o_h" class="mu" style="margin-top:6px"></div>
@@ -585,7 +590,7 @@ const v=V.find(x=>x.id===pl),cur=v?(u==="h"?+v.hrs||0:v.km||0):0;const kg=await 
 const top=kf,r={plate:pl,type:"km",unit:u,date:$("#o_d").value||today(),kmFin:kf,km:top,text:$("#o_c").value,op:n,uid:ME_ID,photos:PH};
 if(ki)r.kmIni=ki;if(fv!=="")r.fuel=+fv;if(kg)r.rev=kg;
 if(JSON.stringify(r).length>240000)return al("Las fotos pesan demasiado; usa menos fotos");
-try{await db.collection("logs").doc("l"+Date.now()).set(r);sn(n);PH=[];PF=[];
+try{await db.collection("logs").doc("l"+Date.now()).set(r);snf('o_n',n);PH=[];PF=[];
 if(v&&top>cur)await db.collection("vehicles").doc(pl).update(u==="h"?{hrs:top}:{km:top},false);al("Operación guardada ✔");render(true)}catch(e){al("No se pudo guardar (revisa tu conexión)")}}
 async function closeOp(id){const l=L.find(x=>x.id===id);if(!l)return;const u=l.unit==="h"?"h":"km";let k=await pr(`Valor final en ${u==="h"?"horas":"km"} (inicio: ${l.kmIni})`,"");k=k===null?0:(u==="h"?(num(k)||0):(+String(k).replace(/\D/g,"")||0));if(!k)return;if(k<l.kmIni)return al("El valor final no puede ser menor al de inicio");
 try{await db.collection("logs").doc(id).update({kmFin:k,km:k});const v=V.find(x=>x.id===l.plate),cur=v?(u==="h"?+v.hrs||0:v.km||0):0;if(v&&k>cur)await db.collection("vehicles").doc(l.plate).update(u==="h"?{hrs:k}:{km:k})}catch(e){al("No se pudo guardar")}}
@@ -961,7 +966,7 @@ return `<div class="card"><h2>Combustible · ${cat==="proy"?"Proyectos":"Mantenc
 <div><label>Patente</label><input id="c_p" list="c_pl" autocomplete="off" autocapitalize="characters" placeholder="Escribe o elige" oninput="cbVeh()"><datalist id="c_pl">${cbOpts(vs,"")}</datalist><div id="c_vi" class="mu"></div></div>
 <div><label>Fecha</label><input id="c_d" type="date" value="${today()}"></div>
 <div><label>Quién cargó combustible</label><input id="c_w" placeholder="Nombre y apellido" autocomplete="off"></div>
-<div><label>Encargado que ingresa los datos</label><input id="c_e" value="${H(nm())}" placeholder="Nombre y apellido" autocomplete="off"></div>
+${nmHtml("c_e","Encargado que ingresa los datos",true)}
 <div><label>Tipo de combustible</label><select id="c_t"><option value="diesel" selected>Diésel</option><option value="gasolina">Gasolina</option></select></div>
 <div><label>Medir en</label><select id="c_u" onchange="cbUnit()"><option value="km">Kilometraje</option><option value="h">Horas (horómetro)</option></select></div>
 <div><label id="c_kl">Kilometraje del vehículo</label><input id="c_k" type="number" step="any" inputmode="decimal"></div>
@@ -990,8 +995,7 @@ if(cur&&k-cur>(u==="h"?500:3000)&&!await cf(`El ${uu} subió ${fnum(k-cur,dg)} d
 if(li>400&&!await cf(`${fnum(li,1)} litros es una carga muy grande. ¿Es correcto?`))return;
 const pp=co/li;if(co>0&&(pp<300||pp>3000)&&!await cf(`Con ese costo total y esos litros, el precio sale ${money(pp)} por litro, fuera de lo habitual. ¿Es correcto?`))return;
 const r={plate:v.id,type:"comb",cat:CB.tab,ft:g("c_t"),cargo:w,op:e,unit:u,liters:li,cost:co,date:g("c_d"),faena:fa,full:true,text:g("c_n").trim(),uid:ME_ID};{const c=g("c_ct").trim();if(c)r.ctr=c}
-if(u==="h"){r.hrs=k;r.km=0}else r.km=k;if(kg)r.rev=kg;
-sn(e);
+if(u==="h"){r.hrs=k;r.km=0}else r.km=k;if(kg)r.rev=kg; snf('c_e',e);
 try{const t=Date.now();await db.collection("logs").doc("l"+t).set(r);
 const up={};if(u==="h"){if(k>(+v.hrs||0))up.hrs=k}else if(k>(+v.km||0))up.km=k;
 if(Object.keys(up).length)await db.collection("vehicles").doc(v.id).update(up,false);
@@ -1596,7 +1600,7 @@ return `<div class="card"><h2>⚠ Reportar daño</h2><div class="g">
 <div style="grid-column:1/-1"><label>🔍 Buscar por patente, marca o modelo</label><input id="d_q" type="search" oninput="dfill()" placeholder="Ej: PRLV96 o Hilux"></div>
 <div><label>1. Tipo de vehículo</label><select id="d_t" onchange="dfill()"><option value="">Elegir tipo…</option>${tipos().map(t=>`<option>${H(t)}</option>`).join("")}</select></div>
 <div><label>2. Vehículo</label><select id="d_p"><option value="">Primero elige el tipo</option></select></div>
-<div><label>Fecha</label><input id="d_d" type="date" value="${today()}"></div><div><label>Tu nombre</label><input id="d_n" value="${H(nm())}" placeholder="Nombre y apellido"></div>
+<div><label>Fecha</label><input id="d_d" type="date" value="${today()}"></div>${nmHtml("d_n","Tu nombre",false)}
 <div><label>Chofer responsable (opcional)</label><input id="d_c" placeholder="Si es otra persona"></div><div><label>Kilometraje (opcional)</label><input id="d_k" type="number" inputmode="numeric"></div></div>
 <label style="margin-top:8px">Descripción del daño</label><textarea id="d_s" rows="3"></textarea><label>Comentario (opcional)</label><textarea id="d_m" rows="2"></textarea>
 <label>Fotos del daño (máx. 10)</label>${photoBtns()}<div id="ph" style="margin-top:6px">${phHtml()}</div>
@@ -1607,7 +1611,7 @@ if(!pl)return al("Elige el vehículo");if(!n)return al("Ingresa tu nombre");if(!
 const r={plate:pl,type:"dano",kind:"Daño",date:$("#d_d").value||today(),km:+$("#d_k").value||0,driver:$("#d_c").value.trim(),desc:ds,text:$("#d_m").value,op:n,uid:ME_ID,photos:PH};
 {const g=r.km>0?await kmGuard(V.find(x=>x.id===pl),r.km,"km",r.date):null;if(g===false)return;if(g)r.rev=g}
 if(JSON.stringify(r).length>240000)return al("Las fotos pesan demasiado; usa menos fotos");
-try{await db.collection("logs").doc("l"+Date.now()).set(r);sn(n);PH=[];PF=[];al("Daño registrado ✔");render(true)}catch(e){al("No se pudo guardar (revisa tu conexión)")}}
+try{await db.collection("logs").doc("l"+Date.now()).set(r);snf('d_n',n);PH=[];PF=[];al("Daño registrado ✔");render(true)}catch(e){al("No se pudo guardar (revisa tu conexión)")}}
 const pinCard=()=>`<div class="card"><h2>🔑 Cambiar PIN</h2><p class="mu">Cambia el PIN de un perfil. Las sesiones abiertas de ese perfil se cierran y deben ingresar el PIN nuevo.</p>
 <div class="g"><div><label>Perfil</label><select id="pc_r"><option value="mec">Mecánico</option><option value="lav">Lavado de vehículos</option><option value="comb">Combustible</option><option value="adm">Administrador</option></select></div>
 <div><label>PIN nuevo (4 dígitos)</label><input id="pc_n" type="password" inputmode="numeric" maxlength="4" autocomplete="off" oninput="this.value=this.value.replace(/[^0-9]/g,'')"></div>
