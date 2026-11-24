@@ -84,7 +84,7 @@ input[type=file].dz.over{border-color:var(--ac);background:rgba(28,93,168,.12)}.
 </style><script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script></head><body><div class="w">
 <div class="top" id="hd"><div class="brand-wrap"><img class="logo" src="icons/logo-imt.png" alt="IMT Ingeniería"><h1 class="brand">Control de Flota<small>IMT Ingeniería</small></h1></div><span><span class="mu" id="st">Conectando…</span> <button onclick="setMode('')" style="min-height:0;padding:4px 8px;font-size:12px">Cambiar modo</button></span></div>
 <div id="app"></div>
-<div id="vf" class="mu" style="text-align:center;font-size:12px;padding:16px 10px 24px">Versión 24-nov 12:50 · <a href="#" onclick="forceUpd();return false" style="text-decoration:underline">Actualizar ahora</a></div>
+<div id="vf" class="mu" style="text-align:center;font-size:12px;padding:16px 10px 24px">Versión 24-nov 13:00 · <a href="#" onclick="forceUpd();return false" style="text-decoration:underline">Actualizar ahora</a></div>
 </div>
 <script>
 /* ===== Capa de datos Supabase (reemplaza la base de datos de Claude) ===== */
@@ -969,7 +969,7 @@ const cbRow=l=>`<div class="row"><div>${vHead(l.plate)} · ${H(fdate(l.date))} �
 let CTB={rows:[],tv:""};
 const ctNew=(p)=>({p:"",d:p?p.d:today(),w:p?p.w:"",t:p?p.t:"diesel",u:"km",k:"",l:"",c:"",cs:"own",co:"",f:"",ct:"",n:""});
 const ctVeh=r=>r.p?V.find(x=>np(x.id)===np(r.p)):null;
-const ctInit=()=>{if(!CTB.rows.length)CTB.rows=[ctNew(),ctNew(),ctNew()]};
+const ctInit=()=>{if(!CTB.rows.length)CTB.rows=[ctNew()]};
 const cbOpts=(vs,tv)=>vs.filter(v=>!tv||v.tipo===tv).map(v=>`<option value="${H(v.id)}">${H([TIPS[v.tipo]||v.tipo,v.marca,v.model].filter(Boolean).join(" · "))}</option>`).join("");
 const ctInfo=r=>{const v=ctVeh(r);return v?`${H([v.marca,v.model].filter(Boolean).join(" "))} · último ${r.u==="h"?fnum(v.hrs||0,1)+" h":fnum(v.km||0)+" km"}${v.chip&&chipOthers(v,v.chip).length?" · ⚠ chip repetido":""}`:(r.p?"Elige una patente de la lista":"")};
 const ctChipCell=(r,i)=>{const v=ctVeh(r);if(!v)return'<span class="mu">Elige patente</span>';
@@ -1029,7 +1029,7 @@ const up={};if(u==="h"){if(k>(+v.hrs||0))up.hrs=k}else if(k>(+v.km||0))up.km=k;
 if(Object.keys(up).length){await db.collection("vehicles").doc(v.id).update(up,false);if(u==="h")v.hrs=k;else v.km=k}
 await db.collection("logs").doc("l"+t+"k").set({plate:v.id,type:"km",date:d.date,kmFin:k,km:k,unit:u,text:"Carga de combustible",op:e,uid:ME_ID});
 r.__ok=1;ok++}catch(err){al("No se pudo guardar "+fmtPat(v)+": "+((err&&err.message)||"error"));break}}
-snf('c_e',e);const left=CTB.rows.filter(r=>!r.__ok&&(r.p||r.k||r.l||r.c)).length;CTB.rows=CTB.rows.filter(r=>!r.__ok);if(!CTB.rows.length)CTB.rows=[ctNew(),ctNew(),ctNew()];
+snf('c_e',e);const left=CTB.rows.filter(r=>!r.__ok&&(r.p||r.k||r.l||r.c)).length;CTB.rows=CTB.rows.filter(r=>!r.__ok);if(!CTB.rows.length)CTB.rows=[ctNew()];
 if(ok)al(ok+(ok===1?" carga guardada":" cargas guardadas")+" ✔"+(left?` · ${left} sin guardar (revisa las filas)`:""));render(true)}
 function cbHist(){const f=CB.f,rows=cbFilter(),s=sumL(rows),m=CB.m||today().slice(0,7);
 const opt=(o,v)=>o.map(([k,n])=>`<option value="${k}"${k===v?" selected":""}>${n}</option>`).join("");
