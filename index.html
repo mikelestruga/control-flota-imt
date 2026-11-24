@@ -84,7 +84,7 @@ input[type=file].dz.over{border-color:var(--ac);background:rgba(28,93,168,.12)}.
 </style><script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script></head><body><div class="w">
 <div class="top" id="hd"><div class="brand-wrap"><img class="logo" src="icons/logo-imt.png" alt="IMT Ingeniería"><h1 class="brand">Control de Flota<small>IMT Ingeniería</small></h1></div><span><span class="mu" id="st">Conectando…</span> <button onclick="setMode('')" style="min-height:0;padding:4px 8px;font-size:12px">Cambiar modo</button></span></div>
 <div id="app"></div>
-<div id="vf" class="mu" style="text-align:center;font-size:12px;padding:16px 10px 24px">Versión 24-nov 16:40 · <a href="#" onclick="forceUpd();return false" style="text-decoration:underline">Actualizar ahora</a></div>
+<div id="vf" class="mu" style="text-align:center;font-size:12px;padding:16px 10px 24px">Versión 24-nov 17:00 · <a href="#" onclick="forceUpd();return false" style="text-decoration:underline">Actualizar ahora</a></div>
 </div>
 <script>
 /* ===== Capa de datos Supabase (reemplaza la base de datos de Claude) ===== */
@@ -306,6 +306,7 @@ function detail(){
   <div>${exDoc(v)?'<span class="b mu">Sin documentación requerida</span>':DOCS.map(([k,n])=>badge(docName(v,k,n),docDate(v,k),noAtt(v,k))).join("")}${segBadge(v)}${mbadge(v)}${hbadge(v)}</div></div>
   <div class="tabs">${Object.entries(T).map(([k,n])=>`<button class="${tab===k?"on":""}" onclick="tab='${k}';PH=[];PF=[];DLO=false;DLV={};DLM='';render()">${n}</button>`).join("")}</div>${body}`}
 const permMsg=e=>"No se pudo guardar: "+((e&&e.code==="no_rows")?"tu sesión no tiene permiso de edición en este momento. Sal de este perfil (Cambiar modo) y vuelve a entrar con tu PIN; si sigue igual, avisa al administrador del sistema.":((e&&e.message)||"error")+". Revisa tu conexión o vuelve a entrar con tu PIN.");
+async function frzChip(v,nw){if(chipN(v.chip)===chipN(nw))return;for(const l of L.concat(LDEL).filter(x=>x.plate===v.id&&x.type==="comb"&&x.chip==null&&!x.chipOtro))await db.collection("logs").doc(l.id).update({chip:String(v.chip||"").trim()},true)}
 const CHIPS_IMP="VPRJ24 FBJ13|TSLD78 FBJ12|VYJD35 FBJ06|GE1733 FBJ23|SXSJ22 FBJ14|SHHJ35 FBJ09|TWSR34 FBJ17|KWJD27 FBJ18|PRLV97 FBJ03|GE6953 FBJ22|SXSJ24 FBJ04|HCTV54 FBJ01|SXSJ25 FBJ02|SXSJ19 FBJ05|VJRR94 FBJ21|JYXS61 FBJ19|TSLD76 FBJ11|VDLR42 FBJ07|GE2728 FBJ24|PRLV96 FBJ15|THPS22 FBJ08|TWPP47 FBJ16|SSLC90 FBJ10|PCDK59 FBJ20|VPZY42 DFQ47|VLZX30 DFQ46|TZGY25 DFQ49|TSLD97 DFQ44|TBBT90 DFQ48|VJFZ40 DFQ45|HJGL98 DFQ50".split("|").map(x=>x.split(" "));
 async function impChips(){
 const rs=CHIPS_IMP.map(([p,c])=>{const v=VALL.find(x=>np(x.id)===np(p));const cur=v?String(v.chip||"").trim():"";const dup=v?VALL.filter(x=>x.id!==v.id&&!x.sold&&chipN(x.chip)===chipN(c)).map(x=>fmtPat(x)):[];return{p,c,v,cur,dup,k:!v?"nv":!cur?"vac":chipN(cur)===chipN(c)?"ig":"dif"}});
@@ -313,9 +314,9 @@ const g=k=>rs.filter(r=>r.k===k),vac=g("vac").filter(r=>!r.dup.length),dif=g("di
 const sec=(t,a,f)=>a.length?`<h3 style="margin:10px 0 4px">${t} (${a.length})</h3><div style="font-size:13px;line-height:1.5">${a.map(f).join("<br>")}</div>`:"";
 const ok=await dlg(`<h2 style="margin:0 0 6px">⛽ Importar chips de combustible</h2><p class="mu" style="font-size:13px;margin:0">Nada se ha guardado todavía. «Agregar» solo completa los vehículos que no tienen chip; los que ya tienen datos no se tocan.</p>${sec("✅ Sin chip, se agregarán",vac,r=>`${H(pt(r))} → ${H(r.c)}`)}${sec("⚠ Ya tenían chip, distinto al listado (no se tocan)",dif,r=>`<b>${H(pt(r))}</b>: actual ${H(r.cur)} · listado ${H(r.c)}`)}${sec("✔ Ya tenían el mismo chip",g("ig"),r=>H(pt(r))+" · "+H(r.cur))}${sec("⚠ Chip del listado ya asignado a otra patente (no se agrega)",rs.filter(r=>r.k==="vac"&&r.dup.length),r=>`${H(pt(r))} → ${H(r.c)} (en ${H(r.dup.join(", "))})`)}${sec("❌ Patente no existe en la app",g("nv"),r=>`${H(r.p)} (${H(r.c)})`)}<div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:12px"><button id="dn">Cerrar</button>${dif.length?`<button id="dd">Reemplazar los ${dif.length} distintos</button>`:""}<button class="p" id="dy"${vac.length?"":" disabled"}>Agregar ${vac.length}</button></div>`,(o,d)=>{o.querySelector("#dn").onclick=()=>d(0);o.querySelector("#dy").onclick=()=>d(1);const b=o.querySelector("#dd");if(b)b.onclick=()=>d(2)});
 if(!ok)return;const a=ok===2?dif:vac;if(ok===2&&!await cf("¿Reemplazar el chip de "+dif.length+" vehículo(s) por el del listado?"))return;
-let n=0,er=0;for(const r of a){try{await db.collection("vehicles").doc(r.v.id).update({chip:r.c},true);n++}catch(e){er++}}
+let n=0,er=0;for(const r of a){try{await frzChip(r.v,r.c);await db.collection("vehicles").doc(r.v.id).update({chip:r.c},true);n++}catch(e){er++}}
 al(n+" chip(s) "+(ok===2?"reemplazados":"agregados")+(er?" · "+er+" con error":""))}
-async function upChip(val){val=String(val||"").trim();const v=V.find(x=>x.id===sel)||VALL.find(x=>x.id===sel),o=v?chipOthers(v,val):[];await upVeh({chip:val});if(o.length)al("⚠ El N° de chip "+val+" ya está asignado a: "+o.map(x=>fmtPat(x)).join(", ")+". Revisa que no esté repetido.")}
+async function upChip(val){val=String(val||"").trim();const v=V.find(x=>x.id===sel)||VALL.find(x=>x.id===sel),o=v?chipOthers(v,val):[];if(v)await frzChip(v,val);await upVeh({chip:val});if(o.length)al("⚠ El N° de chip "+val+" ya está asignado a: "+o.map(x=>fmtPat(x)).join(", ")+". Revisa que no esté repetido.")}
 async function upVeh(p){try{await db.collection("vehicles").doc(sel).update(p,true)}catch(e){al(permMsg(e))}}
 async function upAseg(val){try{await db.collection("vehicles").doc(sel).update({asegurado:!!val},true)}catch(e){al(permMsg(e))}}
 async function upCuota(val){try{await db.collection("vehicles").doc(sel).update({pcuota:val},true)}catch(e){al(permMsg(e))}}
@@ -1079,7 +1080,7 @@ return `<div class="card"><h2>Estadísticas</h2><div class="top" style="margin:0
 <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px"><tr style="text-align:left"><th>Patente</th><th>Tipo</th><th>Cargas</th><th>Litros</th><th>Costo</th><th>Rendimiento</th><th>Último</th><th>Observación</th></tr>
 ${pv.map(z=>`<tr style="border-top:1px solid var(--bd)"><td><b>${H(z.p)}</b></td><td>${H(vTl(z.p))}</td><td>${z.n}</td><td>${fL(z.l)}</td><td>${money(z.c)}</td><td>${rtxt(z.r,z.u)}</td><td>${z.r[z.u].last?(z.u==="km"?fnum(z.r[z.u].last.val,1)+" km/L":fnum(z.r[z.u].last.val,2)+" L/h"):"—"}</td><td class="${z.fb.c}">${H(z.fb.t)}</td></tr>`).join("")||'<tr><td colspan="8" class="mu">Sin cargas en este mes.</td></tr>'}</table></div></div>`}
 const chipOf=pl=>String((VALL.find(x=>x.id===pl)||{}).chip||"").trim();
-const chipUsed=l=>l.chip!=null&&l.chip!==""?String(l.chip):l.chipOtro?"":chipOf(l.plate);
+const chipUsed=l=>l.chip!=null?String(l.chip):l.chipOtro?"":chipOf(l.plate);
 const chipTipo=l=>l.chipOtro?"OTRO chip":(chipUsed(l)?"Chip de la patente":"");
 const chipTxt=l=>{const c=chipUsed(l);return l.chipOtro?"Chip: OTRO"+(c?" N° "+c:""):c?"Chip N° "+c:""};
 function cbFull(wb,rows){const cc=canCost(),dt=d=>{const[a,b,e]=(d||"").split("-");return e?new Date(+a,+b-1,+e):null},D="#,##0.000",P="#,##0",F="dd/mm/yyyy",x=sumL(rows),
