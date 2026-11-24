@@ -1036,27 +1036,36 @@ cols=[["Fecha",12],["Patente",11],["Tipo de vehículo",16],["Marca y modelo",24]
 fm=[F,null,null,null,null,null,null,null,null,D,...(cc?[P,P]:[]),null,"#,##0.0##",null,null,null],
 data=rows.map(l=>{const v=VALL.find(z=>z.id===l.plate);return[dt(l.date),l.plate,vTl(l.plate),v?vname(v):"",chipOf(l.plate),CAT[l.cat]||"Sin sección",l.faena||"",l.ctr||"",FT[l.ft]||"",+l.liters,...(cc?[+l.cost||0,+l.liters&&+l.cost?Math.round(l.cost/l.liters):null]:[]),unitOf(l)==="h"?"Horas":"Kilometraje",odo(l)||null,l.cargo||"",l.op||"",l.text||""]}),
 tot=["Total",null,null,null,null,null,null,null,null,x.l,...(cc?[x.c,x.l?Math.round(x.c/x.l):null]:[]),null,null,null,null,null];
-return cbSheet(wb,"Todas las cargas",cols,data,fm,tot)}
+return cbSheet(wb,"Detalle",cols,data,fm,tot)}
+const CPR="FF2E7D32",CMA="FFE65100",CTO="FF455A64",CBL="FF1F4E9E";
+function cbBlocks(wb,name,blocks,w0){const ws=wb.addWorksheet(name),thin={style:"thin",color:{argb:"FFB0B8C4"}},bd={top:thin,left:thin,bottom:thin,right:thin},fl=c=>({type:"pattern",pattern:"solid",fgColor:{argb:c}});let r=1,nc=0;blocks.forEach(b=>nc=Math.max(nc,b.cols.length));
+try{ws.properties.tabColor={argb:CBL};ws.views=[{showGridLines:false}]}catch(e){}
+ws.columns=Array.from({length:nc},(_,i)=>({width:i===0?(w0||34):16}));
+blocks.forEach(b=>{if(!b.rows.length)return;const t=ws.getRow(r);t.height=24;for(let i=1;i<=nc;i++){const x=t.getCell(i);x.fill=fl("FFE8EEF8")}const t1=t.getCell(1);t1.value=b.title;t1.font={bold:true,size:13,color:{argb:CBL}};t1.alignment={vertical:"middle"};r++;
+if(b.groups){const g=ws.getRow(r);b.groups.forEach(([lab,f,to,col])=>{try{ws.mergeCells(r,f,r,to)}catch(e){}const x=g.getCell(f);x.value=lab;x.font={bold:true,color:{argb:"FFFFFFFF"},size:11};x.alignment={horizontal:"center",vertical:"middle"};for(let i=f;i<=to;i++){const y=g.getCell(i);y.fill=fl(col);y.border=bd}});r++}
+const h=ws.getRow(r);h.height=34;b.cols.forEach((c,i)=>{const x=h.getCell(i+1);x.value=c;x.font={bold:true,color:{argb:"FFFFFFFF"}};x.fill=fl((b.hc&&b.hc[i])||CBL);x.alignment={horizontal:i?"center":"left",vertical:"middle",wrapText:true};x.border=bd});r++;
+const put=(a,k,tot)=>{const row=ws.getRow(r);for(let i=0;i<b.cols.length;i++){const v=a[i],x=row.getCell(i+1);x.value=v;x.border=bd;if(b.fm&&b.fm[i])x.numFmt=b.fm[i];if(i)x.alignment={horizontal:"right"};if(tot){x.font={bold:true};x.fill=fl("FFDDE4EE")}else if(k%2)x.fill=fl("FFF3F6FB")}r++};
+b.rows.forEach((a,k)=>put(a,k));if(b.total)put(b.total,0,true);r+=2});return ws}
 function cbSheet(wb,name,cols,rows,fm,total){const ws=wb.addWorksheet(name);ws.columns=cols.map(c=>({header:c[0],width:c[1]}));rows.forEach(r=>ws.addRow(r));if(total)ws.addRow(total);
 const thin={style:"thin",color:{argb:"FF000000"}},bd={top:thin,left:thin,bottom:thin,right:thin},hr=ws.getRow(1);hr.height=24;
-hr.eachCell(c=>{c.font={bold:true,color:{argb:"FFFFFFFF"},size:11};c.fill={type:"pattern",pattern:"solid",fgColor:{argb:"FF1F4E9E"}};c.alignment={horizontal:"center",vertical:"middle",wrapText:true};c.border=bd});
-const n=rows.length+(total?1:0);for(let r=2;r<=n+1;r++)ws.getRow(r).eachCell({includeEmpty:true},(c,i)=>{c.border=bd;if(fm&&fm[i-1])c.numFmt=fm[i-1];if(total&&r===n+1)c.font={bold:true}});
+hr.eachCell((c,i)=>{c.font={bold:true,color:{argb:"FFFFFFFF"},size:11};c.fill={type:"pattern",pattern:"solid",fgColor:{argb:(cols[i-1]&&cols[i-1][2])||"FF1F4E9E"}};c.alignment={horizontal:"center",vertical:"middle",wrapText:true};c.border=bd});
+const n=rows.length+(total?1:0);for(let r=2;r<=n+1;r++)ws.getRow(r).eachCell({includeEmpty:true},(c,i)=>{c.border=bd;if(fm&&fm[i-1])c.numFmt=fm[i-1];if(total&&r===n+1){c.font={bold:true};c.fill={type:"pattern",pattern:"solid",fgColor:{argb:"FFDDE4EE"}}}else if(r%2===1)c.fill={type:"pattern",pattern:"solid",fgColor:{argb:"FFF3F6FB"}}});
 ws.views=[{state:"frozen",ySplit:1}];if(rows.length)ws.autoFilter={from:{row:1,column:1},to:{row:1,column:cols.length}};return ws}
 async function cbXlsx(kind){if(!window.ExcelJS)return al("No se pudo cargar el generador de Excel");const all=fuelLogs();let rows,tag;
 if(kind==="mes"){const m=CB.m||today().slice(0,7);rows=all.filter(l=>(l.date||"").slice(0,7)===m);tag=m;if(!rows.length)return al("No hay cargas en "+m)}else{rows=cbFilter();tag="historial";if(!rows.length)return al("No hay cargas con esos filtros")}
 rows=[...rows].sort((a,b)=>np(a.plate).localeCompare(np(b.plate))||(a.date||"").localeCompare(b.date||"")||String(a.id).localeCompare(String(b.id)));
 const wb=new ExcelJS.Workbook(),s=sumL(rows),P="#,##0",D="#,##0.000",K="#,##0.0##",F="dd/mm/yyyy";
 const dt=d=>{const[a,b,c]=(d||"").split("-");return c?new Date(+a,+b-1,+c):null};
-cbSheet(wb,"Detalle",[["Fecha",12],["Patente",11],["Tipo de vehículo",16],["Sección",13],["Combustible",12],["Litros",9],["Costo total ($)",14],["$ por litro",11],["Medido en",10],["Kilometraje / horas",16],["Quién cargó",22],["Encargado que ingresó",22],["Faena",24],["Notas",26],["Contrato / ubicación",24]],
-rows.map(l=>[dt(l.date),l.plate,vTl(l.plate),CAT[l.cat]||"Sin sección",FT[l.ft]||"",+l.liters,+l.cost||0,+l.liters&&+l.cost?Math.round(l.cost/l.liters):null,unitOf(l)==="h"?"Horas":"Kilometraje",odo(l)||null,l.cargo||"",l.op||"",l.faena||"",l.text||"",l.ctr||""]),
-[F,null,null,null,null,D,P,P,null,K,null,null,null,null,null],["Total",null,null,null,null,s.l,s.c,s.l?Math.round(s.c/s.l):null]);
-cbFull(wb,rows);
+const g11=(k,a)=>{const p=sumL(a.filter(l=>l.cat==="proy")),m=sumL(a.filter(l=>l.cat==="mant")),t=sumL(a);return[k,p.n,p.l,p.c,m.n,m.l,m.c,t.n,t.l,t.c,t.l?Math.round(t.c/t.l):null]};
+const c11=lab=>[lab,"Proyectos: cargas","Proyectos: litros","Proyectos: costo ($)","Mantención: cargas","Mantención: litros","Mantención: costo ($)","Total: cargas","Total: litros","Total: costo ($)","$ por litro"],f11=[null,"0",D,P,"0",D,P,"0",D,P,P],h11=[CBL,CPR,CPR,CPR,CMA,CMA,CMA,CTO,CTO,CTO,CTO],gr11=[["PROYECTOS",2,4,CPR],["MANTENCIÓN",5,7,CMA],["TOTAL",8,11,CTO]];
+const blk=(title,lab,fn,asc)=>{const o={};rows.forEach(l=>{const k=fn(l);(o[k]=o[k]||[]).push(l)});return{title,cols:c11(lab),fm:f11,hc:h11,groups:gr11,rows:Object.entries(o).sort((x,y)=>asc?x[0].localeCompare(y[0]):sumL(y[1]).c-sumL(x[1]).c).map(([k,a])=>g11(k,a))}};
+cbBlocks(wb,"Resumen",[{title:"Total general — Proyectos y Mantención por separado",cols:c11("Detalle"),fm:f11,hc:h11,groups:gr11,rows:[g11("Todos los vehículos",rows)]},
+blk("Por asignación (faena)","Asignación",l=>l.faena||"Sin faena"),blk("Por contrato o ubicación","Contrato o ubicación",l=>(l.ctr||"").trim()||"Sin contrato"),
+...(kind!=="mes"?[blk("Por mes","Mes",l=>(l.date||"").slice(0,7),true)]:[])]);
 const pl=[...new Set(rows.map(l=>l.plate))],ra=fuelLogs();
-cbSheet(wb,"Por vehículo",[["Patente",11],["Tipo de vehículo",16],["N° chip",18],["Cargas",8],["Litros",10],["Costo total ($)",14],["$ por litro",11],["Rendimiento km/L",16],["Rendimiento L/h",15],["Último km/L",12],["Último L/h",12],["Observación",44]],
-pl.map(p=>{const a=rows.filter(l=>l.plate===p),x=sumL(a),r=rendOf(p,ra),u=r.h.avg&&!r.km.avg?"h":"km";return[p,vTl(p),chipOf(p),x.n,x.l,x.c,x.l?Math.round(x.c/x.l):null,r.km.avg,r.h.avg,r.km.last?r.km.last.val:null,r.h.last?r.h.last.val:null,rendFb(r,u).t]}),[null,null,null,null,D,P,P,"0.0","0.00","0.0","0.00",null]);
-const grp=(fn,name,lab)=>{const o={};rows.forEach(l=>{const k=fn(l);(o[k]=o[k]||[]).push(l)});cbSheet(wb,name,[[lab,30],["Cargas",8],["Litros",10],["Costo total ($)",14],["$ por litro",11]],Object.entries(o).sort((a,b)=>sumL(b[1]).c-sumL(a[1]).c).map(([k,a])=>{const x=sumL(a);return[k,x.n,x.l,x.c,x.l?Math.round(x.c/x.l):null]}),[null,null,D,P,P])};
-grp(l=>l.faena||"Sin faena","Por faena","Faena");grp(l=>(l.ctr||"").trim()||"Sin contrato","Por contrato","Contrato o ubicación");grp(l=>CAT[l.cat]||"Sin sección","Por sección","Sección");
-if(kind!=="mes"){const o={};rows.forEach(l=>{const k=(l.date||"").slice(0,7);(o[k]=o[k]||[]).push(l)});cbSheet(wb,"Por mes",[["Mes",10],["Cargas",8],["Litros",10],["Costo total ($)",14],["Proyectos ($)",14],["Mantención ($)",14]],Object.entries(o).sort((a,b)=>a[0].localeCompare(b[0])).map(([k,a])=>[k,a.length,sumL(a).l,sumL(a).c,sumL(a.filter(l=>l.cat==="proy")).c,sumL(a.filter(l=>l.cat==="mant")).c]),[null,null,D,P,P,P])}
+cbSheet(wb,"Por vehículo",[["Patente",11],["Tipo de vehículo",16],["N° chip",18],["Cargas",8],["Litros",10],["Litros Proyectos",12,CPR],["Litros Mantención",12,CMA],["Costo total ($)",14],["$ por litro",11],["Rendimiento km/L",16],["Rendimiento L/h",15],["Último km/L",12],["Último L/h",12],["Observación",44]],
+pl.map(p=>{const a=rows.filter(l=>l.plate===p),x=sumL(a),r=rendOf(p,ra),u=r.h.avg&&!r.km.avg?"h":"km";return[p,vTl(p),chipOf(p),x.n,x.l,sumL(a.filter(l=>l.cat==="proy")).l,sumL(a.filter(l=>l.cat==="mant")).l,x.c,x.l?Math.round(x.c/x.l):null,r.km.avg,r.h.avg,r.km.last?r.km.last.val:null,r.h.last?r.h.last.val:null,rendFb(r,u).t]}),[null,null,null,null,D,D,D,P,P,"0.0","0.00","0.0","0.00",null]);
+cbFull(wb,rows);
 const dl=await claude.use("downloads");if(!dl)return al("La descarga no está disponible en este momento.");
 try{const buf=await wb.xlsx.writeBuffer();await dl.save({filename:`Combustible_${tag}.xlsx`,data:new Blob([buf],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"})})}catch(e){if(!e||e.code!=="declined")al("No se pudo descargar el informe")}}
 /* ===== Consumo de litros: mensual y anual por patente y por asignación ===== */
@@ -1091,15 +1100,18 @@ ${big&&c.fa.length>1?`<h3 style="margin:14px 0 4px">Por asignación</h3><div sty
 function cbCons(){return consHtml(CB.cc,"📈 Informe de consumo de combustible (litros)",true)}
 async function consXlsx(cat){if(!window.ExcelJS)return al("No se pudo cargar el generador de Excel");if(cat===""&&CB.tab==="cons")cat=CB.cc;const c=consCalc(cat);if(!c.rows.length)return al("No hay cargas en "+c.y+" con esos filtros");
 const wb=new ExcelJS.Workbook(),D="#,##0.000",F="dd/mm/yyyy",dt=d=>{const[a,b,e]=(d||"").split("-");return e?new Date(+a,+b-1,+e):null},mn=MESN[+c.m.slice(5,7)-1]+" "+c.y;
-const tt={};c.list.forEach(z=>{const o=tt[z.t]=tt[z.t]||{t:z.t,nm:0,lm:0,ny:0,ly:0};o.nm+=z.nm;o.lm+=z.lm;o.ny+=z.ny;o.ly+=z.ly});
-cbSheet(wb,"Por patente",[["Patente",12],["Tipo de vehículo",16],["N° chip",18],["Asignación",34],["Cargas "+mn,14],["Litros "+mn,14],["Cargas año "+c.y,14],["Litros año "+c.y,14]],c.list.map(z=>[z.p,z.t,chipOf(z.p),[...z.fs.values()].join(" / "),z.nm,z.lm,z.ny,z.ly]),[null,null,null,null,"0",D,"0",D],["Total",null,null,null,c.nm,c.lm,c.ny,c.ly]);
-cbSheet(wb,"Por tipo de vehículo",[["Tipo de vehículo",20],["Cargas "+mn,14],["Litros "+mn,14],["Cargas año "+c.y,14],["Litros año "+c.y,14]],Object.values(tt).sort((a,b)=>b.ly-a.ly).map(o=>[o.t,o.nm,r3(o.lm),o.ny,r3(o.ly)]),[null,"0",D,"0",D],["Total",c.nm,c.lm,c.ny,c.ly]);
-cbSheet(wb,"Por contrato",[["Contrato o ubicación",34],["Litros "+mn,14],["Litros año "+c.y,14]],c.ct.map(z=>[z.f,z.lm,z.ly]),[null,D,D],["Total",c.lm,c.ly]);
-cbSheet(wb,"Por asignación",[["Asignación",34],["Litros "+mn,14],["Litros año "+c.y,14]],c.fa.map(z=>[z.f,z.lm,z.ly]),[null,D,D],["Total",c.lm,c.ly]);
-const mm=[];for(let i=1;i<=12;i++){const k=c.y+"-"+String(i).padStart(2,"0"),a=c.rows.filter(l=>(l.date||"").slice(0,7)===k);mm.push([MESN[i-1][0].toUpperCase()+MESN[i-1].slice(1),sumL(a.filter(l=>l.cat==="proy")).l,sumL(a.filter(l=>l.cat==="mant")).l,sumL(a).l])}
-cbSheet(wb,"Por mes",[["Mes",14],["Proyectos (L)",15],["Mantención (L)",15],["Total (L)",13]],mm,[null,D,D,D],["Total año",r3(c.rows.filter(l=>l.cat==="proy").reduce((s,l)=>s+ +l.liters,0)),r3(c.rows.filter(l=>l.cat==="mant").reduce((s,l)=>s+ +l.liters,0)),c.ly]);
+const mo=l=>(l.date||"").slice(0,7)===c.m,LL=x=>r3(sumL(x).l),fc=(x,ct)=>x.filter(l=>l.cat===ct);
+const g7=(k,a)=>{const am=a.filter(mo);return[k,LL(fc(am,"proy")),LL(fc(am,"mant")),LL(am),LL(fc(a,"proy")),LL(fc(a,"mant")),LL(a)]};
+const c7=lab=>[lab,"Proyectos "+mn+" (L)","Mantención "+mn+" (L)","Total "+mn+" (L)","Proyectos año "+c.y+" (L)","Mantención año "+c.y+" (L)","Total año "+c.y+" (L)"],f7=[null,D,D,D,D,D,D],h7=[CBL,CPR,CMA,CTO,CPR,CMA,CTO],gr7=[["MES: "+mn.toUpperCase(),2,4,CBL],["AÑO "+c.y,5,7,CBL]];
+const blk=(title,lab,fn)=>{const o={};c.rows.forEach(l=>{const k=fn(l);(o[k]=o[k]||[]).push(l)});return{title,cols:c7(lab),fm:f7,hc:h7,groups:gr7,rows:Object.entries(o).sort((x,y)=>sumL(y[1]).l-sumL(x[1]).l).map(([k,a])=>g7(k,a))}};
+const mm=[];for(let i=1;i<=12;i++){const k=c.y+"-"+String(i).padStart(2,"0"),a=c.rows.filter(l=>(l.date||"").slice(0,7)===k);mm.push([MESN[i-1][0].toUpperCase()+MESN[i-1].slice(1),LL(fc(a,"proy")),LL(fc(a,"mant")),LL(a)])}
+cbBlocks(wb,"Resumen",[{title:"Total general — Proyectos y Mantención por separado",cols:c7("Detalle"),fm:f7,hc:h7,groups:gr7,rows:[g7("Todos los vehículos",c.rows)]},
+blk("Por tipo de vehículo","Tipo de vehículo",l=>vTl(l.plate)),blk("Por contrato o ubicación","Contrato o ubicación",l=>(l.ctr||"").trim()||"Sin contrato"),blk("Por asignación (faena)","Asignación",l=>(l.faena||"").trim()||"Sin asignación"),
+{title:"Por mes del año "+c.y,cols:["Mes","Proyectos (L)","Mantención (L)","Total (L)"],fm:[null,D,D,D],hc:[CBL,CPR,CMA,CTO],rows:mm,total:["Total año",LL(fc(c.rows,"proy")),LL(fc(c.rows,"mant")),c.ly]}]);
+cbSheet(wb,"Por patente",[["Patente",12],["Tipo de vehículo",16],["N° chip",18],["Asignación",30],["Contrato o ubicación",26],["Proyectos "+mn+" (L)",14,CPR],["Mantención "+mn+" (L)",14,CMA],["Total "+mn+" (L)",14,CTO],["Proyectos año "+c.y+" (L)",15,CPR],["Mantención año "+c.y+" (L)",15,CMA],["Total año "+c.y+" (L)",15,CTO],["Cargas año",11]],
+c.list.map(z=>{const a=c.rows.filter(l=>l.plate===z.p),am=a.filter(mo);return[z.p,z.t,chipOf(z.p),[...z.fs.values()].join(" / "),[...new Set(a.map(l=>(l.ctr||"").trim()).filter(Boolean))].join(" / "),LL(fc(am,"proy")),LL(fc(am,"mant")),LL(am),LL(fc(a,"proy")),LL(fc(a,"mant")),LL(a),a.length]}),
+[null,null,null,null,null,D,D,D,D,D,D,"0"],["Total",null,null,null,null,LL(fc(c.rows.filter(mo),"proy")),LL(fc(c.rows.filter(mo),"mant")),c.lm,LL(fc(c.rows,"proy")),LL(fc(c.rows,"mant")),c.ly,c.ny]);
 const det=[...c.rows].sort((a,b)=>np(a.plate).localeCompare(np(b.plate))||(a.date||"").localeCompare(b.date||""));
-cbSheet(wb,"Detalle",[["Fecha",12],["Patente",11],["Tipo de vehículo",16],["Asignación",26],["Sección",13],["Combustible",12],["Litros",10],["Quién cargó",22],["Nota",34],["Contrato / ubicación",24]],det.map(l=>[dt(l.date),l.plate,vTl(l.plate),l.faena||"",CAT[l.cat]||"Sin sección",FT[l.ft]||"",+l.liters,l.cargo||"",l.text||"",l.ctr||""]),[F,null,null,null,null,null,D,null,null,null],["Total",null,null,null,null,null,c.ly,null,null,null]);
 cbFull(wb,det);
 const dl=await claude.use("downloads");if(!dl)return al("La descarga no está disponible en este momento.");
 try{const buf=await wb.xlsx.writeBuffer();await dl.save({filename:`Consumo_combustible_${c.m}${CB.cv?"_"+CB.cv:""}${CB.ca?"_"+CB.ca.replace(/[^A-Za-z0-9]+/g,"-"):""}.xlsx`,data:new Blob([buf],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"})})}catch(e){if(!e||e.code!=="declined")al("No se pudo descargar el informe")}}
