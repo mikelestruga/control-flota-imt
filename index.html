@@ -84,7 +84,7 @@ input[type=file].dz.over{border-color:var(--ac);background:rgba(28,93,168,.12)}.
 </style><script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script></head><body><div class="w">
 <div class="top" id="hd"><div class="brand-wrap"><img class="logo" src="icons/logo-imt.png" alt="IMT Ingeniería"><h1 class="brand">Control de Flota<small>IMT Ingeniería</small></h1></div><span><span class="mu" id="st">Conectando…</span> <button onclick="setMode('')" style="min-height:0;padding:4px 8px;font-size:12px">Cambiar modo</button></span></div>
 <div id="app"></div>
-<div id="vf" class="mu" style="text-align:center;font-size:12px;padding:16px 10px 24px">Versión 24-nov 13:50 · <a href="#" onclick="forceUpd();return false" style="text-decoration:underline">Actualizar ahora</a></div>
+<div id="vf" class="mu" style="text-align:center;font-size:12px;padding:16px 10px 24px">Versión 24-nov 14:00 · <a href="#" onclick="forceUpd();return false" style="text-decoration:underline">Actualizar ahora</a></div>
 </div>
 <script>
 /* ===== Capa de datos Supabase (reemplaza la base de datos de Claude) ===== */
@@ -1109,7 +1109,7 @@ cbSheet(wb,"Por vehículo",[["Patente",11],["Tipo de vehículo",16],["N° chip",
 pl.map(p=>{const a=rows.filter(l=>l.plate===p),x=sumL(a),r=rendOf(p,ra),u=r.h.avg&&!r.km.avg?"h":"km";return[p,vTl(p),chipOf(p),x.n,x.l,sumL(a.filter(l=>l.cat==="proy")).l,sumL(a.filter(l=>l.cat==="mant")).l,x.c,x.l?Math.round(x.c/x.l):null,r.km.avg,r.h.avg,r.km.last?r.km.last.val:null,r.h.last?r.h.last.val:null,rendFb(r,u).t]}),[null,null,null,null,D,D,D,P,P,"0.0","0.00","0.0","0.00",null]);
 cbFull(wb,rows);
 const dl=await claude.use("downloads");if(!dl)return al("La descarga no está disponible en este momento.");
-try{const buf=await wb.xlsx.writeBuffer();await dl.save({filename:`Combustible_${tag}.xlsx`,data:new Blob([buf],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"})})}catch(e){if(!e||e.code!=="declined")al("No se pudo descargar el informe")}}
+try{const buf=await wb.xlsx.writeBuffer();await dl.save({filename:`Combustible_${kind==="mes"?"GLOBAL":CB.f.c==="proy"?"PROYECTOS":CB.f.c==="mant"?"MANTENCION":"GLOBAL"}_${tag}.xlsx`,data:new Blob([buf],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"})})}catch(e){if(!e||e.code!=="declined")al("No se pudo descargar el informe")}}
 /* ===== Consumo de litros: mensual y anual por patente y por asignación ===== */
 const cbFaenas=()=>{const m=new Map();fuelLogs().forEach(l=>{const f=(l.faena||"").trim();if(f&&!m.has(normN(f)))m.set(normN(f),f)});return[...m.values()].sort((a,b)=>a.localeCompare(b))};
 const vTk=pl=>{const v=VALL.find(x=>x.id===pl);return v&&v.tipo||""},vTl=pl=>{const k=vTk(pl);return TIPS[k]||k||"Sin tipo"};
@@ -1156,7 +1156,7 @@ c.list.map(z=>{const a=c.rows.filter(l=>l.plate===z.p),am=a.filter(mo);return[z.
 const det=[...c.rows].sort((a,b)=>np(a.plate).localeCompare(np(b.plate))||(a.date||"").localeCompare(b.date||""));
 cbFull(wb,det);
 const dl=await claude.use("downloads");if(!dl)return al("La descarga no está disponible en este momento.");
-try{const buf=await wb.xlsx.writeBuffer();await dl.save({filename:`Consumo_combustible_${c.m}${CB.cv?"_"+CB.cv:""}${CB.ca?"_"+CB.ca.replace(/[^A-Za-z0-9]+/g,"-"):""}.xlsx`,data:new Blob([buf],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"})})}catch(e){if(!e||e.code!=="declined")al("No se pudo descargar el informe")}}
+try{const buf=await wb.xlsx.writeBuffer();await dl.save({filename:`Consumo_combustible_${cat==="proy"?"PROYECTOS":cat==="mant"?"MANTENCION":"GLOBAL"}_${c.m}${CB.cv?"_"+CB.cv:""}${CB.ca?"_"+CB.ca.replace(/[^A-Za-z0-9]+/g,"-"):""}.xlsx`,data:new Blob([buf],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"})})}catch(e){if(!e||e.code!=="declined")al("No se pudo descargar el informe")}}
 /* ===== Documentos por vehículo: consulta y descarga (solo lectura) ===== */
 let OD="",VDok=false,DFok=false;
 const FAB=[["permiso","P.C."],["revision","R.T."],["soap","SOAP"]];
