@@ -625,7 +625,7 @@ const bars=(arr,col,fmt)=>{const mx=Math.max(1,...arr.map(x=>x.v));return `<div 
 const goVeh=(id,t)=>`sel='${H(id)}';tab='${t||"res"}';render();window.scrollTo(0,0)`;
 function rsLogTxt(l){const t=l.type;if(t==="lav")return [l.km,l.faena?"Faena: "+l.faena:"",l.encargado?"Autoriza: "+l.encargado:""].filter(Boolean).join(" · ");if(t==="km")return kmTxt(l);
 if(t==="mant")return [l.km?fk(l.km)+" km":"",l.hrs?fk(l.hrs)+" h":"",(l.tipos||[]).map(x=>x==="Otro"&&l.otro?"Otro: "+l.otro:x).join(", ")||"Mantención",l.dealer&&l.dname?l.dname:"",(l.parts||[]).length?(l.parts.length+" repuesto(s)"):""].filter(Boolean).join(" · ");
-if(t==="comb")return [l.km?fk(l.km)+" km":"",(+l.liters?nf(l.liters)+" L":""),l.cost&&showAdm()?money(l.cost):""].filter(Boolean).join(" · ");
+if(t==="comb")return [l.km?fk(l.km)+" km":"",(+l.liters?nf(l.liters)+" L":""),l.cost&&showAdm()?money(l.cost):"",chipTxt(l)].filter(Boolean).join(" · ");
 if(t==="dano")return [l.km?fk(l.km)+" km":"",l.driver?"Chofer: "+l.driver:"",String(l.desc||"").slice(0,90)].filter(Boolean).join(" · ");
 return String(l.text||"").slice(0,90)}
 function fleetHtml(){const hoy=today(),d30=addD(-29),mes0=hoy.slice(0,8)+"01",y0=hoy.slice(0,4)+"-01-01",act=VALL.filter(v=>!v.sold),M6=mesesAtras(6);
@@ -959,11 +959,12 @@ function combHtml(){const tabs=[["proy","⛽ Proyectos"],["mant","🛠 Mantenci�
 if(CB.tab==="stat"&&!canCost())CB.tab="proy";
 const body=CB.tab==="proy"||CB.tab==="mant"?cbForm():CB.tab==="hist"?cbHist():CB.tab==="cons"?cbCons():cbStat();
 return `<div class="tabs">${tabs.map(([k,n])=>`<button class="${CB.tab===k?"on":""}" onclick="CB.tab='${k}';render(true)">${n}</button>`).join("")}</div>${body}`}
-const cbRow=l=>`<div class="row"><div>${vHead(l.plate)} · ${H(fdate(l.date))} · ${H(CAT[l.cat]||"Sin sección")}<div>${fL(l.liters)} L${canCost()?` · ${money(l.cost)}${+l.liters&&+l.cost?` (${money(l.cost/l.liters)}/L)`:""}`:""} · ${H(FT[l.ft]||"")} · ${odo(l)?fnum(odo(l),unitOf(l)==="h"?1:0)+" "+unitOf(l):"sin km"}</div><div class="mu">Cargó: ${H(l.cargo||"—")} · Faena: ${H(l.faena||"—")}${chipOf(l.plate)?" · Chip N° "+H(chipOf(l.plate)):""}${l.ctr?" · 📍 "+H(l.ctr):""}</div>${l.text?`<div style="margin-top:2px">📝 ${H(l.text)}</div>`:""}</div><span class="mu">${H(l.op||"")}<br>${adm(l)}</span></div>`;
+const cbRow=l=>`<div class="row"><div>${vHead(l.plate)} · ${H(fdate(l.date))} · ${H(CAT[l.cat]||"Sin sección")}<div>${fL(l.liters)} L${canCost()?` · ${money(l.cost)}${+l.liters&&+l.cost?` (${money(l.cost/l.liters)}/L)`:""}`:""} · ${H(FT[l.ft]||"")} · ${odo(l)?fnum(odo(l),unitOf(l)==="h"?1:0)+" "+unitOf(l):"sin km"}</div><div class="mu">Cargó: ${H(l.cargo||"—")} · Faena: ${H(l.faena||"—")}${chipTxt(l)?" · "+H(chipTxt(l)):""}${l.ctr?" · 📍 "+H(l.ctr):""}</div>${l.text?`<div style="margin-top:2px">📝 ${H(l.text)}</div>`:""}</div><span class="mu">${H(l.op||"")}<br>${adm(l)}</span></div>`;
 function cbForm(){const cat=CB.tab,vs=[...V].filter(v=>!v.sold).sort((a,b)=>a.id.localeCompare(b.id)),rec=fuelLogs().filter(l=>l.cat===cat).sort((a,b)=>(b.date||"").localeCompare(a.date||"")||String(b.id).localeCompare(String(a.id))).slice(0,10);
 return `<div class="card"><h2>Combustible · ${cat==="proy"?"Proyectos":"Mantención"}</h2><div class="g">
 <div><label>Tipo de vehículo</label><select id="c_tv" onchange="cbTipo()"><option value="">Todos</option>${tipos().filter(k=>k!=="Sin tipo").map(k=>`<option value="${H(k)}">${H(TIPS[k]||k)}</option>`).join("")}</select></div>
 <div><label>Patente</label><input id="c_p" list="c_pl" autocomplete="off" autocapitalize="characters" placeholder="Escribe o elige" oninput="cbVeh()"><datalist id="c_pl">${cbOpts(vs,"")}</datalist><div id="c_vi" class="mu"></div></div>
+<div id="c_cw" style="display:none"><label id="c_cl">Chip de combustible</label><div id="c_ca" class="mu"></div><select id="c_cs" onchange="cbChip()"><option value="own">Usé el chip de la patente</option><option value="otro">Usé otro chip</option></select><input id="c_co" placeholder="N° del chip utilizado" inputmode="numeric" autocomplete="off" style="display:none;margin-top:6px"></div>
 <div><label>Fecha</label><input id="c_d" type="date" value="${today()}"></div>
 <div><label>Quién cargó combustible</label><input id="c_w" placeholder="Nombre y apellido" autocomplete="off"></div>
 ${nmHtml("c_e","Encargado que ingresa los datos",true)}
@@ -978,9 +979,12 @@ ${canCost()?`<div><label>Costo total de la carga ($)</label><input id="c_c" type
 <div class="card"><h2>Últimas cargas de ${cat==="proy"?"proyectos":"mantención"}</h2>${rec.map(cbRow).join("")||'<div class="mu">Aún no hay cargas.</div>'}</div>`+consHtml(cat,"📈 Litros utilizados · "+(cat==="proy"?"Proyectos":"Mantención"),false)}
 const cbOpts=(vs,tv)=>vs.filter(v=>!tv||v.tipo===tv).map(v=>`<option value="${H(v.id)}">${H([TIPS[v.tipo]||v.tipo,v.marca,v.model].filter(Boolean).join(" · "))}</option>`).join("");
 function cbTipo(){const tv=($("#c_tv")||{}).value||"",dl=$("#c_pl");if(dl)dl.innerHTML=cbOpts(V.filter(v=>!v.sold).sort((a,b)=>a.id.localeCompare(b.id)),tv);const p=$("#c_p");if(p){const v=V.find(x=>np(x.id)===np(p.value));if(v&&tv&&v.tipo!==tv){p.value="";cbVeh()}}}
-function cbVeh(){const el=$("#c_p");if(!el)return;const v=V.find(x=>np(x.id)===np(el.value)&&np(el.value)),i=$("#c_vi");if(!v){if(i)i.textContent="";return}
+function cbVeh(){const el=$("#c_p");if(!el)return;const v=V.find(x=>np(x.id)===np(el.value)&&np(el.value)),i=$("#c_vi");if(!v){if(i)i.textContent="";cbChip();return}
 if(i)i.textContent=`${[v.marca,v.model].filter(Boolean).join(" ")} · último: ${fnum(v.km||0)} km${v.hrs?` · ${fnum(v.hrs,1)} h`:""}${v.chip?` · chip N° ${v.chip}`:""}${chipOthers(v,v.chip).length?" · ⚠ chip repetido en "+chipOthers(v,v.chip).map(x=>fmtPat(x)).join(", "):""}`;
-const f=$("#c_f");if(f&&!f.value)f.value=v.assign||"";const ct=$("#c_ct");if(ct&&!ct.value)ct.value=v.contrato||"";const u=$("#c_u");if(u){const hh=["Grúas","Movimiento de tierra","Generadores"].includes(v.tipo)||(v.tipo==="Camiones"&&/PLUMA/.test(normN([v.marca,v.model,v.assign,v.id].join(" "))))||(v.hrs&&!v.km);u.value=hh?"h":"km";cbUnit()}}
+cbChip();const f=$("#c_f");if(f&&!f.value)f.value=v.assign||"";const ct=$("#c_ct");if(ct&&!ct.value)ct.value=v.contrato||"";const u=$("#c_u");if(u){const hh=["Grúas","Movimiento de tierra","Generadores"].includes(v.tipo)||(v.tipo==="Camiones"&&/PLUMA/.test(normN([v.marca,v.model,v.assign,v.id].join(" "))))||(v.hrs&&!v.km);u.value=hh?"h":"km";cbUnit()}}
+function cbChip(){const v=V.find(x=>np(x.id)===np(($("#c_p")||{}).value)&&np(($("#c_p")||{}).value)),w=$("#c_cw"),s=$("#c_cs"),i=$("#c_co"),a=$("#c_ca"),l=$("#c_cl");if(!w)return;if(!v){w.style.display="none";return}w.style.display="";
+if(v.chip){a.textContent="Asignado: N° "+v.chip;l.textContent="Chip de combustible";s.style.display="";i.style.display=s.value==="otro"?"":"none";if(s.value!=="otro")i.value=""}
+else{a.textContent="Sin chip asignado";l.textContent="Chip utilizado (obligatorio)";s.style.display="none";s.value="otro";i.style.display=""}}
 function cbUnit(){const u=($("#c_u")||{}).value,l=$("#c_kl");if(l)l.textContent=u==="h"?"Horas del vehículo (horómetro)":"Kilometraje del vehículo"}
 async function cbSave(){bl();const g=id=>($("#"+id)||{}).value||"",miss=[];
 const pl=np(g("c_p")),v=pl&&V.find(x=>np(x.id)===pl);if(!v)miss.push("Patente (elige una de la lista)");
@@ -988,13 +992,14 @@ const w=g("c_w").trim(),e=g("c_e").trim(),u=g("c_u"),k=+String(g("c_k")).replace
 if(!w)miss.push("Quién cargó combustible");if(!e)miss.push("Encargado que ingresa los datos");
 if(!(k>0))miss.push(u==="h"?"Horas del vehículo":"Kilometraje del vehículo");if(!(li>0))miss.push("Litros");if(canCost()&&!(co>0))miss.push("Costo total");
 if(!g("c_d"))miss.push("Fecha");if(!fa)miss.push("Faena de asignación");
+const asg=v?String(v.chip||"").trim():"",otro=v&&(!asg||g("c_cs")==="otro"),cu=otro?g("c_co").trim():asg;if(v&&otro&&!cu)miss.push(asg?"N° del chip utilizado":"N° del chip utilizado (la patente no tiene chip asignado)");
 if(miss.length)return showErr("c_err",miss);showErr("c_err",[]);
 const cur=u==="h"?+v.hrs||0:+v.km||0,uu=u==="h"?"horómetro":"kilometraje",dg=u==="h"?1:0;
 const kg=await kmGuard(v,k,u,g("c_d"));if(kg===false)return;
 if(cur&&k-cur>(u==="h"?500:3000)&&!await cf(`El ${uu} subió ${fnum(k-cur,dg)} desde el último registro (${fnum(cur,dg)}). ¿Es correcto?`))return;
 if(li>400&&!await cf(`${fnum(li,1)} litros es una carga muy grande. ¿Es correcto?`))return;
 const pp=co/li;if(co>0&&(pp<300||pp>3000)&&!await cf(`Con ese costo total y esos litros, el precio sale ${money(pp)} por litro, fuera de lo habitual. ¿Es correcto?`))return;
-const r={plate:v.id,type:"comb",cat:CB.tab,ft:g("c_t"),cargo:w,op:e,unit:u,liters:li,cost:co,date:g("c_d"),faena:fa,full:true,text:g("c_n").trim(),uid:ME_ID};{const c=g("c_ct").trim();if(c)r.ctr=c}
+const r={plate:v.id,type:"comb",cat:CB.tab,ft:g("c_t"),cargo:w,op:e,unit:u,liters:li,cost:co,date:g("c_d"),faena:fa,full:true,text:g("c_n").trim(),uid:ME_ID,chip:cu,chipOtro:!!(otro&&cu!==asg)||(!asg&&!!cu)};{const c=g("c_ct").trim();if(c)r.ctr=c}
 if(u==="h"){r.hrs=k;r.km=0}else r.km=k;if(kg)r.rev=kg; snf('c_e',e);
 try{const t=Date.now();await db.collection("logs").doc("l"+t).set(r);
 const up={};if(u==="h"){if(k>(+v.hrs||0))up.hrs=k}else if(k>(+v.km||0))up.km=k;
@@ -1031,11 +1036,14 @@ return `<div class="card"><h2>Estadísticas</h2><div class="top" style="margin:0
 <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px"><tr style="text-align:left"><th>Patente</th><th>Tipo</th><th>Cargas</th><th>Litros</th><th>Costo</th><th>Rendimiento</th><th>Último</th><th>Observación</th></tr>
 ${pv.map(z=>`<tr style="border-top:1px solid var(--bd)"><td><b>${H(z.p)}</b></td><td>${H(vTl(z.p))}</td><td>${z.n}</td><td>${fL(z.l)}</td><td>${money(z.c)}</td><td>${rtxt(z.r,z.u)}</td><td>${z.r[z.u].last?(z.u==="km"?fnum(z.r[z.u].last.val,1)+" km/L":fnum(z.r[z.u].last.val,2)+" L/h"):"—"}</td><td class="${z.fb.c}">${H(z.fb.t)}</td></tr>`).join("")||'<tr><td colspan="8" class="mu">Sin cargas en este mes.</td></tr>'}</table></div></div>`}
 const chipOf=pl=>String((VALL.find(x=>x.id===pl)||{}).chip||"").trim();
+const chipUsed=l=>l.chip!=null&&l.chip!==""?String(l.chip):l.chipOtro?"":chipOf(l.plate);
+const chipTipo=l=>l.chipOtro?"OTRO chip":(chipUsed(l)?"Chip de la patente":"");
+const chipTxt=l=>{const c=chipUsed(l);return l.chipOtro?"Chip: OTRO"+(c?" N° "+c:""):c?"Chip N° "+c:""};
 function cbFull(wb,rows){const cc=canCost(),dt=d=>{const[a,b,e]=(d||"").split("-");return e?new Date(+a,+b-1,+e):null},D="#,##0.000",P="#,##0",F="dd/mm/yyyy",x=sumL(rows),
-cols=[["Fecha",12],["Patente",11],["Tipo de vehículo",16],["Marca y modelo",24],["N° chip de combustible",20],["Sección",13],["Asignación (faena)",26],["Contrato / ubicación",24],["Combustible",12],["Litros",10],...(cc?[["Costo total ($)",14],["$ por litro",11]]:[]),["Medido en",11],["Kilometraje / horas",16],["Quién cargó",22],["Encargado que ingresó",22],["Nota u observación",44]],
-fm=[F,null,null,null,null,null,null,null,null,D,...(cc?[P,P]:[]),null,"#,##0.0##",null,null,null],
-data=rows.map(l=>{const v=VALL.find(z=>z.id===l.plate);return[dt(l.date),l.plate,vTl(l.plate),v?vname(v):"",chipOf(l.plate),CAT[l.cat]||"Sin sección",l.faena||"",l.ctr||"",FT[l.ft]||"",+l.liters,...(cc?[+l.cost||0,+l.liters&&+l.cost?Math.round(l.cost/l.liters):null]:[]),unitOf(l)==="h"?"Horas":"Kilometraje",odo(l)||null,l.cargo||"",l.op||"",l.text||""]}),
-tot=["Total",null,null,null,null,null,null,null,null,x.l,...(cc?[x.c,x.l?Math.round(x.c/x.l):null]:[]),null,null,null,null,null];
+cols=[["Fecha",12],["Patente",11],["Tipo de vehículo",16],["Marca y modelo",24],["Chip utilizado",18],["Tipo de chip",16],["Sección",13],["Asignación (faena)",26],["Contrato / ubicación",24],["Combustible",12],["Litros",10],...(cc?[["Costo total ($)",14],["$ por litro",11]]:[]),["Medido en",11],["Kilometraje / horas",16],["Quién cargó",22],["Encargado que ingresó",22],["Nota u observación",44]],
+fm=[F,null,null,null,null,null,null,null,null,null,D,...(cc?[P,P]:[]),null,"#,##0.0##",null,null,null],
+data=rows.map(l=>{const v=VALL.find(z=>z.id===l.plate);return[dt(l.date),l.plate,vTl(l.plate),v?vname(v):"",chipUsed(l),chipTipo(l),CAT[l.cat]||"Sin sección",l.faena||"",l.ctr||"",FT[l.ft]||"",+l.liters,...(cc?[+l.cost||0,+l.liters&&+l.cost?Math.round(l.cost/l.liters):null]:[]),unitOf(l)==="h"?"Horas":"Kilometraje",odo(l)||null,l.cargo||"",l.op||"",l.text||""]}),
+tot=["Total",null,null,null,null,null,null,null,null,null,x.l,...(cc?[x.c,x.l?Math.round(x.c/x.l):null]:[]),null,null,null,null,null];
 return cbSheet(wb,"Detalle",cols,data,fm,tot)}
 const CPR="FF2E7D32",CMA="FFE65100",CTO="FF455A64",CBL="FF1F4E9E";
 function cbBlocks(wb,name,blocks,w0){const ws=wb.addWorksheet(name),thin={style:"thin",color:{argb:"FFB0B8C4"}},bd={top:thin,left:thin,bottom:thin,right:thin},fl=c=>({type:"pattern",pattern:"solid",fgColor:{argb:c}});let r=1,nc=0;blocks.forEach(b=>nc=Math.max(nc,b.cols.length));
