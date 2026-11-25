@@ -86,7 +86,7 @@ input[type=file].dz.over{border-color:var(--ac);background:rgba(28,93,168,.12)}.
 </style><script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script></head><body><div class="w">
 <div class="top" id="hd"><div class="brand-wrap"><img class="logo" src="icons/logo-imt.png" alt="IMT Ingeniería"><h1 class="brand">Control de Flota<small>IMT Ingeniería</small></h1></div><span><span class="mu" id="st">Conectando…</span> <button onclick="setMode('')" style="min-height:0;padding:4px 8px;font-size:12px">Cambiar modo</button></span></div>
 <div id="app"></div>
-<div id="vf" class="mu" style="text-align:center;font-size:12px;padding:16px 10px 24px">Versión 25-nov 13:00 · <a href="#" onclick="forceUpd();return false" style="text-decoration:underline">Actualizar ahora</a></div>
+<div id="vf" class="mu" style="text-align:center;font-size:12px;padding:16px 10px 24px">Versión 25-nov 13:20 · <a href="#" onclick="forceUpd();return false" style="text-decoration:underline">Actualizar ahora</a></div>
 </div>
 <script>
 /* ===== Capa de datos Supabase (reemplaza la base de datos de Claude) ===== */
@@ -2113,7 +2113,7 @@ document.addEventListener("visibilitychange",()=>{if(!document.hidden)check()});
 (function(){
 const KM=new Set(["n_k","dl_k","x_k","d_k","f_k","m_l","m_e","f_y","l_n","l_kn","n_mo","n_mm","ri_a"]),UNIT={c_k:"c_u",o_k:"o_u",o_i:"o_u"},KMD=new Set(["km","kmIni","kmFin"]),INTD=new Set(["mo_h","mo_m"]),MONEYD=new Set(["cost","dneto","dcost"]),MONEY=new Set(["n_c","c_c","dl_nt","dl_c","pa_v","pa_vb","di_vb","di_v"]);
 function kind(el){const id=el.id||"",dk=el.dataset.k||"",oi=el.getAttribute("oninput")||"";
-if(KM.has(id))return"i";if(UNIT[id])return"u:"+UNIT[id];
+if(KM.has(id))return"i";if(UNIT[id])return"u:"+UNIT[id];{const m=/^ct_k(\d+)$/.exec(id);if(m)return"u:ct_u"+m[1]}if(/MPE\.km\b/.test(oi))return"i";
 if(INTD.has(dk))return"i";if(MONEYD.has(dk))return"m";
 if(MONEY.has(id)||/^(pc_|pv_)/.test(id)||/ucost|PC\.f\.(total|neto)/.test(oi))return"m";
 if(KMD.has(dk)){const lb=el.previousElementSibling,t=lb?lb.textContent:"";return/\(h\)|hora/i.test(t)?"d":"i"}
