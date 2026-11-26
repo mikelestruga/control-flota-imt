@@ -86,7 +86,7 @@ input[type=file].dz.over{border-color:var(--ac);background:rgba(28,93,168,.12)}.
 </style><script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script></head><body><div class="w">
 <div class="top" id="hd"><div class="brand-wrap"><img class="logo" src="icons/logo-imt.png" alt="IMT Ingeniería"><h1 class="brand">Control de Flota<small>IMT Ingeniería</small></h1></div><span><span class="mu" id="st">Conectando…</span> <button onclick="setMode('')" style="min-height:0;padding:4px 8px;font-size:12px">Cambiar modo</button></span></div>
 <div id="app"></div>
-<div id="vf" class="mu" style="text-align:center;font-size:12px;padding:16px 10px 24px">Versión 26-nov 14:45 · <a href="#" onclick="forceUpd();return false" style="text-decoration:underline">Actualizar ahora</a></div>
+<div id="vf" class="mu" style="text-align:center;font-size:12px;padding:16px 10px 24px">Versión 26-nov 15:00 · <a href="#" onclick="forceUpd();return false" style="text-decoration:underline">Actualizar ahora</a></div>
 </div>
 <script>
 /* ===== Capa de datos Supabase (reemplaza la base de datos de Claude) ===== */
@@ -1001,8 +1001,8 @@ const cbQ=(l,p,ch,dm)=>{const c=normN(ch||"");return(!p||np(l.plate).includes(np
 function cbFilter(){const f=CB.f,p=np(f.p),n=f.n.trim().toLowerCase(),dm=f.dup&&cbAdm()?cbDMX():null;const r=fuelLogs().filter(l=>cbQ(l,f.p,f.ch,dm)&&(!n||((l.cargo||"")+" "+(l.op||"")).toLowerCase().includes(n))&&(!f.d1||(l.date||"")>=f.d1)&&(!f.d2||(l.date||"")<=f.d2)&&(!f.c||(l.cat||"")===f.c)&&(!f.t||(l.ft||"")===f.t)&&(!f.a||normN(l.faena)===normN(f.a))&&(!f.v||vTk(l.plate)===f.v)&&(!f.k||normN(l.ctr)===normN(f.k)));return dm?r.sort((a,b)=>(b.date||"").localeCompare(a.date||"")||a.plate.localeCompare(b.plate)||String(dm.get(a.id).a[0].id).localeCompare(String(dm.get(b.id).a[0].id))||dm.get(a.id).j-dm.get(b.id).j):r.sort((a,b)=>(b.date||"").localeCompare(a.date||"")||String(b.id).localeCompare(String(a.id)))}
 const r3=x=>Math.round((+x||0)*1000)/1000,fL=n=>r3(n).toLocaleString("es-CL",{minimumFractionDigits:0,maximumFractionDigits:3});
 const sumL=r=>({n:r.length,l:r3(r.reduce((s,x)=>s+ +x.liters,0)),c:r.reduce((s,x)=>s+(+x.cost||0),0)});
-function combHtml(){const tabs=[["proy","⛽ Proyectos"],["mant","🛠 Mantención"],["hist","📋 Historial"],["cons","📈 Consumo"],...(canCost()?[["stat","📊 Estadísticas"]]:[]),...(cbAdm()?[["mod","🧾 Modificaciones"]]:[])];
-if(CB.tab==="stat"&&!canCost())CB.tab="proy";if(CB.tab==="mod"&&!cbAdm())CB.tab="proy";
+function combHtml(){const tabs=[["proy","⛽ Proyectos"],["mant","🛠 Mantención"],["hist","📋 Historial"],["cons","📈 Consumo"],...(canCost()?[["stat","📊 Estadísticas"]]:[]),...(showAdm()?[["mod","🧾 Modificaciones"]]:[])];
+if(CB.tab==="stat"&&!canCost())CB.tab="proy";if(CB.tab==="mod"&&!showAdm())CB.tab="proy";
 const body=CB.tab==="proy"||CB.tab==="mant"?cbForm():CB.tab==="hist"?cbHist():CB.tab==="cons"?cbCons():CB.tab==="mod"?cbMod():cbStat();
 return `<div class="tabs">${tabs.map(([k,n])=>`<button class="${CB.tab===k?"on":""}" onclick="CB.tab='${k}';render(true)">${n}</button>`).join("")}</div>${body}`}
 const cbRow=l=>`<div class="row"><div>${vHead(l.plate)} · ${H(fdate(l.date))} · ${H(CAT[l.cat]||"Sin sección")}<div>${fL(l.liters)} L${canCost()?` · ${money(l.cost)}${+l.liters&&+l.cost?` (${money(l.cost/l.liters)}/L)`:""}`:""} · ${H(FT[l.ft]||"")} · ${odo(l)?fnum(odo(l),unitOf(l)==="h"?1:0)+" "+unitOf(l):"sin km"}</div><div class="mu">Cargó: ${H(l.cargo||"—")} · Faena: ${H(l.faena||"—")}${chipTxt(l)?" · "+H(chipTxt(l)):""}${l.ctr?" · 📍 "+H(l.ctr):""}</div>${cbTag(l)}${l.text?`<div style="margin-top:2px">📝 ${H(l.text)}</div>`:""}</div><span class="mu" style="text-align:right">${ingS(l)}${H(l.op||"")}<br>${adm(l)}</span></div>`;
