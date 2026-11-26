@@ -86,7 +86,7 @@ input[type=file].dz.over{border-color:var(--ac);background:rgba(28,93,168,.12)}.
 </style><script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script></head><body><div class="w">
 <div class="top" id="hd"><div class="brand-wrap"><img class="logo" src="icons/logo-imt.png" alt="IMT Ingeniería"><h1 class="brand">Control de Flota<small>IMT Ingeniería</small></h1></div><span><span class="mu" id="st">Conectando…</span> <button onclick="setMode('')" style="min-height:0;padding:4px 8px;font-size:12px">Cambiar modo</button></span></div>
 <div id="app"></div>
-<div id="vf" class="mu" style="text-align:center;font-size:12px;padding:16px 10px 24px">Versión 26-nov 11:10 · <a href="#" onclick="forceUpd();return false" style="text-decoration:underline">Actualizar ahora</a></div>
+<div id="vf" class="mu" style="text-align:center;font-size:12px;padding:16px 10px 24px">Versión 26-nov 11:40 · <a href="#" onclick="forceUpd();return false" style="text-decoration:underline">Actualizar ahora</a></div>
 </div>
 <script>
 /* ===== Capa de datos Supabase (reemplaza la base de datos de Claude) ===== */
@@ -1061,16 +1061,19 @@ const cbAllRows=a=>a.sort((a,b)=>(b.date||"").localeCompare(a.date||"")||String(
 const cbAllFill=()=>{const b=document.querySelector("#cb_all .cba");if(b)b.innerHTML=cbAllHtml()};
 let CBSV=0,CBKEYS=new Set();
 async function cbSave(){if(CBSV)return;CBSV=1;try{await cbSave0()}finally{CBSV=0}}
-async function cbSave0(){bl();const e=(($("#c_e")||{}).value||"").trim(),miss=[],items=[];
+async function cbSave0(){bl();const e=(($("#c_e")||{}).value||"").trim(),miss=[];let items=[];
 CTB.rows.forEach((r,i)=>{if(!(r.p||r.k||r.l||r.c))return;const m=[],v=ctVeh(r),k=+String(r.k).replace(",","."),li=Math.round((+String(r.l).replace(",","."))*1000)/1000,co=canCost()?+r.c:0;
 if(!v)m.push("patente (elige una de la lista)");if(!String(r.w).trim())m.push("quién cargó");if(!(k>0))m.push(r.u==="h"?"horas":"km");if(!(li>0))m.push("litros");if(canCost()&&!(co>0))m.push("costo");if(!r.d)m.push("fecha");if(!String(r.f).trim())m.push("faena");
 const asg=v?String(v.chip||"").trim():"",otro=!!v&&(!asg||r.cs==="otro"),cu=otro?String(r.co).trim():asg;if(v&&otro&&!cu)m.push(asg?"N° del chip usado":"N° del chip usado (la patente no tiene chip)");
-if(m.length)miss.push("Fila "+(i+1)+(v?" ("+fmtPat(v)+")":"")+": "+m.join(", "));else items.push({r,v,k,li,co,asg,otro,cu})});
+if(m.length)miss.push("Fila "+(i+1)+(v?" ("+fmtPat(v)+")":"")+": "+m.join(", "));else items.push({r,v,k,li,co,asg,otro,cu,n:i+1})});
 if(!e)miss.unshift("Encargado que ingresa los datos");if(!items.length&&!miss.length)miss.push("Ingresa al menos una carga");
 if(miss.length)return showErr("c_err",miss);showErr("c_err",[]);
+{const ck=it=>[it.v.id,it.r.d,it.li,it.k,it.r.u].join("|"),seen=new Map(),dups=[];
+items.forEach((it,ix)=>{const key=ck(it),h=it.r.u==="h",ex=CBKEYS.has(key)?"recién guardada":L.some(x=>x.type==="comb"&&x.plate===it.v.id&&x.date===it.r.d&&Math.abs((+x.liters||0)-it.li)<0.0005&&(+x[h?"hrs":"km"]||0)===it.k)?"ya existe esa carga":seen.has(key)?"igual a la fila "+items[seen.get(key)].n:null;if(ex){it.dup=ex;dups.push(it)}else seen.set(key,ix)});
+if(dups.length){const ch=await dlg(`<h3 style="margin:0 0 6px">⚠ ${dups.length} de ${items.length} carga${items.length>1?"s":""} parece${dups.length>1?"n":""} duplicada${dups.length>1?"s":""}</h3><p class="mu" style="font-size:13px;margin:0 0 8px">Misma patente, fecha, litros y km/horas que otra carga. Todavía no se guardó nada.</p><div style="max-height:40vh;overflow:auto;font-size:13px;line-height:1.6">${dups.map(it=>`<b>Fila ${it.n}</b> · ${H(fmtPat(it.v))} · ${H(fdate(it.r.d))} · ${fnum(it.li,1)} L · ${fnum(it.k,it.r.u==="h"?1:0)} ${it.r.u==="h"?"h":"km"} — <span class="er">${H(it.dup)}</span>`).join("<br>")}</div><div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:12px"><button id="dn">Cancelar y revisar</button><button id="d2">Guardar todas (${items.length})</button><button class="p" id="d1"${items.length>dups.length?"":" disabled"}>Guardar solo las no duplicadas (${items.length-dups.length})</button></div>`,(o,d)=>{o.querySelector("#dn").onclick=()=>d(0);o.querySelector("#d1").onclick=()=>d(1);o.querySelector("#d2").onclick=()=>d(2)});
+if(!ch)return;if(ch===1)items=items.filter(it=>!it.dup)}}
 let ok=0,seq=0;
 for(const it of items){const {r,v,k,li,co,asg,otro,cu}=it,u=r.u,cur=u==="h"?+v.hrs||0:+v.km||0,uu=u==="h"?"horómetro":"kilometraje",dg=u==="h"?1:0,pre=fmtPat(v)+": ";
-{const key=[v.id,r.d,li,k,u].join("|"),dup=CBKEYS.has(key)||L.find(x=>x.type==="comb"&&x.plate===v.id&&x.date===r.d&&Math.abs((+x.liters||0)-li)<0.0005&&(+x[u==="h"?"hrs":"km"]||0)===k);if(dup&&!await cf(pre+`ya existe una carga igual (${fdate(r.d)} · ${fnum(li,1)} L · ${fnum(k,dg)} ${u}). ¿Guardarla de todas formas?`))continue;CBKEYS.add(key);setTimeout(()=>CBKEYS.delete(key),120000)}
 const kg=await kmGuard(v,k,u,r.d);if(kg===false)continue;
 if(cur&&k-cur>(u==="h"?500:3000)&&!await cf(pre+`el ${uu} subió ${fnum(k-cur,dg)} desde el último registro (${fnum(cur,dg)}). ¿Es correcto?`))continue;
 if(li>400&&!await cf(pre+`${fnum(li,1)} litros es una carga muy grande. ¿Es correcto?`))continue;
@@ -1081,7 +1084,7 @@ try{const t=Date.now()+(seq++)*7;await db.collection("logs").doc("l"+t).set(d);
 const up={};if(u==="h"){if(k>(+v.hrs||0))up.hrs=k}else if(k>(+v.km||0))up.km=k;
 if(Object.keys(up).length){await db.collection("vehicles").doc(v.id).update(up,false);if(u==="h")v.hrs=k;else v.km=k}
 await db.collection("logs").doc("l"+t+"k").set({plate:v.id,type:"km",date:d.date,kmFin:k,km:k,unit:u,text:"Carga de combustible",op:e,uid:ME_ID});
-r.__ok=1;ok++}catch(err){al("No se pudo guardar "+fmtPat(v)+": "+((err&&err.message)||"error"));break}}
+r.__ok=1;ok++;{const key=[v.id,r.d,li,k,u].join("|");CBKEYS.add(key);setTimeout(()=>CBKEYS.delete(key),120000)}}catch(err){al("No se pudo guardar "+fmtPat(v)+": "+((err&&err.message)||"error"));break}}
 snf('c_e',e);const left=CTB.rows.filter(r=>!r.__ok&&(r.p||r.k||r.l||r.c)).length;CTB.rows=CTB.rows.filter(r=>!r.__ok);if(!CTB.rows.length)CTB.rows=[ctNew()];
 if(ok)al(ok+(ok===1?" carga guardada":" cargas guardadas")+" ✔"+(left?` · ${left} sin guardar (revisa las filas)`:""));render(true)}
 const cbT=l=>{const n=+String(l.id||"").slice(1);return n>1e12?new Date(n):null};
