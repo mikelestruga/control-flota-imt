@@ -86,7 +86,7 @@ input[type=file].dz.over{border-color:var(--ac);background:rgba(28,93,168,.12)}.
 </style><script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script></head><body><div class="w">
 <div class="top" id="hd"><div class="brand-wrap"><img class="logo" src="icons/logo-imt.png" alt="IMT Ingeniería"><h1 class="brand">Control de Flota<small>IMT Ingeniería</small></h1></div><span><span class="mu" id="st">Conectando…</span> <button onclick="setMode('')" style="min-height:0;padding:4px 8px;font-size:12px">Cambiar modo</button></span></div>
 <div id="app"></div>
-<div id="vf" class="mu" style="text-align:center;font-size:12px;padding:16px 10px 24px">Versión 25-nov 14:10 · <a href="#" onclick="forceUpd();return false" style="text-decoration:underline">Actualizar ahora</a></div>
+<div id="vf" class="mu" style="text-align:center;font-size:12px;padding:16px 10px 24px">Versión 26-nov 09:15 · <a href="#" onclick="forceUpd();return false" style="text-decoration:underline">Actualizar ahora</a></div>
 </div>
 <script>
 /* ===== Capa de datos Supabase (reemplaza la base de datos de Claude) ===== */
@@ -1055,7 +1055,9 @@ ${nmHtml("c_e","Encargado que ingresa los datos",true)}</div>
 <div class="ctw"><table class="ct"><thead><tr><th>Patente</th><th>Fecha</th><th>Quién cargó</th><th>Combustible</th><th>Medir en</th><th>Km / horas</th><th>Litros</th>${cc?"<th>Costo ($)</th>":""}<th>Chip</th><th>Faena</th><th>Contrato</th><th>Notas</th><th></th></tr></thead><tbody id="ct_b">${ctBody()}</tbody></table></div>
 <p style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button type="button" onclick="ctAdd(1)">+ Agregar fila</button><button type="button" onclick="ctAdd(5)">+ 5 filas</button><button class="p" style="flex:1;min-width:180px" onclick="cbSave()">Guardar cargas</button></p><div id="c_err" class="er" style="font-size:14px"></div></div>
 <div class="card"><h2>Últimas cargas de ${cat==="proy"?"proyectos":"mantención"}</h2>${rec.map(cbRow).join("")||'<div class="mu">Aún no hay cargas.</div>'}</div>`+consHtml(cat,"📈 Litros utilizados · "+(cat==="proy"?"Proyectos":"Mantención"),false)}
-async function cbSave(){bl();const e=(($("#c_e")||{}).value||"").trim(),miss=[],items=[];
+let CBSV=0,CBKEYS=new Set();
+async function cbSave(){if(CBSV)return;CBSV=1;try{await cbSave0()}finally{CBSV=0}}
+async function cbSave0(){bl();const e=(($("#c_e")||{}).value||"").trim(),miss=[],items=[];
 CTB.rows.forEach((r,i)=>{if(!(r.p||r.k||r.l||r.c))return;const m=[],v=ctVeh(r),k=+String(r.k).replace(",","."),li=Math.round((+String(r.l).replace(",","."))*1000)/1000,co=canCost()?+r.c:0;
 if(!v)m.push("patente (elige una de la lista)");if(!String(r.w).trim())m.push("quién cargó");if(!(k>0))m.push(r.u==="h"?"horas":"km");if(!(li>0))m.push("litros");if(canCost()&&!(co>0))m.push("costo");if(!r.d)m.push("fecha");if(!String(r.f).trim())m.push("faena");
 const asg=v?String(v.chip||"").trim():"",otro=!!v&&(!asg||r.cs==="otro"),cu=otro?String(r.co).trim():asg;if(v&&otro&&!cu)m.push(asg?"N° del chip usado":"N° del chip usado (la patente no tiene chip)");
@@ -1064,6 +1066,7 @@ if(!e)miss.unshift("Encargado que ingresa los datos");if(!items.length&&!miss.le
 if(miss.length)return showErr("c_err",miss);showErr("c_err",[]);
 let ok=0,seq=0;
 for(const it of items){const {r,v,k,li,co,asg,otro,cu}=it,u=r.u,cur=u==="h"?+v.hrs||0:+v.km||0,uu=u==="h"?"horómetro":"kilometraje",dg=u==="h"?1:0,pre=fmtPat(v)+": ";
+{const key=[v.id,r.d,li,k,u].join("|"),dup=CBKEYS.has(key)||L.find(x=>x.type==="comb"&&x.plate===v.id&&x.date===r.d&&Math.abs((+x.liters||0)-li)<0.0005&&(+x[u==="h"?"hrs":"km"]||0)===k);if(dup&&!await cf(pre+`ya existe una carga igual (${fdate(r.d)} · ${fnum(li,1)} L · ${fnum(k,dg)} ${u}). ¿Guardarla de todas formas?`))continue;CBKEYS.add(key);setTimeout(()=>CBKEYS.delete(key),120000)}
 const kg=await kmGuard(v,k,u,r.d);if(kg===false)continue;
 if(cur&&k-cur>(u==="h"?500:3000)&&!await cf(pre+`el ${uu} subió ${fnum(k-cur,dg)} desde el último registro (${fnum(cur,dg)}). ¿Es correcto?`))continue;
 if(li>400&&!await cf(pre+`${fnum(li,1)} litros es una carga muy grande. ¿Es correcto?`))continue;
@@ -1077,9 +1080,19 @@ await db.collection("logs").doc("l"+t+"k").set({plate:v.id,type:"km",date:d.date
 r.__ok=1;ok++}catch(err){al("No se pudo guardar "+fmtPat(v)+": "+((err&&err.message)||"error"));break}}
 snf('c_e',e);const left=CTB.rows.filter(r=>!r.__ok&&(r.p||r.k||r.l||r.c)).length;CTB.rows=CTB.rows.filter(r=>!r.__ok);if(!CTB.rows.length)CTB.rows=[ctNew()];
 if(ok)al(ok+(ok===1?" carga guardada":" cargas guardadas")+" ✔"+(left?` · ${left} sin guardar (revisa las filas)`:""));render(true)}
+const cbT=l=>{const n=+String(l.id||"").slice(1);return n>1e12?new Date(n):null};
+const cbDupG=()=>{const m={};L.filter(l=>l.type==="comb").forEach(l=>{const u=l.unit==="h"?"h":"km",k=[l.plate,l.date,Math.round((+l.liters||0)*1000),+(u==="h"?l.hrs:l.km)||0].join("|");(m[k]=m[k]||[]).push(l)});return Object.values(m).filter(a=>a.length>1).map(a=>a.sort((x,y)=>(cbT(x)||0)-(cbT(y)||0)||String(x.id).localeCompare(String(y.id)))).sort((a,b)=>(b[0].date||"").localeCompare(a[0].date||""))};
+const cbHora=d=>d?d.toLocaleString("es-CL",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit",second:"2-digit"}):"—";
+async function cbDup(){const gs=cbDupG();
+if(!gs.length)return al("No encontré cargas duplicadas 👍");
+const veredicto=a=>{const t0=cbT(a[0]),t1=cbT(a[a.length-1]);if(!t0||!t1)return"";const s=Math.round((t1-t0)/1000);return s<=30?`⚠ Ingresadas con ${s} s de diferencia: parece un doble toque / doble envío (problema de la app).`:`Ingresada de nuevo ${s<3600?Math.round(s/60)+" min":s<86400?Math.round(s/3600)+" h":Math.round(s/86400)+" día(s)"} después: parece un reingreso de la persona.`};
+const r=await dlg(`<h2 style="margin:0 0 6px">🔍 Cargas posiblemente duplicadas (${gs.length})</h2><p class="mu" style="font-size:13px;margin:0 0 8px">Misma patente, fecha, litros y km/horas. Se conserva la primera ingresada y las demás se envían a la papelera (se pueden restaurar). Nada se elimina sin tu confirmación.</p><div style="max-height:55vh;overflow:auto">${gs.map((a,i)=>`<div class="card" style="margin:0 0 8px"><b>${H(fmtPat({id:a[0].plate}))}</b> · ${H(fdate(a[0].date))} · ${fnum(+a[0].liters||0,1)} L · ${fnum(+(a[0].unit==="h"?a[0].hrs:a[0].km)||0,a[0].unit==="h"?1:0)} ${a[0].unit==="h"?"h":"km"}${a.map((l,j)=>`<div style="font-size:13px;margin-top:4px">${j?"❌ Repetida":"✅ Original"} · ingresada ${H(cbHora(cbT(l)))} · por ${H(String(l.op||whoN(l)||"—"))} · cargó ${H(String(l.cargo||"—"))}${l.cost?" · "+H(money(l.cost)):""}</div>`).join("")}<div class="mu" style="font-size:12px;margin:4px 0">${H(veredicto(a))}</div><button onclick="document.getElementById('dg').value=${i};document.getElementById('dy').click()">Enviar a la papelera ${a.length-1===1?"la repetida":"las "+(a.length-1)+" repetidas"}</button></div>`).join("")}</div><input type="hidden" id="dg"><div style="display:flex;justify-content:flex-end;margin-top:10px"><button id="dn">Cerrar</button><button id="dy" style="display:none"></button></div>`,(o,d)=>{o.querySelector("#dn").onclick=()=>d(null);o.querySelector("#dy").onclick=()=>d(+o.querySelector("#dg").value)});
+if(r==null||isNaN(r))return;const a=gs[r];if(!a||!await cf("¿Enviar a la papelera "+(a.length-1)+" carga(s) repetida(s) de "+fmtPat({id:a[0].plate})+"? Se conserva la primera ingresada."))return;
+let n=0;for(const l of a.slice(1)){try{const dd={del:{at:new Date().toISOString(),by:meName()||"",role:mode||""}};await db.collection("logs").doc(l.id).update(dd,true);if(L.some(x=>x.id===l.id+"k"))await db.collection("logs").doc(l.id+"k").update(dd,true);n++}catch(e){al(permMsg(e));break}}
+if(n)al(n+" carga(s) repetida(s) enviada(s) a la papelera 🗑")}
 function cbHist(){const f=CB.f,rows=cbFilter(),s=sumL(rows),m=CB.m||today().slice(0,7);
 const opt=(o,v)=>o.map(([k,n])=>`<option value="${k}"${k===v?" selected":""}>${n}</option>`).join("");
-return `<div class="card"><h2>Historial de combustible</h2><div class="g">
+return `<div class="card"><div class="top" style="margin:0"><h2>Historial de combustible</h2>${showAdm()?`<button onclick="cbDup()">🔍 Buscar duplicados</button>`:""}</div><div class="g">
 <div><label>Patente</label><input value="${H(f.p)}" onchange="CB.f.p=this.value;render(true)"></div>
 <div><label>Tipo de vehículo</label><select onchange="CB.f.v=this.value;render(true)">${opt([["","Todos"],...tipos().filter(k=>k!=="Sin tipo").map(k=>[H(k),H(TIPS[k]||k)])],H(f.v))}</select></div>
 <div><label>Nombre (quien cargó o encargado)</label><input value="${H(f.n)}" onchange="CB.f.n=this.value;render(true)"></div>
